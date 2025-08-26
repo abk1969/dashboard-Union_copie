@@ -11,6 +11,7 @@ import DataBackup from './components/DataBackup';
 import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import StartupScreen from './components/StartupScreen';
+import Logo from './components/Logo';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './styles/animations.css';
@@ -300,11 +301,7 @@ function App() {
             <div className="flex items-center justify-between">
                                              <div className="card-enter">
                   <div className="flex items-center space-x-4">
-                                         <img 
-                       src="/image/Logo-white-h.png" 
-                       alt="Groupement Union" 
-                       className="h-16 w-auto hover-scale"
-                     />
+                                         <Logo />
                     <div>
                       <h1 className="text-3xl font-bold text-groupement-black hover-scale">
                         Dashboard
