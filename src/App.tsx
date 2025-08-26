@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
-import { sampleAdherentData } from './data/sampleData';
+import { loadDefaultData, fallbackData } from './data/defaultData';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
@@ -8,6 +8,7 @@ import FamilleDetailModal from './components/FamilleDetailModal';
 import MarquesSection from './components/MarquesSection';
 import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
+import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import StartupScreen from './components/StartupScreen';
 import jsPDF from 'jspdf';
@@ -15,7 +16,7 @@ import 'jspdf-autotable';
 import './styles/animations.css';
 
 function App() {
-  const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(sampleAdherentData);
+  const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'import'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
@@ -240,12 +241,32 @@ function App() {
     }
   }, [showStartup]);
 
+  // Effet pour charger les vraies données au démarrage
+  useEffect(() => {
+    if (pageLoaded) {
+      loadDefaultDataOnStartup();
+    }
+  }, [pageLoaded]);
+
   // Effet pour charger la sauvegarde automatiquement au démarrage
   useEffect(() => {
     if (pageLoaded && allAdherentData.length === 0) {
       loadBackupOnStartup();
     }
   }, [pageLoaded, allAdherentData.length]);
+
+  // Fonction pour charger les vraies données au démarrage
+  const loadDefaultDataOnStartup = async () => {
+    try {
+      const realData = await loadDefaultData();
+      if (realData.length > 0) {
+        console.log('🚀 Chargement des vraies données:', realData.length, 'enregistrements');
+        setAllAdherentData(realData);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des vraies données:', error);
+    }
+  };
 
   // Fonction pour charger la sauvegarde au démarrage
   const loadBackupOnStartup = () => {
@@ -805,6 +826,7 @@ function App() {
                  {/* Onglet Import */}
          {activeTab === 'import' && (
            <div className="space-y-6">
+             <DataExporter adherentsData={allAdherentData} />
              <DataImport onDataImported={handleDataImported} />
              <DataBackup 
                allAdherentData={allAdherentData}
