@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AdherentData } from '../types';
 
 interface DataBackupProps {
@@ -12,6 +12,29 @@ const DataBackup: React.FC<DataBackupProps> = ({ allAdherentData, onDataRestored
   const [backupMessage, setBackupMessage] = useState<string>('');
   const [autoBackupEnabled, setAutoBackupEnabled] = useState<boolean>(true);
 
+  const performAutoBackup = useCallback(() => {
+    try {
+      const timestamp = new Date().toISOString();
+      const backupData = {
+        timestamp,
+        data: allAdherentData,
+        version: '1.0'
+      };
+      
+      localStorage.setItem('groupementUnion_backup', JSON.stringify(backupData));
+      setLastBackup(timestamp);
+      
+      console.log('🔄 Sauvegarde automatique effectuée:', backupData.data.length, 'enregistrements');
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde automatique:', error);
+    }
+  }, [allAdherentData]);
+
+  // Charger la dernière sauvegarde au démarrage
+  useEffect(() => {
+    loadLastBackupInfo();
+  }, []);
+
   // Sauvegarder automatiquement toutes les 5 minutes
   useEffect(() => {
     if (!autoBackupEnabled) return;
@@ -23,30 +46,7 @@ const DataBackup: React.FC<DataBackupProps> = ({ allAdherentData, onDataRestored
     }, 5 * 60 * 1000); // 5 minutes
 
     return () => clearInterval(interval);
-  }, [allAdherentData, autoBackupEnabled]);
-
-  // Charger la dernière sauvegarde au démarrage
-  useEffect(() => {
-    loadLastBackupInfo();
-  }, []);
-
-  const performAutoBackup = () => {
-    try {
-      const backupData = {
-        data: allAdherentData,
-        timestamp: new Date().toISOString(),
-        count: allAdherentData.length,
-        version: '1.0'
-      };
-
-      localStorage.setItem('groupementUnion_backup', JSON.stringify(backupData));
-      setLastBackup(new Date().toLocaleString('fr-FR'));
-      
-      console.log('🔄 Sauvegarde automatique effectuée:', backupData.count, 'enregistrements');
-    } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde automatique:', error);
-    }
-  };
+  }, [allAdherentData, autoBackupEnabled, performAutoBackup]);
 
   const performManualBackup = async () => {
     setBackupStatus('backing-up');
@@ -134,7 +134,7 @@ const DataBackup: React.FC<DataBackupProps> = ({ allAdherentData, onDataRestored
       const localBackup = localStorage.getItem('groupementUnion_backup');
       if (localBackup) {
         const backupData = JSON.parse(localBackup);
-        setLastBackup(new Date(backupData.timestamp).toLocaleString('fr-FR'));
+        setLastBackup(backupData.timestamp);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des informations de sauvegarde:', error);
@@ -191,7 +191,7 @@ const DataBackup: React.FC<DataBackupProps> = ({ allAdherentData, onDataRestored
             <div>
               <div className="text-sm font-medium text-green-800">Dernière Sauvegarde</div>
               <div className="text-xs text-green-600">
-                {lastBackup || 'Aucune'}
+                {lastBackup ? new Date(lastBackup).toLocaleString('fr-FR') : 'Aucune'}
               </div>
             </div>
           </div>
