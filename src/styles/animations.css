@@ -1,0 +1,327 @@
+/* Animations personnalisées pour Groupement Union */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in-delay {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  50% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* Classes d'animation */
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out forwards;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in-delay 1.2s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.6s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.5s ease-out forwards;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.8s ease-out forwards;
+}
+
+/* Animations au survol */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.hover-scale {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Effet de brillance */
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Effet de pulsation lumineuse */
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Transitions fluides pour tous les éléments */
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Animation d'entrée pour les cartes */
+.card-enter {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+.card-enter:nth-child(1) { animation-delay: 0.1s; }
+.card-enter:nth-child(2) { animation-delay: 0.2s; }
+.card-enter:nth-child(3) { animation-delay: 0.3s; }
+.card-enter:nth-child(4) { animation-delay: 0.4s; }
+
+/* Animation pour les tableaux */
+.table-row-enter {
+  opacity: 0;
+  transform: translateX(-20px);
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+/* Animation pour les modals */
+.modal-enter {
+  opacity: 0;
+  transform: scale(0.9) translateY(-20px);
+  animation: scale-in 0.4s ease-out forwards;
+}
+
+/* Animation pour les boutons */
+.button-enter {
+  opacity: 0;
+  transform: scale(0.8);
+  animation: bounce-in 0.6s ease-out forwards;
+}
+
+/* Animation pour les graphiques */
+.chart-enter {
+  opacity: 0;
+  transform: scale(0.95);
+  animation: scale-in 0.8s ease-out forwards;
+}
+
+/* Animation pour les métriques */
+.metric-enter {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.metric-enter:nth-child(1) { animation-delay: 0.1s; }
+.metric-enter:nth-child(2) { animation-delay: 0.2s; }
+.metric-enter:nth-child(3) { animation-delay: 0.3s; }
+
+/* Animation pour la navigation */
+.nav-enter {
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.nav-enter:nth-child(1) { animation-delay: 0.1s; }
+.nav-enter:nth-child(2) { animation-delay: 0.15s; }
+.nav-enter:nth-child(3) { animation-delay: 0.2s; }
+.nav-enter:nth-child(4) { animation-delay: 0.25s; }
+
+/* Animation pour les onglets */
+.tab-enter {
+  opacity: 0;
+  transform: translateX(20px);
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* Animation pour les listes */
+.list-item-enter {
+  opacity: 0;
+  transform: translateX(-15px);
+  animation: slide-in-left 0.4s ease-out forwards;
+}
+
+.list-item-enter:nth-child(1) { animation-delay: 0.1s; }
+.list-item-enter:nth-child(2) { animation-delay: 0.15s; }
+.list-item-enter:nth-child(3) { animation-delay: 0.2s; }
+.list-item-enter:nth-child(4) { animation-delay: 0.25s; }
+.list-item-enter:nth-child(5) { animation-delay: 0.3s; }
+
+/* Animation pour les exports */
+.export-enter {
+  opacity: 0;
+  transform: scale(0.9);
+  animation: scale-in 0.6s ease-out forwards;
+}
+
+/* Animation pour les filtres */
+.filter-enter {
+  opacity: 0;
+  transform: translateY(-5px);
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+/* Animation pour les notifications */
+.notification-enter {
+  opacity: 0;
+  transform: translateX(100%);
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+/* Animation pour les tooltips */
+.tooltip-enter {
+  opacity: 0;
+  transform: scale(0.8) translateY(5px);
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Animation pour les chargements */
+.loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Animation pour les succès */
+.success-bounce {
+  animation: bounce-in 0.6s ease-out forwards;
+}
+
+/* Animation pour les erreurs */
+.error-shake {
+  animation: shake 0.5s ease-in-out forwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* Animation pour les transitions de page */
+.page-transition {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+/* Animation pour les éléments qui apparaissent au scroll */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s ease-out;
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Animation pour les graphiques qui se remplissent */
+.chart-fill {
+  animation: chart-fill 1.5s ease-out forwards;
+}
+
+@keyframes chart-fill {
+  from { width: 0; }
+  to { width: var(--chart-width); }
+}
+
+/* Animation pour les pourcentages qui comptent */
+.count-up {
+  animation: count-up 2s ease-out forwards;
+}
+
+@keyframes count-up {
+  from { content: "0%"; }
+  to { content: var(--count-value); }
+}

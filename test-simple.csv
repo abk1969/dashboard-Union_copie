@@ -1,0 +1,5 @@
+Mois,Année,Code Union,Raison Sociale,Groupe Client,Région Commerciale,Fournisseur,Marque,Groupe FRS,Famille,Sous Famille,CA (€)
+cumul-annuel,2024,M001,CLIENT TEST 1,GROUPE TEST,REGION TEST,Alliance,TEST,AIER,test,test,1000
+cumul-annuel,2025,M001,CLIENT TEST 1,GROUPE TEST,REGION TEST,Alliance,TEST,AIER,test,test,600
+cumul-annuel,2024,M002,CLIENT TEST 2,GROUPE TEST,REGION TEST,Alliance,TEST,AIER,test,test,1000
+cumul-annuel,2025,M002,CLIENT TEST 2,GROUPE TEST,REGION TEST,Alliance,TEST,AIER,test,test,1400

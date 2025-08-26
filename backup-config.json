@@ -1,0 +1,70 @@
+{
+  "backup": {
+    "enabled": true,
+    "frequency": "daily",
+    "retention": 30,
+    "folders": [
+      "src",
+      "public",
+      "styles"
+    ],
+    "files": [
+      "package.json",
+      "package-lock.json",
+      "tsconfig.json",
+      "tailwind.config.js",
+      "README.md",
+      "backup-code.bat",
+      "backup-code.ps1"
+    ],
+    "exclude": [
+      "node_modules",
+      "build",
+      "dist",
+      ".env*",
+      "*.log",
+      "backups",
+      ".git"
+    ],
+    "destination": "backups",
+    "compression": false,
+    "notifications": true
+  },
+  "project": {
+    "name": "Dashboard Groupement Union",
+    "version": "1.0.0",
+    "description": "Dashboard de visualisation du chiffre d'affaires des adhérents",
+    "author": "Groupement Union",
+    "lastBackup": null,
+    "backupCount": 0
+  },
+  "components": {
+    "main": [
+      "App.tsx",
+      "StartupScreen.tsx"
+    ],
+    "modals": [
+      "ClientDetailModal.tsx",
+      "FournisseurDetailModal.tsx",
+      "FamilleDetailModal.tsx"
+    ],
+    "sections": [
+      "MarquesSection.tsx",
+      "DataImport.tsx",
+      "DataBackup.tsx",
+      "AdvancedExport.tsx"
+    ],
+    "tables": [
+      "AdherentsTable.tsx"
+    ],
+    "types": [
+      "types/index.ts"
+    ],
+    "utils": [
+      "utils/formatters.ts"
+    ],
+    "styles": [
+      "styles/animations.css"
+    ]
+  }
+}
