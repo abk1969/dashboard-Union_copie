@@ -710,7 +710,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                 return Array.from(marquesGrouped.entries()).map(([marque, fournisseurs]) => {
                   // Calculer le total de la marque
-                  const totalMarque = fournisseurs.reduce((sum, f) => sum + f.ca2024 + f.ca2025, 0);
+                  // const totalMarque = fournisseurs.reduce((sum, f) => sum + f.ca2024 + f.ca2025, 0);
                   const total2024 = fournisseurs.reduce((sum, f) => sum + f.ca2024, 0);
                   const total2025 = fournisseurs.reduce((sum, f) => sum + f.ca2025, 0);
                   const progressionMarque = total2024 > 0 ? ((total2025 - total2024) / total2024) * 100 : 0;
@@ -846,7 +846,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
                 return Array.from(marquesGrouped.entries()).map(([marque, fournisseurs]) => {
                   // Calculer le total de la marque
-                  const totalMarque = fournisseurs.reduce((sum, f) => sum + f.ca2024 + f.ca2025, 0);
+                  // const totalMarque = fournisseurs.reduce((sum, f) => sum + f.ca2024 + f.ca2025, 0);
                   const total2024 = fournisseurs.reduce((sum, f) => sum + f.ca2024, 0);
                   const total2025 = fournisseurs.reduce((sum, f) => sum + f.ca2025, 0);
                   const progressionMarque = total2024 > 0 ? ((total2025 - total2024) / total2024) * 100 : 0;

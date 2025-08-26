@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AdherentSummary, AdherentData, FournisseurPerformance, FamilleProduitPerformance } from '../types';
+import { AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from '../types';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';

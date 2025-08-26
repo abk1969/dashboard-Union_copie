@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTable, useSortBy, useFilters, Column } from 'react-table';
 import { AdherentSummary } from '../types';
-import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 interface AdherentsTableProps {
@@ -116,7 +115,7 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onExportPDF, onCl
         ),
       },
     ],
-    [onExportPDF]
+    [onExportPDF, onClientClick]
   );
 
   const filteredData = useMemo(() => {

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { FournisseurPerformance, AdherentData, AdherentSummary } from '../types';
-import RevenueChart from './RevenueChart';
 
 interface FournisseurDetailModalProps {
   fournisseur: FournisseurPerformance | null;
