@@ -4,7 +4,7 @@ import { AdherentData } from '../types';
 export const loadDefaultData = async (): Promise<AdherentData[]> => {
   try {
     // Charger le fichier JSON depuis le dossier public
-    const response = await fetch('/groupementUnion_data_2025-08-26.json');
+    const response = await fetch('./groupementUnion_data_2025-08-26.json');
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
