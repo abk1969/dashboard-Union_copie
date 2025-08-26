@@ -300,11 +300,11 @@ function App() {
             <div className="flex items-center justify-between">
                                              <div className="card-enter">
                   <div className="flex items-center space-x-4">
-                    <img 
-                      src="/images/logo-groupement-union.png" 
-                      alt="Groupement Union" 
-                      className="h-16 w-auto hover-scale"
-                    />
+                                         <img 
+                       src="/image/Logo-white-h.png" 
+                       alt="Groupement Union" 
+                       className="h-16 w-auto hover-scale"
+                     />
                     <div>
                       <h1 className="text-3xl font-bold text-groupement-black hover-scale">
                         Dashboard
