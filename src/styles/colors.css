@@ -1,0 +1,54 @@
+/* 🎨 Couleurs de la Marque Groupement Union */
+
+:root {
+  /* Couleurs principales identifiées du logo */
+  --groupement-orange: #ff6b35;      /* Orange vif du logo */
+  --groupement-white: #ffffff;       /* Blanc du logo */
+  --groupement-black: #1a1a1a;      /* Noir profond du logo */
+  
+  /* Couleurs dérivées */
+  --groupement-orange-light: #ff8a65; /* Orange plus clair */
+  --groupement-orange-dark: #e55a2b;  /* Orange plus foncé */
+  --groupement-gray-light: #f5f5f5;   /* Gris très clair */
+  --groupement-gray: #666666;         /* Gris moyen */
+  
+  /* Couleurs sémantiques basées sur la charte */
+  --groupement-success: #10b981;      /* Vert succès */
+  --groupement-warning: #f59e0b;      /* Orange attention */
+  --groupement-danger: #ef4444;       /* Rouge danger */
+  --groupement-info: #3b82f6;         /* Bleu information */
+}
+
+/* Classes utilitaires pour les couleurs Groupement Union */
+.bg-groupement-orange {
+  background-color: var(--groupement-orange);
+}
+
+.bg-groupement-black {
+  background-color: var(--groupement-black);
+}
+
+.text-groupement-orange {
+  color: var(--groupement-orange);
+}
+
+.text-groupement-black {
+  color: var(--groupement-black);
+}
+
+.border-groupement-orange {
+  border-color: var(--groupement-orange);
+}
+
+.border-groupement-black {
+  border-color: var(--groupement-black);
+}
+
+/* Gradients Groupement Union */
+.bg-gradient-groupement {
+  background: linear-gradient(135deg, var(--groupement-orange) 0%, var(--groupement-orange-dark) 100%);
+}
+
+.bg-gradient-groupement-reverse {
+  background: linear-gradient(135deg, var(--groupement-black) 0%, var(--groupement-orange) 100%);
+}
