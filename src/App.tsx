@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
-import { loadDefaultData, fallbackData } from './data/defaultData';
+import { fallbackData } from './data/defaultData';
+import { fetchAdherentsData, SupabaseAdherent } from './config/supabase';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
@@ -243,10 +244,10 @@ function App() {
     }
   }, [showStartup]);
 
-  // Effet pour charger les vraies données au démarrage
+  // Effet pour charger les données Supabase au démarrage
   useEffect(() => {
     if (pageLoaded) {
-      loadDefaultDataOnStartup();
+      loadSupabaseDataOnStartup();
     }
   }, [pageLoaded]);
 
@@ -257,16 +258,36 @@ function App() {
     }
   }, [pageLoaded, allAdherentData.length]);
 
-  // Fonction pour charger les vraies données au démarrage
-  const loadDefaultDataOnStartup = async () => {
+  // Fonction pour charger les données Supabase au démarrage
+  const loadSupabaseDataOnStartup = async () => {
     try {
-      const realData = await loadDefaultData();
-      if (realData.length > 0) {
-        console.log('🚀 Chargement des vraies données:', realData.length, 'enregistrements');
-        setAllAdherentData(realData);
+      console.log('🚀 Tentative de chargement depuis Supabase...');
+      const supabaseData = await fetchAdherentsData();
+      
+      if (supabaseData.length > 0) {
+        // Convertir les données Supabase vers le format AdherentData
+        const convertedData: AdherentData[] = supabaseData.map(item => ({
+          codeUnion: item.codeUnion,
+          raisonSociale: item.raisonSociale,
+          groupeClient: item.groupeClient,
+          fournisseur: item.fournisseur,
+          marque: item.marque,
+          sousFamille: item.sousFamille,
+          groupeFournisseur: item.groupeFournisseur,
+          annee: item.annee,
+          ca: item.ca
+        }));
+        
+        console.log('✅ Données chargées depuis Supabase:', convertedData.length, 'enregistrements');
+        setAllAdherentData(convertedData);
+      } else {
+        console.log('⚠️ Aucune donnée trouvée dans Supabase, utilisation du fallback');
+        setAllAdherentData(fallbackData);
       }
     } catch (error) {
-      console.error('❌ Erreur lors du chargement des vraies données:', error);
+      console.error('❌ Erreur lors du chargement depuis Supabase:', error);
+      console.log('🔄 Utilisation des données de fallback');
+      setAllAdherentData(fallbackData);
     }
   };
 
