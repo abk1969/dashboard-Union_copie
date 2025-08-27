@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { FamilleProduitPerformance, AdherentData } from '../types';
 import { formatCurrency, formatPercentage, formatProgression } from '../utils/formatters';
+import CloseButton from './CloseButton';
 
 interface FamilleDetailModalProps {
   famille: FamilleProduitPerformance | null;
@@ -110,12 +111,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                 Analyse détaillée de la famille de produits
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-purple-200 text-2xl font-bold"
-            >
-              ×
-            </button>
+            <CloseButton onClose={onClose} size="md" />
           </div>
         </div>
 

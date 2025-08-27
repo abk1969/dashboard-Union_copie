@@ -13,6 +13,7 @@ import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
+import MobileNavigation from './components/MobileNavigation';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import './styles/animations.css';
@@ -345,75 +346,81 @@ function App() {
           </div>
         </header>
 
-              {/* Navigation */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex space-x-4">
-                         <button
-               onClick={() => setActiveTab('adherents')}
-               className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
-                 activeTab === 'adherents'
-                   ? 'bg-groupement-orange text-white shadow-lg'
-                   : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
-               }`}
-             >
-               👥 Adhérents
-             </button>
-                                             <button
-               onClick={() => setActiveTab('fournisseurs')}
-               className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
-                 activeTab === 'fournisseurs'
-                   ? 'bg-groupement-orange text-white shadow-lg'
-                   : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
-               }`}
-             >
-               🏢 Fournisseurs
-             </button>
-                         <button
-               onClick={() => setActiveTab('marques')}
-               className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
-                 activeTab === 'marques'
-                   ? 'bg-groupement-orange text-white shadow-lg'
-                   : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
-               }`}
-             >
-               🏷️ Marques
-             </button>
-                         <button
-               onClick={() => setActiveTab('import')}
-               className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
-                 activeTab === 'import'
-                   ? 'bg-groupement-orange text-white shadow-lg'
-                   : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
-               }`}
-             >
-               📥 Import
-             </button>
-        </div>
-      </div>
+                     {/* Navigation - Desktop seulement */}
+       <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+         <div className="flex space-x-4">
+                        <button
+              onClick={() => setActiveTab('adherents')}
+              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+                activeTab === 'adherents'
+                  ? 'bg-groupement-orange text-white shadow-lg'
+                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+              }`}
+            >
+              👥 Adhérents
+            </button>
+                                            <button
+              onClick={() => setActiveTab('fournisseurs')}
+              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+                activeTab === 'fournisseurs'
+                  ? 'bg-groupement-orange text-white shadow-lg'
+                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+              }`}
+            >
+              🏢 Fournisseurs
+            </button>
+                        <button
+              onClick={() => setActiveTab('marques')}
+              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+                activeTab === 'marques'
+                  ? 'bg-groupement-orange text-white shadow-lg'
+                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+              }`}
+            >
+              🏷️ Marques
+            </button>
+                        <button
+              onClick={() => setActiveTab('import')}
+              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+                activeTab === 'import'
+                  ? 'bg-groupement-orange text-white shadow-lg'
+                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+              }`}
+            >
+              📥 Import
+            </button>
+       </div>
+     </div>
 
-      {/* Contenu principal */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Métriques globales */}
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-           <div className="bg-white rounded-xl border border-groupement-orange p-6 metric-enter hover-lift shadow-lg">
-             <div className="text-2xl font-bold text-groupement-orange">
-               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2024)}
-             </div>
-             <div className="text-groupement-gray">CA Total 2024</div>
-           </div>
-           <div className="bg-white rounded-xl border border-groupement-orange p-6 metric-enter hover-lift shadow-lg">
-             <div className="text-2xl font-bold text-groupement-orange">
-               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2025)}
-             </div>
-             <div className="text-groupement-gray">CA Total 2025</div>
-           </div>
-           <div className="bg-white rounded-xl border border-groupement-orange p-6 metric-enter hover-lift shadow-lg">
-             <div className={`text-2xl font-bold ${globalMetrics.progression >= 0 ? 'text-groupement-success' : 'text-groupement-danger'}`}>
-               {globalMetrics.progression >= 0 ? '+' : ''}{globalMetrics.progression}%
-             </div>
-             <div className="text-groupement-gray">Progression</div>
-           </div>
-         </div>
+       {/* Navigation Mobile */}
+       <MobileNavigation 
+         activeTab={activeTab}
+         onTabChange={setActiveTab}
+       />
+
+             {/* Contenu principal */}
+       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+                 {/* Métriques globales */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
+              <div className="text-xl sm:text-2xl font-bold text-groupement-orange">
+                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2024)}
+              </div>
+              <div className="text-sm sm:text-base text-groupement-gray">CA Total 2024</div>
+            </div>
+            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
+              <div className="text-xl sm:text-2xl font-bold text-groupement-orange">
+                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2025)}
+              </div>
+              <div className="text-sm sm:text-base text-groupement-gray">CA Total 2025</div>
+            </div>
+            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
+              <div className={`text-xl sm:text-2xl font-bold ${globalMetrics.progression >= 0 ? 'text-groupement-success' : 'text-groupement-danger'}`}>
+                {globalMetrics.progression >= 0 ? '+' : ''}{globalMetrics.progression}%
+              </div>
+              <div className="text-sm sm:text-base text-groupement-gray">Progression</div>
+            </div>
+          </div>
 
         {/* Onglet Adhérents */}
         {activeTab === 'adherents' && (

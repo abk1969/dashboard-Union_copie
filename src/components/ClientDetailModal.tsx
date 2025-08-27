@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { AdherentSummary, AdherentData } from '../types';
 import RevenueChart from './RevenueChart';
 import ClientExport from './ClientExport';
+import CloseButton from './CloseButton';
 
 interface ClientDetailModalProps {
   client: AdherentSummary | null;
@@ -249,37 +250,33 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               >
                 📄 Export Avancé
               </button>
-              <button
-                onClick={onClose}
-                className="text-white hover:text-gray-200 text-2xl font-bold"
-              >
-                ✕
-              </button>
+                           <CloseButton onClose={onClose} size="md" />
             </div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs - Mobile Optimized */}
         <div className="border-b border-gray-200 bg-gray-50">
-          <nav className="flex space-x-8 px-6">
+          <nav className="flex flex-wrap gap-2 px-4 sm:px-6 py-2">
             {[
-              { id: 'overview', label: '🏠 Vue d\'ensemble', icon: '📊' },
-              { id: 'fournisseurs', label: '🏢 Fournisseurs', icon: '📈' },
-              { id: 'marques', label: '🏷️ Marques', icon: '🎯' },
-              { id: 'marquesMulti', label: '🔄 Marques Multi-Fournisseurs', icon: '🔗' },
-              { id: 'familles', label: '📦 Familles', icon: '📋' },
-              { id: 'timeline', label: '⏰ Timeline', icon: '📅' }
+              { id: 'overview', label: '🏠 Vue d\'ensemble', icon: '📊', shortLabel: 'Vue' },
+              { id: 'fournisseurs', label: '🏢 Fournisseurs', icon: '📈', shortLabel: 'Fourn.' },
+              { id: 'marques', label: '🏷️ Marques', icon: '🎯', shortLabel: 'Marques' },
+              { id: 'marquesMulti', label: '🔄 Marques Multi-Fournisseurs', icon: '🔗', shortLabel: 'Multi' },
+              { id: 'familles', label: '📦 Familles', icon: '📋', shortLabel: 'Familles' },
+              { id: 'timeline', label: '⏰ Timeline', icon: '📅', shortLabel: 'Timeline' }
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-3 rounded-lg font-medium text-xs sm:text-sm transition-colors ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-blue-500 text-white shadow-lg'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                {tab.icon} {tab.label}
+                <span className="hidden sm:inline">{tab.icon} {tab.label}</span>
+                <span className="sm:hidden">{tab.icon} {tab.shortLabel}</span>
               </button>
             ))}
           </nav>
@@ -372,13 +369,57 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             </div>
           )}
 
-          {/* Fournisseurs */}
+          {/* Fournisseurs - Mobile Optimized */}
           {activeTab === 'fournisseurs' && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">🏢 Performance par Fournisseur</h3>
+            <div className="space-y-4 sm:space-y-6">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">🏢 Performance par Fournisseur</h3>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Tableau détaillé */}
+              {/* Mode Carte pour Mobile */}
+              <div className="space-y-3 sm:hidden">
+                {clientData.fournisseursPerformance.map((item, index) => (
+                  <div key={item.fournisseur} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white text-sm flex items-center justify-center font-bold">
+                          {index + 1}
+                        </div>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.fournisseur}</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.progression > 5 ? 'bg-green-100 text-green-800' :
+                        item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2024</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2025</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">Part du CA total</div>
+                        <div className="font-semibold text-blue-600">{item.pourcentageTotal.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Mode Tableau pour Desktop */}
+              <div className="hidden sm:block">
                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="min-w-full">
@@ -439,44 +480,92 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             </div>
           )}
 
-          {/* Marques */}
+          {/* Marques - Mobile Optimized */}
           {activeTab === 'marques' && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">🏷️ Performance par Marque</h3>
+            <div className="space-y-4 sm:space-y-6">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">🏷️ Performance par Marque</h3>
               
-              {/* Tableau détaillé en pleine largeur */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marque</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2024</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2025</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fournisseurs</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {clientData.marquesPerformance.map((item, index) => (
-                        <tr key={item.marque} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
-                            {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{Math.round(item.progression * 10) / 10}%
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.fournisseurs.join(', ')}
-                          </td>
+              {/* Mode Carte pour Mobile */}
+              <div className="space-y-3 sm:hidden">
+                {clientData.marquesPerformance.map((item, index) => (
+                  <div key={item.marque} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-500 text-white text-sm flex items-center justify-center font-bold">
+                          {index + 1}
+                        </div>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.marque}</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.progression > 5 ? 'bg-green-100 text-green-800' :
+                        item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2024</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2025</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">Fournisseurs</div>
+                        <div className="font-medium text-gray-700 text-xs">
+                          {item.fournisseurs.join(', ')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Mode Tableau pour Desktop */}
+              <div className="hidden sm:block">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marque</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2024</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2025</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fournisseurs</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {clientData.marquesPerformance.map((item, index) => (
+                          <tr key={item.marque} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                            </td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
+                              {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{Math.round(item.progression * 10) / 10}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {item.fournisseurs.join(', ')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
@@ -507,9 +596,43 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Filtres de recherche */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Filtres de recherche - Mobile Optimized */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+                {/* Filtres simplifiés pour Mobile */}
+                <div className="space-y-3 sm:hidden">
+                  {/* Recherche globale */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche</label>
+                    <input
+                      type="text"
+                      placeholder="Marque ou fournisseur..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  {/* Filtre par marque */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Marque</label>
+                    <select
+                      value={selectedMarque}
+                      onChange={(e) => setSelectedMarque(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Toutes les marques</option>
+                      {(() => {
+                        const marquesUniques = Array.from(new Set(clientData.marquesMultiFournisseurs.map(item => item.marque))).sort();
+                        return marquesUniques.map(marque => (
+                          <option key={marque} value={marque}>{marque}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                </div>
+                
+                {/* Filtres complets pour Desktop */}
+                <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Recherche globale */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche</label>
@@ -998,42 +1121,88 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
             </div>
           )}
 
-          {/* Familles */}
+          {/* Familles - Mobile Optimized */}
           {activeTab === 'familles' && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">📦 Performance par Famille de Produits</h3>
+            <div className="space-y-4 sm:space-y-6">
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">📦 Performance par Famille de Produits</h3>
               
-              {/* Tableau détaillé en pleine largeur */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Famille</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2024</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2025</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">% Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {clientData.famillesPerformance.map((item, index) => (
-                        <tr key={item.famille} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.famille}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                            {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
-                            {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{Math.round(item.progression * 10) / 10}%
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.pourcentageTotal}%</td>
+              {/* Mode Carte pour Mobile */}
+              <div className="space-y-3 sm:hidden">
+                {clientData.famillesPerformance.map((item, index) => (
+                  <div key={item.famille} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-orange-500 text-white text-sm flex items-center justify-center font-bold">
+                          {index + 1}
+                        </div>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.famille}</span>
+                      </div>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        item.progression > 5 ? 'bg-green-100 text-green-800' :
+                        item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2024</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">CA 2025</div>
+                        <div className="font-semibold text-gray-900">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="text-center">
+                        <div className="text-gray-500 text-xs">Part du CA total</div>
+                        <div className="font-semibold text-orange-600">{item.pourcentageTotal}%</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Mode Tableau pour Desktop */}
+              <div className="hidden sm:block">
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Famille</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2024</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2025</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">% Total</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {clientData.famillesPerformance.map((item, index) => (
+                          <tr key={item.famille} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.famille}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                            </td>
+                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
+                              {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{Math.round(item.progression * 10) / 10}%
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.pourcentageTotal}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
