@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
 import { fallbackData } from './data/defaultData';
-import { fetchAdherentsData, SupabaseAdherent } from './config/supabase';
+import { fetchAdherentsData } from './config/supabase';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
