@@ -7,6 +7,7 @@ import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
 import FamilleDetailModalLegacy from './components/FamilleDetailModalLegacy';
 import MarquesSection from './components/MarquesSection';
+import GroupeClientsSection from './components/GroupeClientsSection';
 import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
 import DataExporter from './components/DataExporter';
@@ -21,7 +22,7 @@ import './styles/colors.css';
 
 function App() {
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'export' | 'import'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -237,11 +238,7 @@ function App() {
     setShowFournisseurModal(true);
   };
 
-  // Fonction de gestion du clic sur une famille de produits
-  const handleFamilleClick = (famille: FamilleProduitPerformance) => {
-    setSelectedFamille(famille);
-    setShowFamilleModal(true);
-  };
+
 
   // Effet pour gérer le chargement de la page
   useEffect(() => {
@@ -373,16 +370,26 @@ function App() {
             >
               🏢 Fournisseurs
             </button>
-            <button
-              onClick={() => setActiveTab('marques')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                activeTab === 'marques'
-                  ? 'bg-orange-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-orange-50 border border-gray-200 hover:border-orange-300'
-              }`}
-            >
-              🏷️ Marques
-            </button>
+                         <button
+               onClick={() => setActiveTab('marques')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'marques'
+                   ? 'bg-orange-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-orange-50 border border-gray-200 hover:border-orange-300'
+               }`}
+             >
+               🏷️ Marques
+             </button>
+             <button
+               onClick={() => setActiveTab('groupeClients')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'groupeClients'
+                   ? 'bg-indigo-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300'
+               }`}
+             >
+               👥 Groupe Clients
+             </button>
                          <button
                onClick={() => setActiveTab('export')}
                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
@@ -828,6 +835,13 @@ function App() {
                adherentsData={allAdherentData} 
                famillesPerformance={currentFamillesProduitsPerformance}
              />
+           </div>
+         )}
+
+         {/* Onglet Groupe Clients */}
+         {activeTab === 'groupeClients' && (
+           <div className="space-y-6">
+             <GroupeClientsSection adherentsData={allAdherentData} />
            </div>
          )}
 
