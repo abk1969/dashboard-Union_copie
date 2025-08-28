@@ -4,6 +4,13 @@ import { formatCurrency, formatPercentage, formatProgression } from '../utils/fo
 
 interface MarquesSectionProps {
   adherentsData: AdherentData[];
+  famillesPerformance?: Array<{
+    sousFamille: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+  }>;
 }
 
 interface MarquePerformance {
@@ -22,10 +29,12 @@ interface MarquePerformance {
   };
 }
 
-const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData }) => {
+const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, famillesPerformance }) => {
   const [selectedMarque, setSelectedMarque] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'ca' | 'progression' | 'marque'>('ca');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
 
   // Calculer les performances par marque
   const marquesPerformance = useMemo(() => {
@@ -104,6 +113,17 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData }) => {
       return sortOrder === 'desc' ? comparison : -comparison;
     });
   }, [marquesPerformance, sortBy, sortOrder]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedMarques.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentMarques = sortedMarques.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelectedMarque(null); // Fermer le détail lors du changement de page
+  };
 
   const handleSort = (field: 'ca' | 'progression' | 'marque') => {
     if (sortBy === field) {
@@ -263,7 +283,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedMarques.map((marque, index) => (
+              {currentMarques.map((marque, index) => (
                 <React.Fragment key={marque.marque}>
                   <tr 
                     className={`hover:bg-blue-50 cursor-pointer transition-all duration-200 ${
@@ -275,7 +295,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData }) => {
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                           <span className="text-sm font-bold text-white">
-                            {index + 1}
+                            {startIndex + index + 1}
                           </span>
                         </div>
                       </div>
@@ -350,7 +370,95 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-700">
+              Affichage de {startIndex + 1} à {Math.min(endIndex, sortedMarques.length)} sur {sortedMarques.length} marques
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-2 text-sm font-medium rounded-md ${
+                    currentPage === page
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Performance par Famille de Produits */}
+      {famillesPerformance && famillesPerformance.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800">📦 Performance par Famille de Produits</h3>
+              <p className="text-gray-600 mt-1">
+                Analyse du CA par famille de produits et évolution 2024 vs 2025
+              </p>
+            </div>
+            <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              {famillesPerformance.length} familles
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Famille</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">% 2025</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {famillesPerformance.slice(0, 20).map((item) => (
+                  <tr key={item.sousFamille} className="hover:bg-gray-50 cursor-pointer">
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.sousFamille}</td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-700">
+                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-700">
+                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right">
+                      <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

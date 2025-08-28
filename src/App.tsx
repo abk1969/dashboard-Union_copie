@@ -5,7 +5,7 @@ import { fetchAdherentsData } from './config/supabase';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
-import FamilleDetailModal from './components/FamilleDetailModal';
+import FamilleDetailModalLegacy from './components/FamilleDetailModalLegacy';
 import MarquesSection from './components/MarquesSection';
 import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
@@ -21,7 +21,7 @@ import './styles/colors.css';
 
 function App() {
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'import'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'export' | 'import'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -91,20 +91,24 @@ function App() {
 
   // Performance par fournisseur
   const currentFournisseursPerformance = useMemo(() => {
-    const fournisseurMap = new Map<string, { ca2024: number; ca2025: number }>();
+    const fournisseurMap = new Map<string, { ca2024: number; ca2025: number; adherents: Set<string> }>();
     
     allAdherentData.forEach(item => {
       if (!fournisseurMap.has(item.fournisseur)) {
-        fournisseurMap.set(item.fournisseur, { ca2024: 0, ca2025: 0 });
+        fournisseurMap.set(item.fournisseur, { ca2024: 0, ca2025: 0, adherents: new Set() });
       }
       const fournisseur = fournisseurMap.get(item.fournisseur)!;
       if (item.annee === 2024) fournisseur.ca2024 += item.ca;
       if (item.annee === 2025) fournisseur.ca2025 += item.ca;
+      fournisseur.adherents.add(item.codeUnion);
     });
 
     const totalCA2025 = allAdherentData
       .filter(item => item.annee === 2025)
       .reduce((sum, item) => sum + item.ca, 0);
+
+    // Calculer le nombre total d'adhérents du Groupement Union
+    const totalGroupementAdherents = new Set(allAdherentData.map(item => item.codeUnion)).size;
 
     return Array.from(fournisseurMap.entries())
       .map(([fournisseur, data]) => {
@@ -120,7 +124,9 @@ function App() {
           progression: Math.round(progression * 10) / 10,
           pourcentageTotal: Math.round(pourcentageTotal * 10) / 10,
           pourcentage2024: Math.round(pourcentage2024 * 10) / 10,
-          pourcentage2025: Math.round(pourcentage2025 * 10) / 10
+          pourcentage2025: Math.round(pourcentage2025 * 10) / 10,
+          fournisseurAdherents: data.adherents.size,
+          totalGroupementAdherents
         };
       })
       .sort((a, b) => b.ca2025 - a.ca2025);
@@ -321,76 +327,84 @@ function App() {
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
-                                             <div className="card-enter">
-                  <div className="flex items-center space-x-4">
-                                         <Logo />
-                    <div>
-                      <h1 className="text-3xl font-bold text-groupement-black hover-scale">
-                        Dashboard
-                      </h1>
-                      <p className="mt-2 text-groupement-gray">
-                        Visualisation du chiffre d'affaires des adhérents - 2024 vs 2025
-                      </p>
-                    </div>
-                  </div>
-                 {allAdherentData.length > 0 && (
-                   <div className="mt-2 flex items-center space-x-2">
-                     <span className="text-sm text-green-600">💾</span>
-                     <span className="text-sm text-gray-500">
-                       {allAdherentData.length.toLocaleString('fr-FR')} enregistrements • Sauvegarde automatique activée
-                     </span>
-                   </div>
-                 )}
-               </div>
+              <div className="flex items-center space-x-4">
+                <Logo />
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900">
+                    Dashboard
+                  </h1>
+                  <p className="mt-2 text-gray-600">
+                    Visualisation du chiffre d'affaires des adhérents - 2024 vs 2025
+                  </p>
+                </div>
+              </div>
+              {allAdherentData.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-green-600">💾</span>
+                  <span className="text-sm text-gray-500">
+                    {allAdherentData.length.toLocaleString('fr-FR')} enregistrements • Sauvegarde automatique activée
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
-                     {/* Navigation - Desktop seulement */}
-       <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-         <div className="flex space-x-4">
-                        <button
+        {/* Navigation - Desktop seulement */}
+        <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex space-x-4">
+            <button
               onClick={() => setActiveTab('adherents')}
-              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 activeTab === 'adherents'
-                  ? 'bg-groupement-orange text-white shadow-lg'
-                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200 hover:border-blue-300'
               }`}
             >
               👥 Adhérents
             </button>
-                                            <button
+            <button
               onClick={() => setActiveTab('fournisseurs')}
-              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 activeTab === 'fournisseurs'
-                  ? 'bg-groupement-orange text-white shadow-lg'
-                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+                  ? 'bg-green-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-green-50 border border-gray-200 hover:border-green-300'
               }`}
             >
               🏢 Fournisseurs
             </button>
-                        <button
+            <button
               onClick={() => setActiveTab('marques')}
-              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 activeTab === 'marques'
-                  ? 'bg-groupement-orange text-white shadow-lg'
-                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
+                  ? 'bg-orange-600 text-white shadow-lg'
+                  : 'bg-white text-gray-700 hover:bg-orange-50 border border-gray-200 hover:border-orange-300'
               }`}
             >
               🏷️ Marques
             </button>
-                        <button
-              onClick={() => setActiveTab('import')}
-              className={`px-4 py-2 rounded-lg font-medium nav-enter hover-lift ${
-                activeTab === 'import'
-                  ? 'bg-groupement-orange text-white shadow-lg'
-                  : 'bg-white text-groupement-black hover:bg-groupement-gray-light border border-groupement-orange'
-              }`}
-            >
-              📥 Import
-            </button>
-       </div>
-     </div>
+                         <button
+               onClick={() => setActiveTab('export')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'export'
+                   ? 'bg-purple-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200 hover:border-purple-300'
+               }`}
+             >
+               📊 Export
+             </button>
+             <button
+               onClick={() => setActiveTab('import')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'import'
+                   ? 'bg-red-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-red-50 border border-gray-200 hover:border-red-300'
+               }`}
+             >
+               📥 Import
+             </button>
+          </div>
+        </div>
 
        {/* Navigation Mobile */}
        <MobileNavigation 
@@ -400,27 +414,27 @@ function App() {
 
              {/* Contenu principal */}
        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-                 {/* Métriques globales */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
-              <div className="text-xl sm:text-2xl font-bold text-groupement-orange">
-                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2024)}
+            {/* Métriques globales */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+              <div className="bg-white rounded-xl border border-blue-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2024)}
+                </div>
+                <div className="text-sm sm:text-base text-gray-600">CA Total 2024</div>
               </div>
-              <div className="text-sm sm:text-base text-groupement-gray">CA Total 2024</div>
-            </div>
-            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
-              <div className="text-xl sm:text-2xl font-bold text-groupement-orange">
-                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2025)}
+              <div className="bg-white rounded-xl border border-green-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
+                  {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2025)}
+                </div>
+                <div className="text-sm sm:text-base text-gray-600">CA Total 2025</div>
               </div>
-              <div className="text-sm sm:text-base text-groupement-gray">CA Total 2025</div>
-            </div>
-            <div className="bg-white rounded-xl border border-groupement-orange p-4 sm:p-6 metric-enter hover-lift shadow-lg">
-              <div className={`text-xl sm:text-2xl font-bold ${globalMetrics.progression >= 0 ? 'text-groupement-success' : 'text-groupement-danger'}`}>
-                {globalMetrics.progression >= 0 ? '+' : ''}{globalMetrics.progression}%
+              <div className="bg-white rounded-xl border border-orange-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
+                <div className={`text-xl sm:text-2xl font-bold ${globalMetrics.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {globalMetrics.progression >= 0 ? '+' : ''}{globalMetrics.progression}%
+                </div>
+                <div className="text-sm sm:text-base text-gray-600">Progression</div>
               </div>
-              <div className="text-sm sm:text-base text-groupement-gray">Progression</div>
             </div>
-          </div>
 
         {/* Onglet Adhérents */}
         {activeTab === 'adherents' && (
@@ -437,93 +451,7 @@ function App() {
               </div>
             </div>
 
-            {/* Export Avancé */}
-            <AdvancedExport
-              adherentsData={currentAdherentsSummary}
-              fournisseursPerformance={currentFournisseursPerformance}
-              famillesPerformance={currentFamillesProduitsPerformance}
-              currentTopFlopClients={currentTopFlopClients}
-              totalCA2024={globalMetrics.caTotal2024}
-              totalCA2025={globalMetrics.caTotal2025}
-              totalProgression={globalMetrics.progression}
-            />
-
-            {/* Performance par Fournisseur */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800">🏢 Performance par Fournisseur</h3>
-                  <p className="text-gray-600 mt-1">
-                    Répartition du CA total par fournisseur et évolution 2024 vs 2025
-                  </p>
-                </div>
-                <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                  {currentFournisseursPerformance.length} fournisseurs
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Graphique de répartition */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-800 mb-4 text-center">Répartition du CA Total (2025)</h4>
-                  <div className="space-y-3">
-                                         {currentFournisseursPerformance.slice(0, 10).map((item, index) => (
-                       <div key={item.fournisseur} className="flex items-center justify-between cursor-pointer hover:bg-blue-50 p-2 rounded" onClick={() => handleFournisseurClick(item)}>
-                         <div className="flex items-center space-x-3">
-                           <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-bold">
-                             {index + 1}
-                           </div>
-                           <span className="font-medium text-gray-700">{item.fournisseur}</span>
-                         </div>
-                         <div className="text-right">
-                           <div className="font-semibold text-gray-900">
-                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                           </div>
-                           <div className="text-sm text-gray-500">{item.pourcentageTotal.toFixed(1)}%</div>
-                         </div>
-                       </div>
-                     ))}
-                  </div>
-                </div>
-
-                {/* Tableau de performance */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-800 mb-4 text-center">Détail Performance</h4>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Fournisseur</th>
-                          <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">CA 2024</th>
-                          <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">CA 2025</th>
-                          <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">Progression</th>
-                          <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">% 2025</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                                                 {currentFournisseursPerformance.map((item) => (
-                           <tr key={item.fournisseur} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleFournisseurClick(item)}>
-                             <td className="py-2 px-3 text-sm font-medium text-gray-900">{item.fournisseur}</td>
-                            <td className="py-2 px-3 text-sm text-right text-gray-700">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                            </td>
-                            <td className="py-2 px-3 text-sm text-right text-gray-700">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                            </td>
-                            <td className="py-2 px-3 text-sm text-right">
-                              <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="py-2 px-3 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
+                         
 
             {/* Section Top/Flop 10 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -632,53 +560,7 @@ function App() {
               </div>
             </div>
 
-            {/* Performance par Famille de Produits */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-800">📦 Performance par Famille de Produits</h3>
-                  <p className="text-gray-600 mt-1">
-                    Analyse du CA par famille de produits et évolution 2024 vs 2025
-                  </p>
-                </div>
-                <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                  {currentFamillesProduitsPerformance.length} familles
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Famille</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">% 2025</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                                         {currentFamillesProduitsPerformance.slice(0, 20).map((item) => (
-                       <tr key={item.sousFamille} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleFamilleClick(item)}>
-                         <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.sousFamille}</td>
-                        <td className="py-3 px-4 text-sm text-right text-gray-700">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right text-gray-700">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right">
-                          <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            
 
             {/* Table des adhérents */}
             <AdherentsTable
@@ -704,8 +586,96 @@ function App() {
               </div>
             </div>
 
-            {/* Métriques des fournisseurs */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                         {/* Performance par Fournisseur */}
+             <div className="bg-white rounded-xl border border-gray-200 p-6">
+               <div className="flex items-center justify-between mb-6">
+                 <div>
+                   <h3 className="text-2xl font-bold text-gray-800">🏢 Performance par Fournisseur</h3>
+                   <p className="text-gray-600 mt-1">
+                     Répartition du CA total par fournisseur et évolution 2024 vs 2025
+                   </p>
+                 </div>
+                 <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                   {currentFournisseursPerformance.length} fournisseurs
+                 </div>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                 {/* Graphique de répartition */}
+                 <div className="bg-gray-50 rounded-lg p-4">
+                   <h4 className="font-semibold text-gray-800 mb-4 text-center">Répartition du CA Total (2025)</h4>
+                   <div className="space-y-3">
+                     {currentFournisseursPerformance.slice(0, 10).map((item, index) => (
+                       <div key={item.fournisseur} className="flex items-center justify-between cursor-pointer hover:bg-blue-50 p-2 rounded" onClick={() => handleFournisseurClick(item)}>
+                         <div className="flex items-center space-x-3">
+                           <div className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-bold">
+                             {index + 1}
+                           </div>
+                           <div>
+                             <span className="font-medium text-gray-700">{item.fournisseur}</span>
+                             <div className="text-xs text-gray-500">
+                               {item.fournisseurAdherents}/{item.totalGroupementAdherents} adhérents
+                             </div>
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <div className="font-semibold text-gray-900">
+                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                           </div>
+                           <div className="text-sm text-gray-500">{item.pourcentageTotal.toFixed(1)}%</div>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+
+                 {/* Tableau de performance */}
+                 <div className="bg-gray-50 rounded-lg p-4">
+                   <h4 className="font-semibold text-gray-800 mb-4 text-center">Détail Performance</h4>
+                   <div className="overflow-x-auto">
+                     <table className="min-w-full">
+                       <thead>
+                         <tr className="border-b border-gray-200">
+                           <th className="text-left py-2 px-3 text-sm font-medium text-gray-700">Fournisseur</th>
+                           <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">Adhérents</th>
+                           <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">CA 2024</th>
+                           <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">CA 2025</th>
+                           <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">Progression</th>
+                           <th className="text-right py-2 px-3 text-sm font-medium text-gray-700">% 2025</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-200">
+                         {currentFournisseursPerformance.map((item) => (
+                           <tr key={item.fournisseur} className="hover:bg-gray-50 cursor-pointer" onClick={() => handleFournisseurClick(item)}>
+                             <td className="py-2 px-3 text-sm font-medium text-gray-900">{item.fournisseur}</td>
+                             <td className="py-2 px-3 text-sm text-right text-gray-700">
+                               <span className="font-medium text-blue-600">
+                                 {item.fournisseurAdherents}/{item.totalGroupementAdherents}
+                               </span>
+                             </td>
+                             <td className="py-2 px-3 text-sm text-right text-gray-700">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                             </td>
+                             <td className="py-2 px-3 text-sm text-right text-gray-700">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                             </td>
+                             <td className="py-2 px-3 text-sm text-right">
+                               <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                 {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                               </span>
+                             </td>
+                             <td className="py-2 px-3 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+             {/* Métriques des fournisseurs */}
+             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <div className="text-2xl font-bold text-blue-600">
                   {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
@@ -851,24 +821,62 @@ function App() {
           </div>
         )}
 
-        {/* Onglet Marques */}
-        {activeTab === 'marques' && (
-          <div className="space-y-6">
-            <MarquesSection adherentsData={allAdherentData} />
-          </div>
-        )}
-
-                 {/* Onglet Import */}
-         {activeTab === 'import' && (
+                 {/* Onglet Marques */}
+         {activeTab === 'marques' && (
            <div className="space-y-6">
-             <DataExporter adherentsData={allAdherentData} />
-             <DataImport onDataImported={handleDataImported} />
-             <DataBackup 
-               allAdherentData={allAdherentData}
-               onDataRestored={handleDataImported}
+             <MarquesSection 
+               adherentsData={allAdherentData} 
+               famillesPerformance={currentFamillesProduitsPerformance}
              />
            </div>
          )}
+
+         {/* Onglet Export */}
+         {activeTab === 'export' && (
+           <div className="space-y-6">
+             <div className="flex items-center justify-between">
+               <div>
+                 <h3 className="text-2xl font-bold text-gray-800">📊 Export et Rapports</h3>
+                 <p className="text-gray-600 mt-1">
+                   Export avancé des données et génération de rapports détaillés
+                 </p>
+               </div>
+             </div>
+
+             {/* Export Avancé */}
+             <AdvancedExport
+               adherentsData={currentAdherentsSummary}
+               fournisseursPerformance={currentFournisseursPerformance}
+               famillesPerformance={currentFamillesProduitsPerformance}
+               currentTopFlopClients={currentTopFlopClients}
+               totalCA2024={globalMetrics.caTotal2024}
+               totalCA2025={globalMetrics.caTotal2025}
+               totalProgression={globalMetrics.progression}
+             />
+
+             {/* Export des données */}
+             <DataExporter adherentsData={allAdherentData} />
+           </div>
+         )}
+
+                                     {/* Onglet Import */}
+           {activeTab === 'import' && (
+             <div className="space-y-6">
+               <div className="flex items-center justify-between">
+                 <div>
+                   <h3 className="text-2xl font-bold text-gray-800">📥 Import et Sauvegarde</h3>
+                   <p className="text-gray-600 mt-1">
+                     Import de données et gestion des sauvegardes
+                   </p>
+                 </div>
+               </div>
+               <DataImport onDataImported={handleDataImported} />
+               <DataBackup 
+                 allAdherentData={allAdherentData}
+                 onDataRestored={handleDataImported}
+               />
+             </div>
+           )}
       </main>
 
       {/* Modal de détails client */}
@@ -895,7 +903,7 @@ function App() {
       />
 
       {/* Modal de détails famille de produits */}
-      <FamilleDetailModal
+      <FamilleDetailModalLegacy
         famille={selectedFamille}
         allAdherentData={allAdherentData}
         isOpen={showFamilleModal}

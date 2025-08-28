@@ -1,54 +1,101 @@
-/* 🎨 Couleurs de la Marque Groupement Union */
+/* ===== PALETTE DE COULEURS MODERNE ET DYNAMIQUE ===== */
 
+/* Couleurs de base modernes */
 :root {
-  /* Couleurs principales identifiées du logo */
-  --groupement-orange: #ff6b35;      /* Orange vif du logo */
-  --groupement-white: #ffffff;       /* Blanc du logo */
-  --groupement-black: #1a1a1a;      /* Noir profond du logo */
+  /* Couleurs principales vives */
+  --color-electric-blue: #00d4ff;
+  --color-neon-pink: #ff0080;
+  --color-vibrant-orange: #ff6b35;
+  --color-lime-green: #32cd32;
+  --color-purple-magenta: #8a2be2;
+  --color-sunny-yellow: #ffd700;
+  --color-coral-red: #ff7f50;
+  --color-turquoise: #40e0d0;
+  --color-hot-pink: #ff1493;
+  --color-gold: #ffd700;
+  --color-emerald: #50c878;
+  --color-royal-blue: #4169e1;
   
-  /* Couleurs dérivées */
-  --groupement-orange-light: #ff8a65; /* Orange plus clair */
-  --groupement-orange-dark: #e55a2b;  /* Orange plus foncé */
-  --groupement-gray-light: #f5f5f5;   /* Gris très clair */
-  --groupement-gray: #666666;         /* Gris moyen */
+  /* Gradients modernes */
+  --gradient-sunset: linear-gradient(135deg, #ff6b6b, #ffa500, #ffd700);
+  --gradient-ocean: linear-gradient(135deg, #667eea, #764ba2, #f093fb);
+  --gradient-forest: linear-gradient(135deg, #11998e, #38ef7d);
+  --gradient-fire: linear-gradient(135deg, #ff416c, #ff4b2b);
+  --gradient-aurora: linear-gradient(135deg, #a8edea, #fed6e3);
+  --gradient-cosmic: linear-gradient(135deg, #667eea, #764ba2);
+  --gradient-sunrise: linear-gradient(135deg, #ff9a9e, #fecfef, #fecfef);
+  --gradient-midnight: linear-gradient(135deg, #2c3e50, #3498db);
   
-  /* Couleurs sémantiques basées sur la charte */
-  --groupement-success: #10b981;      /* Vert succès */
-  --groupement-warning: #f59e0b;      /* Orange attention */
-  --groupement-danger: #ef4444;       /* Rouge danger */
-  --groupement-info: #3b82f6;         /* Bleu information */
+  /* Couleurs de statut dynamiques */
+  --status-success: #00d4aa;
+  --status-warning: #ffd700;
+  --status-danger: #ff4757;
+  --status-info: #3742fa;
+  --status-neutral: #747d8c;
+  
+  /* Couleurs de rang avec gradients */
+  --rank-1: linear-gradient(135deg, #ffd700, #ffed4e);
+  --rank-2: linear-gradient(135deg, #c0c0c0, #e5e4e2);
+  --rank-3: linear-gradient(135deg, #cd7f32, #daa520);
+  --rank-4: linear-gradient(135deg, #4a90e2, #357abd);
+  --rank-5: linear-gradient(135deg, #50c878, #32cd32);
 }
 
-/* Classes utilitaires pour les couleurs Groupement Union */
-.bg-groupement-orange {
-  background-color: var(--groupement-orange);
-}
+/* Classes utilitaires pour les nouvelles couleurs */
+.text-electric-blue { color: var(--color-electric-blue); }
+.text-neon-pink { color: var(--color-neon-pink); }
+.text-vibrant-orange { color: var(--color-vibrant-orange); }
+.text-lime-green { color: var(--color-lime-green); }
+.text-purple-magenta { color: var(--color-purple-magenta); }
+.text-sunny-yellow { color: var(--color-sunny-yellow); }
+.text-coral-red { color: var(--color-coral-red); }
+.text-turquoise { color: var(--color-turquoise); }
+.text-hot-pink { color: var(--color-hot-pink); }
+.text-gold { color: var(--color-gold); }
+.text-emerald { color: var(--color-emerald); }
+.text-royal-blue { color: var(--color-royal-blue); }
 
-.bg-groupement-black {
-  background-color: var(--groupement-black);
-}
+/* Classes pour les gradients */
+.bg-gradient-sunset { background: var(--gradient-sunset); }
+.bg-gradient-ocean { background: var(--gradient-ocean); }
+.bg-gradient-forest { background: var(--gradient-forest); }
+.bg-gradient-fire { background: var(--gradient-fire); }
+.bg-gradient-aurora { background: var(--gradient-aurora); }
+.bg-gradient-cosmic { background: var(--gradient-cosmic); }
+.bg-gradient-sunrise { background: var(--gradient-sunrise); }
+.bg-gradient-midnight { background: var(--gradient-midnight); }
 
-.text-groupement-orange {
-  color: var(--groupement-orange);
-}
+/* Classes pour les rangs */
+.bg-rank-1 { background: var(--rank-1); }
+.bg-rank-2 { background: var(--rank-2); }
+.bg-rank-3 { background: var(--rank-3); }
+.bg-rank-4 { background: var(--rank-4); }
+.bg-rank-5 { background: var(--rank-5); }
 
-.text-groupement-black {
-  color: var(--groupement-black);
-}
+/* Couleurs de statut */
+.text-status-success { color: var(--status-success); }
+.text-status-warning { color: var(--status-warning); }
+.text-status-danger { color: var(--status-danger); }
+.text-status-info { color: var(--status-info); }
+.text-status-neutral { color: var(--status-neutral); }
 
-.border-groupement-orange {
-  border-color: var(--groupement-orange);
-}
+/* Effets de survol colorés */
+.hover-electric-blue:hover { color: var(--color-electric-blue); }
+.hover-neon-pink:hover { color: var(--color-neon-pink); }
+.hover-vibrant-orange:hover { color: var(--color-vibrant-orange); }
+.hover-lime-green:hover { color: var(--color-lime-green); }
+.hover-purple-magenta:hover { color: var(--color-purple-magenta); }
 
-.border-groupement-black {
-  border-color: var(--groupement-black);
-}
+/* Bordures colorées */
+.border-electric-blue { border-color: var(--color-electric-blue); }
+.border-neon-pink { border-color: var(--color-neon-pink); }
+.border-vibrant-orange { border-color: var(--color-vibrant-orange); }
+.border-lime-green { border-color: var(--color-lime-green); }
+.border-purple-magenta { border-color: var(--color-purple-magenta); }
 
-/* Gradients Groupement Union */
-.bg-gradient-groupement {
-  background: linear-gradient(135deg, var(--groupement-orange) 0%, var(--groupement-orange-dark) 100%);
-}
-
-.bg-gradient-groupement-reverse {
-  background: linear-gradient(135deg, var(--groupement-black) 0%, var(--groupement-orange) 100%);
-}
+/* Ombres colorées */
+.shadow-electric-blue { box-shadow: 0 4px 14px 0 rgba(0, 212, 255, 0.3); }
+.shadow-neon-pink { box-shadow: 0 4px 14px 0 rgba(255, 0, 128, 0.3); }
+.shadow-vibrant-orange { box-shadow: 0 4px 14px 0 rgba(255, 107, 53, 0.3); }
+.shadow-lime-green { box-shadow: 0 4px 14px 0 rgba(50, 205, 50, 0.3); }
+.shadow-purple-magenta { box-shadow: 0 4px 14px 0 rgba(138, 43, 226, 0.3); }

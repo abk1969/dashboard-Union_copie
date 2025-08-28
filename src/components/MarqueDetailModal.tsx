@@ -2,17 +2,17 @@ import React, { useState, useMemo } from 'react';
 import { AdherentData } from '../types';
 import CloseButton from './CloseButton';
 
-interface FamilleDetailModalProps {
-  famille: string;
+interface MarqueDetailModalProps {
+  marque: string;
   fournisseur: string;
   allAdherentData: AdherentData[];
   isOpen: boolean;
   onClose: () => void;
-  onMarqueClick?: (marque: string) => void;
+  onFamilleClick?: (famille: string) => void;
 }
 
-interface FamilleMarqueData {
-  marque: string;
+interface MarqueFamilleData {
+  sousFamille: string;
   ca2024: number;
   ca2025: number;
   progression: number;
@@ -20,7 +20,7 @@ interface FamilleMarqueData {
   clients: string[];
 }
 
-interface FamilleClientData {
+interface MarqueClientData {
   codeUnion: string;
   raisonSociale: string;
   groupeClient: string;
@@ -30,44 +30,44 @@ interface FamilleClientData {
   pourcentageTotal: number;
 }
 
-const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({ 
-  famille, 
+const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({ 
+  marque, 
   fournisseur,
   allAdherentData, 
   isOpen, 
   onClose,
-  onMarqueClick
+  onFamilleClick
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'marques' | 'clients'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'familles' | 'clients'>('overview');
 
-  // Calculer les données détaillées de la famille
-  const familleData = useMemo(() => {
-    if (!famille || !fournisseur) return null;
+  // Calculer les données détaillées de la marque
+  const marqueData = useMemo(() => {
+    if (!marque || !fournisseur) return null;
 
-    const familleData = allAdherentData.filter(item => 
-      item.fournisseur === fournisseur && item.sousFamille === famille
+    const marqueData = allAdherentData.filter(item => 
+      item.fournisseur === fournisseur && item.marque === marque
     );
     
-    // Performance par marque
-    const marquesMap = new Map<string, { ca2024: number; ca2025: number; clients: Set<string> }>();
-    familleData.forEach(item => {
-      if (!marquesMap.has(item.marque)) {
-        marquesMap.set(item.marque, { ca2024: 0, ca2025: 0, clients: new Set() });
+    // Performance par famille
+    const famillesMap = new Map<string, { ca2024: number; ca2025: number; clients: Set<string> }>();
+    marqueData.forEach(item => {
+      if (!famillesMap.has(item.sousFamille)) {
+        famillesMap.set(item.sousFamille, { ca2024: 0, ca2025: 0, clients: new Set() });
       }
-      const marque = marquesMap.get(item.marque)!;
-      if (item.annee === 2024) marque.ca2024 += item.ca;
-      if (item.annee === 2025) marque.ca2025 += item.ca;
-      marque.clients.add(item.codeUnion);
+      const famille = famillesMap.get(item.sousFamille)!;
+      if (item.annee === 2024) famille.ca2024 += item.ca;
+      if (item.annee === 2025) famille.ca2025 += item.ca;
+      famille.clients.add(item.codeUnion);
     });
 
-    const marquesPerformance: FamilleMarqueData[] = Array.from(marquesMap.entries())
-      .map(([marque, data]) => {
+    const famillesPerformance: MarqueFamilleData[] = Array.from(famillesMap.entries())
+      .map(([sousFamille, data]) => {
         const progression = data.ca2024 > 0 ? ((data.ca2025 - data.ca2024) / data.ca2024) * 100 : 0;
-        const totalCA = familleData.reduce((sum, item) => sum + item.ca, 0);
+        const totalCA = marqueData.reduce((sum, item) => sum + item.ca, 0);
         const pourcentageTotal = totalCA > 0 ? ((data.ca2024 + data.ca2025) / totalCA) * 100 : 0;
         
         return {
-          marque,
+          sousFamille,
           ca2024: data.ca2024,
           ca2025: data.ca2025,
           progression: Math.round(progression * 10) / 10,
@@ -79,7 +79,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
 
     // Performance par client
     const clientsMap = new Map<string, { ca2024: number; ca2025: number }>();
-    familleData.forEach(item => {
+    marqueData.forEach(item => {
       if (!clientsMap.has(item.codeUnion)) {
         clientsMap.set(item.codeUnion, { ca2024: 0, ca2025: 0 });
       }
@@ -88,14 +88,14 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
       if (item.annee === 2025) client.ca2025 += item.ca;
     });
 
-    const clientsPerformance: FamilleClientData[] = Array.from(clientsMap.entries())
+    const clientsPerformance: MarqueClientData[] = Array.from(clientsMap.entries())
       .map(([codeUnion, data]) => {
         const progression = data.ca2024 > 0 ? ((data.ca2025 - data.ca2024) / data.ca2024) * 100 : 0;
-        const totalCA = familleData.reduce((sum, item) => sum + item.ca, 0);
+        const totalCA = marqueData.reduce((sum, item) => sum + item.ca, 0);
         const pourcentageTotal = totalCA > 0 ? ((data.ca2024 + data.ca2025) / totalCA) * 100 : 0;
         
         // Trouver la raison sociale et groupe client
-        const clientInfo = familleData.find(item => item.codeUnion === codeUnion);
+        const clientInfo = marqueData.find(item => item.codeUnion === codeUnion);
         
         return {
           codeUnion,
@@ -110,24 +110,24 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
       .sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
     // Statistiques globales
-    const totalCA2024 = familleData.filter(item => item.annee === 2024).reduce((sum, item) => sum + item.ca, 0);
-    const totalCA2025 = familleData.filter(item => item.annee === 2025).reduce((sum, item) => sum + item.ca, 0);
+    const totalCA2024 = marqueData.filter(item => item.annee === 2024).reduce((sum, item) => sum + item.ca, 0);
+    const totalCA2025 = marqueData.filter(item => item.annee === 2025).reduce((sum, item) => sum + item.ca, 0);
     const progression = totalCA2024 > 0 ? ((totalCA2025 - totalCA2024) / totalCA2024) * 100 : 0;
-    const totalClients = new Set(familleData.map(item => item.codeUnion)).size;
-    const totalMarques = new Set(familleData.map(item => item.marque)).size;
+    const totalClients = new Set(marqueData.map(item => item.codeUnion)).size;
+    const totalFamilles = new Set(marqueData.map(item => item.sousFamille)).size;
 
     return {
-      marquesPerformance,
+      famillesPerformance,
       clientsPerformance,
       totalCA2024,
       totalCA2025,
       progression: Math.round(progression * 10) / 10,
       totalClients,
-      totalMarques
+      totalFamilles
     };
-  }, [famille, fournisseur, allAdherentData]);
+  }, [marque, fournisseur, allAdherentData]);
 
-  if (!isOpen || !famille || !familleData) return null;
+  if (!isOpen || !marque || !marqueData) return null;
 
   const getStatusIcon = (progression: number) => {
     if (progression > 5) return '📈';
@@ -143,7 +143,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
 
   const tabs = [
     { id: 'overview', label: 'Vue d\'ensemble', shortLabel: 'Vue' },
-    { id: 'marques', label: 'Marques', shortLabel: 'Marques' },
+    { id: 'familles', label: 'Familles', shortLabel: 'Familles' },
     { id: 'clients', label: 'Clients', shortLabel: 'Clients' }
   ];
 
@@ -151,12 +151,12 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white p-6">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2">📦 {famille}</h2>
-              <p className="text-orange-100 text-sm sm:text-base">
-                Fournisseur: {fournisseur} • Analyse détaillée de la famille
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">🏷️ {marque}</h2>
+              <p className="text-purple-100 text-sm sm:text-base">
+                Fournisseur: {fournisseur} • Analyse détaillée de la marque
               </p>
             </div>
             <CloseButton onClose={onClose} size="md" />
@@ -171,7 +171,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
               onClick={() => setActiveTab(tab.id as any)}
               className={`py-2 px-3 rounded-lg font-medium text-xs sm:text-sm transition-colors ${
                 activeTab === tab.id
-                  ? 'bg-orange-500 text-white shadow-lg'
+                  ? 'bg-purple-500 text-white shadow-lg'
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
@@ -186,24 +186,24 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
           {/* Vue d'ensemble */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble de {famille}</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble de {marque}</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-                  <div className="text-3xl font-bold">{familleData.totalCA2024.toLocaleString('fr-FR')}€</div>
+                  <div className="text-3xl font-bold">{marqueData.totalCA2024.toLocaleString('fr-FR')}€</div>
                   <div className="text-blue-100">CA 2024</div>
                 </div>
                 <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
-                  <div className="text-3xl font-bold">{familleData.totalCA2025.toLocaleString('fr-FR')}€</div>
+                  <div className="text-3xl font-bold">{marqueData.totalCA2025.toLocaleString('fr-FR')}€</div>
                   <div className="text-green-100">CA 2025</div>
                 </div>
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl">
-                  <div className="text-3xl font-bold">{familleData.progression >= 0 ? '+' : ''}{familleData.progression.toFixed(1)}%</div>
-                  <div className="text-orange-100">Progression</div>
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
+                  <div className="text-3xl font-bold">{marqueData.progression >= 0 ? '+' : ''}{marqueData.progression.toFixed(1)}%</div>
+                  <div className="text-purple-100">Progression</div>
                 </div>
-                <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-xl">
-                  <div className="text-3xl font-bold">{familleData.totalMarques}</div>
-                  <div className="text-red-100">Marques</div>
+                <div className="bg-gradient-to-br from-pink-500 to-pink-600 text-white p-6 rounded-xl">
+                  <div className="text-3xl font-bold">{marqueData.totalClients}</div>
+                  <div className="text-pink-100">Clients</div>
                 </div>
               </div>
 
@@ -212,11 +212,11 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                   <h4 className="text-lg font-semibold text-gray-800 mb-4">📈 Évolution du CA</h4>
                   <div className="flex items-center justify-between">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{familleData.totalCA2024.toLocaleString('fr-FR')}€</div>
+                      <div className="text-2xl font-bold text-blue-600">{marqueData.totalCA2024.toLocaleString('fr-FR')}€</div>
                       <div className="text-gray-500">2024</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{familleData.totalCA2025.toLocaleString('fr-FR')}€</div>
+                      <div className="text-2xl font-bold text-green-600">{marqueData.totalCA2025.toLocaleString('fr-FR')}€</div>
                       <div className="text-gray-500">2025</div>
                     </div>
                   </div>
@@ -226,11 +226,11 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                   <h4 className="text-lg font-semibold text-gray-800 mb-4">🏗️ Répartition</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600">{familleData.totalMarques}</div>
-                      <div className="text-gray-500">Marques</div>
+                      <div className="text-2xl font-bold text-purple-600">{marqueData.totalFamilles}</div>
+                      <div className="text-gray-500">Familles</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-red-600">{familleData.totalClients}</div>
+                      <div className="text-2xl font-bold text-pink-600">{marqueData.totalClients}</div>
                       <div className="text-gray-500">Clients</div>
                     </div>
                   </div>
@@ -239,25 +239,25 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
             </div>
           )}
 
-          {/* Marques */}
-          {activeTab === 'marques' && (
+          {/* Familles */}
+          {activeTab === 'familles' && (
             <div className="space-y-4 sm:space-y-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">🏷️ Marques de {famille}</h3>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">📦 Familles de {marque}</h3>
               
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
-                {familleData.marquesPerformance.map((item, index) => (
+                {marqueData.famillesPerformance.map((item, index) => (
                   <div 
-                    key={item.marque} 
-                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-purple-50"
-                    onClick={() => onMarqueClick?.(item.marque)}
+                    key={item.sousFamille} 
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-orange-50"
+                    onClick={() => onFamilleClick?.(item.sousFamille)}
                   >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-500 text-white text-sm flex items-center justify-center font-bold">
+                        <div className="w-8 h-8 rounded-full bg-orange-500 text-white text-sm flex items-center justify-center font-bold">
                           {index + 1}
                         </div>
-                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.marque}</span>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.sousFamille}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.progression > 5 ? 'bg-green-100 text-green-800' :
@@ -290,7 +290,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                         </div>
                         <div>
                           <div className="text-gray-500 text-xs">Clients</div>
-                          <div className="font-semibold text-purple-600">{item.clients.length}</div>
+                          <div className="font-semibold text-orange-600">{item.clients.length}</div>
                         </div>
                       </div>
                     </div>
@@ -305,7 +305,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                     <table className="min-w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marque</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Famille</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2024</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CA 2025</th>
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Progression</th>
@@ -314,13 +314,13 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {familleData.marquesPerformance.map((item, index) => (
+                        {marqueData.famillesPerformance.map((item, index) => (
                           <tr 
-                            key={item.marque} 
-                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 cursor-pointer transition-colors`}
-                            onClick={() => onMarqueClick?.(item.marque)}
+                            key={item.sousFamille} 
+                            className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-orange-50 cursor-pointer transition-colors`}
+                            onClick={() => onFamilleClick?.(item.sousFamille)}
                           >
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.sousFamille}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
                             </td>
@@ -345,11 +345,11 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
           {/* Clients */}
           {activeTab === 'clients' && (
             <div className="space-y-4 sm:space-y-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">👥 Clients de {famille}</h3>
+              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">👥 Clients de {marque}</h3>
               
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
-                {familleData.clientsPerformance.map((item, index) => (
+                {marqueData.clientsPerformance.map((item, index) => (
                   <div key={item.codeUnion} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
@@ -410,7 +410,7 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {familleData.clientsPerformance.map((item, index) => (
+                        {marqueData.clientsPerformance.map((item, index) => (
                           <tr key={item.codeUnion} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.raisonSociale}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.groupeClient}</td>
@@ -439,4 +439,4 @@ const FamilleDetailModal: React.FC<FamilleDetailModalProps> = ({
   );
 };
 
-export default FamilleDetailModal;
+export default MarqueDetailModal;

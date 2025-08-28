@@ -325,3 +325,267 @@
   from { content: "0%"; }
   to { content: var(--count-value); }
 }
+
+/* ===== ANIMATIONS DYNAMIQUES ET COLORÉES ===== */
+
+/* Animations d'entrée avec couleurs */
+@keyframes slideInFromTop {
+  0% {
+    transform: translateY(-100px);
+    opacity: 0;
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-100px);
+    opacity: 0;
+    filter: saturate(0);
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+    filter: saturate(1.5);
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100px);
+    opacity: 0;
+    filter: brightness(0.5);
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes fadeInScale {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+    filter: blur(5px);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* Animations de pulsation colorées */
+@keyframes pulseNeon {
+  0%, 100% {
+    box-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+@keyframes pulseRainbow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+/* Animations de rotation avec couleurs */
+@keyframes spinColorful {
+  0% {
+    transform: rotate(0deg);
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes bounceColorful {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+    filter: hue-rotate(0deg);
+  }
+  40%, 43% {
+    transform: translate3d(0, -30px, 0);
+    filter: hue-rotate(180deg);
+  }
+  70% {
+    transform: translate3d(0, -15px, 0);
+    filter: hue-rotate(270deg);
+  }
+  90% {
+    transform: translate3d(0, -4px, 0);
+    filter: hue-rotate(320deg);
+  }
+}
+
+/* Animations de gradient animé */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Animations de survol colorées */
+@keyframes hoverGlow {
+  0% {
+    box-shadow: 0 0 5px currentColor;
+  }
+  100% {
+    box-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+@keyframes hoverScale {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+/* Classes d'animation */
+.animate-slide-in-top {
+  animation: slideInFromTop 0.8s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.8s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInFromRight 0.8s ease-out;
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.6s ease-out;
+}
+
+.animate-pulse-neon {
+  animation: pulseNeon 2s infinite;
+}
+
+.animate-pulse-rainbow {
+  animation: pulseRainbow 3s infinite;
+}
+
+.animate-spin-colorful {
+  animation: spinColorful 2s linear infinite;
+}
+
+.animate-bounce-colorful {
+  animation: bounceColorful 2s infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradientShift 3s ease infinite;
+}
+
+/* Animations d'entrée séquentielles */
+.card-enter {
+  animation: fadeInScale 0.6s ease-out;
+}
+
+.card-enter:nth-child(1) { animation-delay: 0.1s; }
+.card-enter:nth-child(2) { animation-delay: 0.2s; }
+.card-enter:nth-child(3) { animation-delay: 0.3s; }
+.card-enter:nth-child(4) { animation-delay: 0.4s; }
+.card-enter:nth-child(5) { animation-delay: 0.5s; }
+
+/* Animations de navigation */
+.nav-enter {
+  animation: slideInFromTop 0.6s ease-out;
+}
+
+.nav-enter:nth-child(1) { animation-delay: 0.1s; }
+.nav-enter:nth-child(2) { animation-delay: 0.2s; }
+.nav-enter:nth-child(3) { animation-delay: 0.3s; }
+.nav-enter:nth-child(4) { animation-delay: 0.4s; }
+
+/* Animations de métriques */
+.metric-enter {
+  animation: fadeInScale 0.8s ease-out;
+}
+
+.metric-enter:nth-child(1) { animation-delay: 0.1s; }
+.metric-enter:nth-child(2) { animation-delay: 0.2s; }
+.metric-enter:nth-child(3) { animation-delay: 0.3s; }
+.metric-enter:nth-child(4) { animation-delay: 0.4s; }
+.metric-enter:nth-child(5) { animation-delay: 0.5s; }
+
+/* Effets de survol */
+.hover-lift {
+  transition: all 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  animation: hoverGlow 0.3s ease forwards;
+}
+
+.hover-scale {
+  transition: all 0.3s ease;
+}
+
+.hover-scale:hover {
+  animation: hoverScale 0.3s ease forwards;
+}
+
+/* Animations de chargement colorées */
+@keyframes loadingDots {
+  0%, 80%, 100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.loading-dots {
+  display: inline-block;
+}
+
+.loading-dots::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-electric-blue);
+  animation: loadingDots 1.4s infinite ease-in-out both;
+}
+
+.loading-dots::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-neon-pink);
+  animation: loadingDots 1.4s infinite ease-in-out both;
+  animation-delay: -0.32s;
+  margin-right: 8px;
+}
+
+.loading-dots::after {
+  margin-left: 8px;
+  animation-delay: -0.16s;
+}

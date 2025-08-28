@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { FournisseurPerformance, AdherentData, AdherentSummary } from '../types';
 import CloseButton from './CloseButton';
+import InteractionTracker from './InteractionTracker';
+import MarqueDetailModal from './MarqueDetailModal';
+import FamilleDetailModal from './FamilleDetailModal';
 
 interface FournisseurDetailModalProps {
   fournisseur: FournisseurPerformance | null;
@@ -8,6 +11,7 @@ interface FournisseurDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onClientClick: (client: AdherentSummary) => void;
+  onMarqueClick?: (marque: string) => void;
 }
 
 interface FournisseurClientData {
@@ -41,9 +45,12 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
   allAdherentData, 
   isOpen, 
   onClose, 
-  onClientClick 
+  onClientClick,
+  onMarqueClick
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'marques' | 'familles' | 'geographie'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'marques' | 'familles' | 'geographie' | 'interactions'>('overview');
+  const [selectedMarque, setSelectedMarque] = useState<string | null>(null);
+  const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
   // Calculer les données détaillées du fournisseur
   const fournisseurData = useMemo(() => {
@@ -138,11 +145,29 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
       })
       .sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
+    // Calculer le nombre de clients du fournisseur
+    const fournisseurClients = clientsMap.size;
+
+    // Calculer les pourcentages de cotation globale
+    const totalCA2024 = allAdherentData
+      .filter(item => item.annee === 2024)
+      .reduce((sum, item) => sum + item.ca, 0);
+    
+    const totalCA2025 = allAdherentData
+      .filter(item => item.annee === 2025)
+      .reduce((sum, item) => sum + item.ca, 0);
+    
+    const pourcentageCA2024 = totalCA2024 > 0 ? (fournisseur.ca2024 / totalCA2024) * 100 : 0;
+    const pourcentageCA2025 = totalCA2025 > 0 ? (fournisseur.ca2025 / totalCA2025) * 100 : 0;
+
     return {
       clientsPerformance,
       marquesPerformance,
       famillesPerformance,
-      totalGroupementClients
+      totalGroupementClients,
+      fournisseurClients,
+      pourcentageCA2024: Math.round(pourcentageCA2024 * 10) / 10,
+      pourcentageCA2025: Math.round(pourcentageCA2025 * 10) / 10
     };
   }, [fournisseur, allAdherentData]);
 
@@ -165,7 +190,8 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
     { id: 'clients', label: 'Clients', shortLabel: 'Clients' },
     { id: 'marques', label: 'Marques', shortLabel: 'Marques' },
     { id: 'familles', label: 'Familles', shortLabel: 'Familles' },
-    { id: 'geographie', label: 'Géographie', shortLabel: 'Géo' }
+    { id: 'geographie', label: 'Géographie', shortLabel: 'Géo' },
+    { id: 'interactions', label: 'Interactions', shortLabel: 'Int' }
   ];
 
   return (
@@ -209,7 +235,7 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
             <div className="space-y-6">
               <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble</h3>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-4">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
                   <div className="text-3xl font-bold">{fournisseur.ca2024.toLocaleString('fr-FR')}€</div>
                   <div className="text-blue-100">CA 2024</div>
@@ -223,8 +249,20 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                   <div className="text-purple-100">Progression</div>
                 </div>
                 <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl">
+                  <div className="text-3xl font-bold">{fournisseurData.fournisseurClients}</div>
+                  <div className="text-orange-100">Clients Fournisseur</div>
+                </div>
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white p-6 rounded-xl">
                   <div className="text-3xl font-bold">{fournisseurData.totalGroupementClients}</div>
-                  <div className="text-orange-100">Clients Groupement</div>
+                  <div className="text-indigo-100">Clients Groupement</div>
+                </div>
+                <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl">
+                  <div className="text-3xl font-bold">{fournisseurData.pourcentageCA2024}%</div>
+                  <div className="text-teal-100">Cotation 2024</div>
+                </div>
+                <div className="bg-gradient-to-br from-pink-500 to-pink-600 text-white p-6 rounded-xl">
+                  <div className="text-3xl font-bold">{fournisseurData.pourcentageCA2025}%</div>
+                  <div className="text-pink-100">Cotation 2025</div>
                 </div>
               </div>
 
@@ -249,52 +287,71 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
             <div className="space-y-4 sm:space-y-6">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">👥 Performance par Client</h3>
               
-              {/* Mode Carte pour Mobile */}
-              <div className="space-y-3 sm:hidden">
-                {fournisseurData.clientsPerformance.map((item, index) => (
-                  <div key={item.codeUnion} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 text-white text-sm flex items-center justify-center font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 text-sm">{item.raisonSociale}</div>
-                          <div className="text-gray-500 text-xs">{item.groupeClient}</div>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.progression > 5 ? 'bg-green-100 text-green-800' :
-                        item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">CA 2024</div>
-                        <div className="font-semibold text-gray-900">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">CA 2025</div>
-                        <div className="font-semibold text-gray-900">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">Part du CA total</div>
-                        <div className="font-semibold text-blue-600">{item.pourcentageTotal}%</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                             {/* Mode Carte pour Mobile */}
+               <div className="space-y-3 sm:hidden">
+                 {fournisseurData.clientsPerformance.map((item, index) => (
+                   <div 
+                     key={item.codeUnion} 
+                     className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-blue-50"
+                     onClick={() => {
+                       const statut: 'progression' | 'regression' | 'stable' = 
+                         item.progression > 5 ? 'progression' : 
+                         item.progression < -5 ? 'regression' : 'stable';
+                       
+                       const clientSummary: AdherentSummary = {
+                         codeUnion: item.codeUnion,
+                         raisonSociale: item.raisonSociale,
+                         groupeClient: item.groupeClient,
+                         ca2024: item.ca2024,
+                         ca2025: item.ca2025,
+                         progression: item.progression,
+                         statut
+                       };
+                       onClientClick(clientSummary);
+                     }}
+                   >
+                     <div className="flex items-center justify-between mb-3">
+                       <div className="flex items-center space-x-3">
+                         <div className="w-8 h-8 rounded-full bg-blue-500 text-white text-sm flex items-center justify-center font-bold">
+                           {index + 1}
+                         </div>
+                         <div>
+                           <div className="font-semibold text-gray-900 text-sm">{item.raisonSociale}</div>
+                           <div className="text-gray-500 text-xs">{item.groupeClient}</div>
+                         </div>
+                       </div>
+                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                         item.progression > 5 ? 'bg-green-100 text-green-800' :
+                         item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                       }`}>
+                         {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                       </span>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">CA 2024</div>
+                         <div className="font-semibold text-gray-900">
+                           {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                         </div>
+                       </div>
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">CA 2025</div>
+                         <div className="font-semibold text-gray-900">
+                           {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                         </div>
+                       </div>
+                     </div>
+                     
+                     <div className="pt-3 border-t border-gray-100">
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">Part du CA total</div>
+                         <div className="font-semibold text-blue-600">{item.pourcentageTotal}%</div>
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
               
               {/* Mode Tableau pour Desktop */}
               <div className="hidden sm:block">
@@ -311,24 +368,43 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">% Total</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {fournisseurData.clientsPerformance.map((item, index) => (
-                          <tr key={item.codeUnion} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.raisonSociale}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.groupeClient}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                            </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
-                              {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.pourcentageTotal}%</td>
-                          </tr>
-                        ))}
-                      </tbody>
+                                             <tbody className="bg-white divide-y divide-gray-200">
+                         {fournisseurData.clientsPerformance.map((item, index) => (
+                           <tr 
+                             key={item.codeUnion} 
+                             className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-blue-50 cursor-pointer transition-colors`}
+                             onClick={() => {
+                               const statut: 'progression' | 'regression' | 'stable' = 
+                                 item.progression > 5 ? 'progression' : 
+                                 item.progression < -5 ? 'regression' : 'stable';
+                               
+                               const clientSummary: AdherentSummary = {
+                                 codeUnion: item.codeUnion,
+                                 raisonSociale: item.raisonSociale,
+                                 groupeClient: item.groupeClient,
+                                 ca2024: item.ca2024,
+                                 ca2025: item.ca2025,
+                                 progression: item.progression,
+                                 statut
+                               };
+                               onClientClick(clientSummary);
+                             }}
+                           >
+                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.raisonSociale}</td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.groupeClient}</td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                             </td>
+                             <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
+                               {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.pourcentageTotal}%</td>
+                           </tr>
+                         ))}
+                       </tbody>
                     </table>
                   </div>
                 </div>
@@ -341,49 +417,53 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
             <div className="space-y-4 sm:space-y-6">
               <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">🏷️ Performance par Marque</h3>
               
-              {/* Mode Carte pour Mobile */}
-              <div className="space-y-3 sm:hidden">
-                {fournisseurData.marquesPerformance.map((item, index) => (
-                  <div key={item.marque} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-500 text-white text-sm flex items-center justify-center font-bold">
-                          {index + 1}
-                        </div>
-                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.marque}</span>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.progression > 5 ? 'bg-green-100 text-green-800' :
-                        item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                      </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">CA 2024</div>
-                        <div className="font-semibold text-gray-900">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">CA 2025</div>
-                        <div className="font-semibold text-gray-900">
-                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="pt-3 border-t border-gray-100">
-                      <div className="text-center">
-                        <div className="text-gray-500 text-xs">Clients associés</div>
-                        <div className="font-semibold text-purple-600">{item.clients.length}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                             {/* Mode Carte pour Mobile */}
+               <div className="space-y-3 sm:hidden">
+                 {fournisseurData.marquesPerformance.map((item, index) => (
+                   <div 
+                     key={item.marque} 
+                     className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-purple-50"
+                     onClick={() => setSelectedMarque(item.marque)}
+                   >
+                     <div className="flex items-center justify-between mb-3">
+                       <div className="flex items-center space-x-3">
+                         <div className="w-8 h-8 rounded-full bg-purple-500 text-white text-sm flex items-center justify-center font-bold">
+                           {index + 1}
+                         </div>
+                         <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.marque}</span>
+                       </div>
+                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                         item.progression > 5 ? 'bg-green-100 text-green-800' :
+                         item.progression < -5 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                       }`}>
+                         {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                       </span>
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">CA 2024</div>
+                         <div className="font-semibold text-gray-900">
+                           {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                         </div>
+                       </div>
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">CA 2025</div>
+                         <div className="font-semibold text-gray-900">
+                           {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                         </div>
+                       </div>
+                     </div>
+                     
+                     <div className="pt-3 border-t border-gray-100">
+                       <div className="text-center">
+                         <div className="text-gray-500 text-xs">Clients associés</div>
+                         <div className="font-semibold text-purple-600">{item.clients.length}</div>
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+               </div>
               
               {/* Mode Tableau pour Desktop */}
               <div className="hidden sm:block">
@@ -399,23 +479,27 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                           <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Clients</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {fournisseurData.marquesPerformance.map((item, index) => (
-                          <tr key={item.marque} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                              {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                            </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
-                              {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.clients.length}</td>
-                          </tr>
-                        ))}
-                      </tbody>
+                                             <tbody className="bg-white divide-y divide-gray-200">
+                         {fournisseurData.marquesPerformance.map((item, index) => (
+                           <tr 
+                             key={item.marque} 
+                             className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 cursor-pointer transition-colors`}
+                             onClick={() => setSelectedMarque(item.marque)}
+                           >
+                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                             </td>
+                             <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-bold ${getStatusColor(item.progression)}`}>
+                               {getStatusIcon(item.progression)} {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                             </td>
+                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">{item.clients.length}</td>
+                           </tr>
+                         ))}
+                       </tbody>
                     </table>
                   </div>
                 </div>
@@ -431,7 +515,11 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
                 {fournisseurData.famillesPerformance.map((item, index) => (
-                  <div key={item.sousFamille} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  <div 
+                    key={item.sousFamille} 
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all cursor-pointer hover:bg-orange-50"
+                    onClick={() => setSelectedFamille(item.sousFamille)}
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-orange-500 text-white text-sm flex items-center justify-center font-bold">
@@ -488,7 +576,11 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {fournisseurData.famillesPerformance.map((item, index) => (
-                          <tr key={item.sousFamille} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <tr 
+                           key={item.sousFamille} 
+                           className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-orange-50 cursor-pointer transition-colors`}
+                           onClick={() => setSelectedFamille(item.sousFamille)}
+                         >
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.sousFamille}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
@@ -524,8 +616,45 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Interactions - CRM Module */}
+          {activeTab === 'interactions' && (
+            <div className="space-y-4 sm:space-y-6">
+              <InteractionTracker fournisseur={fournisseur.fournisseur} />
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Modal Marque Detail */}
+      {selectedMarque && (
+        <MarqueDetailModal
+          marque={selectedMarque}
+          fournisseur={fournisseur.fournisseur}
+          allAdherentData={allAdherentData}
+          isOpen={!!selectedMarque}
+          onClose={() => setSelectedMarque(null)}
+          onFamilleClick={(famille) => {
+            setSelectedMarque(null);
+            setSelectedFamille(famille);
+          }}
+        />
+      )}
+
+      {/* Modal Famille Detail */}
+      {selectedFamille && (
+        <FamilleDetailModal
+          famille={selectedFamille}
+          fournisseur={fournisseur.fournisseur}
+          allAdherentData={allAdherentData}
+          isOpen={!!selectedFamille}
+          onClose={() => setSelectedFamille(null)}
+          onMarqueClick={(marque) => {
+            setSelectedFamille(null);
+            setSelectedMarque(marque);
+          }}
+        />
+      )}
     </div>
   );
 };
