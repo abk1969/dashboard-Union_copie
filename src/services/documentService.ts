@@ -1,5 +1,5 @@
 import { Document } from '../types';
-import { SUPABASE_CONFIG, getSupabaseHeaders, getSupabaseRestUrl } from '../config/supabase';
+import { getSupabaseHeaders, getSupabaseRestUrl } from '../config/supabase';
 
 interface SupabaseDocument {
   id: number;

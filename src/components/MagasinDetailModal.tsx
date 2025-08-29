@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { AdherentData, Document } from '../types';
-import { formatCurrency, formatPercentage, formatProgression } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 import CloseButton from './CloseButton';
 import { DocumentService } from '../services/documentService';
 import { DOCUMENT_TYPES, getDocumentTypeColor, getDocumentTypeIconColor } from '../config/documentTypes';

@@ -14,7 +14,7 @@ import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
 import { DocumentsSection } from './components/DocumentsSection';
-import DocumentTest from './components/DocumentTest';
+
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
 import MobileNavigation from './components/MobileNavigation';
@@ -916,8 +916,7 @@ function App() {
                  }}
                />
                
-               {/* Composant de test pour déboguer */}
-               <DocumentTest />
+               
              </div>
            )}
       </main>

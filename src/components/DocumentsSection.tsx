@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Document, DocumentType } from '../types';
-import { DOCUMENT_TYPES, getDocumentTypeColor, getDocumentTypeIconColor } from '../config/documentTypes';
+import { Document } from '../types';
+import { DOCUMENT_TYPES, getDocumentTypeIconColor } from '../config/documentTypes';
 import { DocumentService } from '../services/documentService';
 import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
 
