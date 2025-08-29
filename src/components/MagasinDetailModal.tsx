@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { AdherentData, Document } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import CloseButton from './CloseButton';
@@ -195,15 +195,8 @@ const MagasinDetailModal: React.FC<MagasinDetailModalProps> = ({
   );
   const progressionGlobale = totalCA2024 > 0 ? ((totalCA2025 - totalCA2024) / totalCA2024) * 100 : 0;
 
-  // Charger les documents quand l'onglet Documents est actif
-  useEffect(() => {
-    if (activeView === 'documents' && magasinData) {
-      loadDocuments();
-    }
-  }, [activeView, magasinData]);
-
   // Fonction pour charger les documents
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     if (!magasinData) return;
     
     setLoadingDocuments(true);
@@ -222,7 +215,14 @@ const MagasinDetailModal: React.FC<MagasinDetailModalProps> = ({
     } finally {
       setLoadingDocuments(false);
     }
-  };
+  }, [magasinData]);
+
+  // Charger les documents quand l'onglet Documents est actif
+  useEffect(() => {
+    if (activeView === 'documents' && magasinData) {
+      loadDocuments();
+    }
+  }, [activeView, magasinData, loadDocuments]);
 
   if (!isOpen || !magasinData) return null;
 
