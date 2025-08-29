@@ -1,6 +1,24 @@
+import { createClient } from '@supabase/supabase-js';
+
 // Configuration Supabase
-const supabaseUrl = 'https://ybzajzcwxcgoxtqsimol.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYyODgwODcsImV4cCI6MjA3MTg2NDA4N30.zLJEdhKpcsWiGIsvAyZpsNn-YVXmgaudeSDHW4Dectc';
+export const SUPABASE_CONFIG = {
+  url: 'https://ybzajzcwxcgoxtqsimol.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI4ODA4NywiZXhwIjoyMDcxODY0MDg3fQ.t6KhbnUmh5Ix3CWlYM5HxjR58GNxtug-h_GMzE9VIio',
+};
+
+// Créer le client Supabase
+export const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+// Headers par défaut pour les requêtes Supabase
+export const getSupabaseHeaders = () => ({
+  'apikey': SUPABASE_CONFIG.anonKey,
+  'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`,
+  'Content-Type': 'application/json',
+});
+
+// URL de base pour l'API REST
+export const getSupabaseRestUrl = (endpoint: string) => 
+  `${SUPABASE_CONFIG.url}/rest/v1/${endpoint}`;
 
 // Types pour vos données
 export interface SupabaseAdherent {
@@ -31,13 +49,9 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       const offset = page * pageSize;
       console.log(`📄 Récupération de la page ${page + 1} (offset: ${offset})...`);
       
-      const response = await fetch(`${supabaseUrl}/rest/v1/adherents?select=*&limit=${pageSize}&offset=${offset}`, {
+      const response = await fetch(getSupabaseRestUrl(`adherents?select=*&limit=${pageSize}&offset=${offset}`), {
         method: 'GET',
-        headers: {
-          'apikey': supabaseAnonKey,
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json'
-        }
+        headers: getSupabaseHeaders()
       });
       
       if (!response.ok) {

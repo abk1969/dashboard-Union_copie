@@ -100,6 +100,28 @@ export interface RfaTripartite {
   actif: boolean;
 }
 
+// Document Management Interfaces
+export interface Document {
+  id: number;
+  codeUnion: string;
+  typeDocument: 'RIB' | 'KBIS' | 'PIECES_IDENTITE' | 'CONTRAT_UNION' | 'PHOTO_ENSEIGNE' | 'PHOTO_COMPTOIR';
+  urlDrive: string;
+  nomFichier: string;
+  dateUpload: Date;
+  statut: 'actif' | 'archive' | 'supprime';
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface DocumentType {
+  type: 'RIB' | 'KBIS' | 'PIECES_IDENTITE' | 'CONTRAT_UNION' | 'PHOTO_ENSEIGNE' | 'PHOTO_COMPTOIR';
+  label: string;
+  description: string;
+  icon: string;
+  color: string;
+  required: boolean;
+}
+
 export interface TripartiteMapping {
   fournisseur: string;
   marque?: string;        // Pour ALLIANCE, DCA

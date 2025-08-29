@@ -12,6 +12,9 @@ import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
 import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
+import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
+import { DocumentsSection } from './components/DocumentsSection';
+import DocumentTest from './components/DocumentTest';
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
 import MobileNavigation from './components/MobileNavigation';
@@ -22,7 +25,7 @@ import './styles/colors.css';
 
 function App() {
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -31,6 +34,8 @@ function App() {
   const [showFamilleModal, setShowFamilleModal] = useState(false);
   const [showStartup, setShowStartup] = useState(true);
   const [pageLoaded, setPageLoaded] = useState(false);
+  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
+  const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
 
   // Calcul des métriques globales
   const globalMetrics = useMemo(() => {
@@ -409,6 +414,16 @@ function App() {
                }`}
              >
                📥 Import
+             </button>
+             <button
+               onClick={() => setActiveTab('documents')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'documents'
+                   ? 'bg-emerald-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300'
+               }`}
+             >
+               📁 Documents
              </button>
           </div>
         </div>
@@ -891,6 +906,20 @@ function App() {
                />
              </div>
            )}
+
+           {/* Onglet Documents */}
+           {activeTab === 'documents' && (
+             <div className="space-y-6">
+               <DocumentsSection 
+                 onDocumentUploaded={(document) => {
+                   console.log('Document uploadé:', document);
+                 }}
+               />
+               
+               {/* Composant de test pour déboguer */}
+               <DocumentTest />
+             </div>
+           )}
       </main>
 
       {/* Modal de détails client */}
@@ -927,6 +956,22 @@ function App() {
         }}
         onClientClick={handleClientClick}
       />
+
+      {/* Modal d'upload de documents Supabase */}
+      {showDocumentUploader && (
+        <SupabaseDocumentUploader
+          codeUnion={selectedAdherentForUpload}
+          onDocumentUploaded={(document: any) => {
+            console.log('Document uploadé:', document);
+            setShowDocumentUploader(false);
+            setSelectedAdherentForUpload('');
+          }}
+          onClose={() => {
+            setShowDocumentUploader(false);
+            setSelectedAdherentForUpload('');
+          }}
+        />
+      )}
       </div>
     </>
   );

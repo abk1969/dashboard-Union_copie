@@ -1,8 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { AdherentSummary, AdherentData } from '../types';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { AdherentSummary, AdherentData, Document } from '../types';
 import RevenueChart from './RevenueChart';
 import ClientExport from './ClientExport';
 import CloseButton from './CloseButton';
+import { DocumentService } from '../services/documentService';
+import { DOCUMENT_TYPES } from '../config/documentTypes';
+import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
+import PDFViewer from './PDFViewer';
 
 interface ClientDetailModalProps {
   client: AdherentSummary | null;
@@ -52,7 +56,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'fournisseurs' | 'marques' | 'marquesMulti' | 'familles' | 'timeline'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fournisseurs' | 'marques' | 'marquesMulti' | 'familles' | 'timeline' | 'documents'>('overview');
   const [showExportModal, setShowExportModal] = useState(false);
   
   // États pour les filtres des Marques Multi-Fournisseurs
@@ -62,6 +66,70 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [performanceFilter, setPerformanceFilter] = useState('all');
   const [caMin, setCaMin] = useState('');
   const [caMax, setCaMax] = useState('');
+
+  // États pour les documents
+  const [clientDocuments, setClientDocuments] = useState<Document[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
+  const [documentSearchTerm, setDocumentSearchTerm] = useState('');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('all');
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+
+  const loadClientDocuments = useCallback(async () => {
+    if (!client) return;
+    
+    console.log('🔄 Chargement des documents pour le client:', client.codeUnion);
+    setDocumentsLoading(true);
+    try {
+      const documents = await DocumentService.getDocumentsByCodeUnion(client.codeUnion);
+      console.log('📄 Documents récupérés:', documents);
+      setClientDocuments(documents);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des documents:', error);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [client]);
+
+  const handleDocumentUploaded = (document: Document) => {
+    setClientDocuments(prev => [document, ...prev]);
+    setShowDocumentUploader(false);
+  };
+
+  const handleDocumentDelete = async (documentId: number) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
+      return;
+    }
+
+    try {
+      const success = await DocumentService.deleteDocument(documentId);
+      if (success) {
+        setClientDocuments(prev => prev.filter(doc => doc.id !== documentId));
+        console.log('✅ Document supprimé avec succès');
+      } else {
+        console.error('❌ Erreur lors de la suppression du document');
+        alert('Erreur lors de la suppression du document');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression:', error);
+      alert('Erreur lors de la suppression du document');
+    }
+  };
+
+  // Charger les documents du client
+  useEffect(() => {
+    console.log('🔍 useEffect triggered:', { activeTab, clientCode: client?.codeUnion });
+    if (activeTab === 'documents' && client) {
+      console.log('✅ Conditions remplies, appel de loadClientDocuments');
+      loadClientDocuments();
+    } else {
+      console.log('❌ Conditions non remplies:', { 
+        activeTabIsDocuments: activeTab === 'documents', 
+        clientExists: !!client 
+      });
+    }
+  }, [activeTab, client, loadClientDocuments]);
 
   // Calculer les données détaillées du client
   const clientData = useMemo(() => {
@@ -264,7 +332,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               { id: 'marques', label: '🏷️ Marques', icon: '🎯', shortLabel: 'Marques' },
               { id: 'marquesMulti', label: '🔄 Marques Multi-Fournisseurs', icon: '🔗', shortLabel: 'Multi' },
               { id: 'familles', label: '📦 Familles', icon: '📋', shortLabel: 'Familles' },
-              { id: 'timeline', label: '⏰ Timeline', icon: '📅', shortLabel: 'Timeline' }
+              { id: 'timeline', label: '⏰ Timeline', icon: '📅', shortLabel: 'Timeline' },
+              { id: 'documents', label: '📄 Documents', icon: '📁', shortLabel: 'Docs' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1222,6 +1291,178 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Documents */}
+          {activeTab === 'documents' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-800">📄 Documents du Client</h3>
+                <button
+                  onClick={() => setShowDocumentUploader(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-colors font-medium"
+                >
+                  📤 Ajouter un Document
+                </button>
+              </div>
+
+              {/* Filtres et recherche */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche</label>
+                    <input
+                      type="text"
+                      value={documentSearchTerm}
+                      onChange={(e) => setDocumentSearchTerm(e.target.value)}
+                      placeholder="Rechercher par nom de fichier..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">📋 Type de Document</label>
+                    <select
+                      value={selectedDocumentType}
+                      onChange={(e) => setSelectedDocumentType(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="all">Tous les types</option>
+                      {DOCUMENT_TYPES.map(type => (
+                        <option key={type.type} value={type.type}>
+                          {type.icon} {type.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Debug info */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="text-sm text-yellow-800">
+                  <strong>Debug:</strong> Loading: {documentsLoading.toString()},
+                  Documents count: {clientDocuments.length},
+                  Client: {client?.codeUnion}
+                </div>
+                
+                {/* Test button pour PDFViewer */}
+                <div className="mt-3">
+                  <button
+                    onClick={() => {
+                      console.log('🧪 Test PDFViewer button clicked');
+                      setSelectedDocument({
+                        id: 999,
+                        codeUnion: 'TEST',
+                        typeDocument: 'CONTRAT_UNION',
+                        urlDrive: 'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view',
+                        nomFichier: 'Test Document.pdf',
+                        dateUpload: new Date(),
+                        notes: 'Test document',
+                        statut: 'actif',
+                        createdAt: new Date()
+                      });
+                      setShowPDFViewer(true);
+                    }}
+                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-md text-xs hover:bg-purple-200 transition-colors"
+                  >
+                    🧪 Test PDFViewer
+                  </button>
+                </div>
+              </div>
+
+              {/* Liste des documents */}
+              {documentsLoading ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                  <div className="text-4xl mb-4">⏳</div>
+                  <div className="text-lg text-gray-600">Chargement des documents...</div>
+                </div>
+              ) : clientDocuments.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                  <div className="text-4xl mb-4">📁</div>
+                  <div className="text-lg text-gray-600">Aucun document trouvé pour ce client</div>
+                  <div className="text-sm text-gray-500 mt-2">Commencez par ajouter votre premier document</div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom du Fichier</th>
+                                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'Upload</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {clientDocuments
+                          .map((doc, index) => (
+                            <tr key={doc.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <span className="text-2xl mr-2">
+                                    {DOCUMENT_TYPES.find(t => t.type === doc.typeDocument)?.icon || '📄'}
+                                  </span>
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {DOCUMENT_TYPES.find(t => t.type === doc.typeDocument)?.label || doc.typeDocument}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {DOCUMENT_TYPES.find(t => t.type === doc.typeDocument)?.description || ''}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{doc.nomFichier}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {new Date(doc.dateUpload).toLocaleDateString('fr-FR')}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  doc.statut === 'actif' ? 'bg-green-100 text-green-800' :
+                                  doc.statut === 'archive' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {doc.statut === 'actif' ? '✅ Actif' :
+                                   doc.statut === 'archive' ? '📦 Archivé' : '🗑️ Supprimé'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {doc.notes || '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center space-x-2">
+                                  {doc.urlDrive && doc.urlDrive !== 'https://example.com/storage/' && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedDocument(doc);
+                                        setShowPDFViewer(true);
+                                      }}
+                                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md text-xs hover:bg-blue-200 transition-colors"
+                                    >
+                                      👁️ Voir
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleDocumentDelete(doc.id)}
+                                    className="px-3 py-1 bg-red-100 text-red-700 rounded-md text-xs hover:bg-red-200 transition-colors"
+                                  >
+                                    🗑️ Supprimer
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {/* Modal d'export client */}
@@ -1231,6 +1472,56 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           clientData={clientData!}
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
+        />
+      )}
+
+      {/* Modal d'upload de documents */}
+      {showDocumentUploader && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="max-w-4xl w-full bg-white rounded-xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold text-gray-800">📤 Ajouter un Document</h3>
+              <button
+                onClick={() => setShowDocumentUploader(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Info client */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <span className="text-blue-600 text-xl mr-2">ℹ️</span>
+                  <div className="text-blue-800">
+                    <div className="font-medium">Client sélectionné : {client?.raisonSociale}</div>
+                    <div className="text-sm">Code Union : {client?.codeUnion}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Uploader intégré */}
+              <SupabaseDocumentUploader
+                codeUnion={client?.codeUnion || ''}
+                onDocumentUploaded={handleDocumentUploaded}
+                onClose={() => setShowDocumentUploader(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de visualisation PDF */}
+      {showPDFViewer && selectedDocument && (
+        <PDFViewer
+          isOpen={showPDFViewer}
+          onClose={() => {
+            setShowPDFViewer(false);
+            setSelectedDocument(null);
+          }}
+          documentUrl={selectedDocument.urlDrive}
+          documentName={selectedDocument.nomFichier}
         />
       )}
     </div>
