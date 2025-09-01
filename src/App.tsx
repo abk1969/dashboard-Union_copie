@@ -342,6 +342,7 @@ function App() {
                   <p className="mt-2 text-gray-600 font-serif italic text-lg max-w-4xl leading-relaxed">
                     L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
                   </p>
+                  {/* 🚀 Vercel trigger - Logo optimisé 24px + Titre stylisé */}
                 </div>
               </div>
               {allAdherentData.length > 0 && (
