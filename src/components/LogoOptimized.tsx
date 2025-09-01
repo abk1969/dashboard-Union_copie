@@ -4,14 +4,14 @@ interface LogoProps {
   className?: string;
 }
 
-const Logo: React.FC<LogoProps> = ({ className = "h-6 w-auto hover-scale" }) => {
+const LogoOptimized: React.FC<LogoProps> = ({ className = "h-16 w-auto hover-scale" }) => {
   const [imageError, setImageError] = useState(false);
 
-  // Chemin simple et direct - testons d'abord le plus basique
-  const logoSrc = 'image/Logo-white-h.png';
+  // Import direct de l'image (plus fiable sur Vercel)
+  const logoSrc = '/image/Logo-white-h.png';
 
   const handleImageError = () => {
-    console.error('❌ Erreur de chargement du logo avec:', logoSrc);
+    console.error('❌ Erreur de chargement du logo optimisé:', logoSrc);
     setImageError(true);
   };
 
@@ -30,9 +30,9 @@ const Logo: React.FC<LogoProps> = ({ className = "h-6 w-auto hover-scale" }) => 
       alt="Groupement Union - Logo" 
       className={className}
       onError={handleImageError}
-      style={{ maxWidth: '120px', height: 'auto' }}
+      loading="eager"
     />
   );
 };
 
-export default Logo;
+export default LogoOptimized;

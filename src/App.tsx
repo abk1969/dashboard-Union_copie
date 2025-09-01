@@ -339,8 +339,8 @@ function App() {
                   <h1 className="text-3xl font-bold text-gray-900">
                     Dashboard
                   </h1>
-                  <p className="mt-2 text-gray-600">
-                    Visualisation du chiffre d'affaires des adhérents - 2024 vs 2025
+                  <p className="mt-2 text-gray-600 font-serif italic text-lg max-w-4xl leading-relaxed">
+                    L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
                   </p>
                 </div>
               </div>
