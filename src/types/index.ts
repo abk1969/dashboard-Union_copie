@@ -175,3 +175,62 @@ export interface ClientRfaResume {
   tripartites: RfaCalcul[];
   progressionGlobale: number;
 }
+
+// Notes et To-Do Lists Interfaces
+export interface NoteClient {
+  idNote: string;
+  codeUnion: string;
+  typeNote: 'TO DO' | 'NOTE SIMPLE';
+  noteSimple?: string;
+  noteIa?: string;
+  dateCreation: Date;
+  auteur: string;
+  traite: boolean;
+  assigneA?: string;
+  personneAPrevenir?: string;
+  dateRappel?: Date;
+  statutTache: 'TERMINEE' | 'EN COURS' | 'EN RETARD';
+  tache?: string;
+  priorite: 'BASSE' | 'NORMALE' | 'HAUTE' | 'URGENTE';
+  tags?: string[];
+  createdAt: Date;
+}
+
+export interface Utilisateur {
+  id: number;
+  email: string;
+  nom: string;
+  prenom: string;
+  role: 'admin' | 'commercial' | 'manager';
+  equipe?: string;
+  actif: boolean;
+  avatarUrl?: string;
+  dateCreation: Date;
+  derniereConnexion?: Date;
+}
+
+export interface TodoItem {
+  id: string;
+  titre: string;
+  description?: string;
+  assigneA: string;
+  createur: string;
+  priorite: 'BASSE' | 'NORMALE' | 'HAUTE' | 'URGENTE';
+  statut: 'A FAIRE' | 'EN COURS' | 'TERMINEE' | 'EN RETARD';
+  dateCreation: Date;
+  dateEcheance?: Date;
+  dateTerminaison?: Date;
+  tags?: string[];
+  notes?: string;
+}
+
+export interface NoteFilter {
+  codeUnion?: string;
+  typeNote?: 'TO DO' | 'NOTE SIMPLE' | 'TOUS';
+  statut?: 'TERMINEE' | 'EN COURS' | 'EN RETARD' | 'TOUS';
+  priorite?: 'BASSE' | 'NORMALE' | 'HAUTE' | 'URGENTE' | 'TOUS';
+  auteur?: string;
+  assigneA?: string;
+  dateDebut?: Date;
+  dateFin?: Date;
+}

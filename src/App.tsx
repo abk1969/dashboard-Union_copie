@@ -14,6 +14,8 @@ import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
 import { DocumentsSection } from './components/DocumentsSection';
+import { NotesClientsSection } from './components/NotesClientsSection';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -25,7 +27,7 @@ import './styles/colors.css';
 
 function App() {
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents' | 'notes'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -36,6 +38,7 @@ function App() {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
+  const [selectedNote, setSelectedNote] = useState<any>(null);
 
   // Calcul des métriques globales
   const globalMetrics = useMemo(() => {
@@ -317,14 +320,15 @@ function App() {
   };
 
   return (
-    <>
-      {/* Écran de démarrage */}
-      {showStartup && (
-        <StartupScreen onComplete={() => setShowStartup(false)} />
-      )}
+    <ProtectedRoute>
+      <>
+        {/* Écran de démarrage */}
+        {showStartup && (
+          <StartupScreen onComplete={() => setShowStartup(false)} />
+        )}
 
-      {/* Interface principale */}
-      <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-1000 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Interface principale */}
+        <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-1000 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
               {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -424,6 +428,16 @@ function App() {
                }`}
              >
                📁 Documents
+             </button>
+             <button
+               onClick={() => setActiveTab('notes')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'notes'
+                   ? 'bg-pink-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200 hover:border-pink-300'
+               }`}
+             >
+               📝 Notes
              </button>
           </div>
         </div>
@@ -919,6 +933,18 @@ function App() {
                
              </div>
            )}
+
+           {/* Onglet Notes */}
+           {activeTab === 'notes' && (
+             <div className="space-y-6">
+               <NotesClientsSection 
+                 onNoteClick={(note) => {
+                   console.log('Note sélectionnée:', note);
+                   setSelectedNote(note);
+                 }}
+               />
+             </div>
+           )}
       </main>
 
       {/* Modal de détails client */}
@@ -971,8 +997,9 @@ function App() {
           }}
         />
       )}
-      </div>
-    </>
+        </div>
+      </>
+    </ProtectedRoute>
   );
 }
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { AdherentSummary, AdherentData, Document } from '../types';
+import { AdherentSummary, AdherentData, Document, NoteClient } from '../types';
 import RevenueChart from './RevenueChart';
 import ClientExport from './ClientExport';
 import CloseButton from './CloseButton';
@@ -7,6 +7,8 @@ import { DocumentService } from '../services/documentService';
 import { DOCUMENT_TYPES } from '../config/documentTypes';
 import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
 import PDFViewer from './PDFViewer';
+import { getNotesByCodeUnion } from '../data/notesData';
+import { NoteModal } from './NoteModal';
 
 interface ClientDetailModalProps {
   client: AdherentSummary | null;
@@ -56,7 +58,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'fournisseurs' | 'marques' | 'marquesMulti' | 'familles' | 'timeline' | 'documents'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'fournisseurs' | 'marques' | 'marquesMulti' | 'familles' | 'timeline' | 'documents' | 'notes'>('overview');
   const [showExportModal, setShowExportModal] = useState(false);
   
   // États pour les filtres des Marques Multi-Fournisseurs
@@ -76,6 +78,11 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [showPDFViewer, setShowPDFViewer] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
 
+  // États pour les notes
+  const [clientNotes, setClientNotes] = useState<NoteClient[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+
   const loadClientDocuments = useCallback(async () => {
     if (!client) return;
     
@@ -89,6 +96,22 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       console.error('❌ Erreur lors du chargement des documents:', error);
     } finally {
       setDocumentsLoading(false);
+    }
+  }, [client]);
+
+  const loadClientNotes = useCallback(async () => {
+    if (!client) return;
+    
+    console.log('🔄 Chargement des notes pour le client:', client.codeUnion);
+    setNotesLoading(true);
+    try {
+      const notes = getNotesByCodeUnion(client.codeUnion);
+      console.log('📝 Notes récupérées:', notes);
+      setClientNotes(notes);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des notes:', error);
+    } finally {
+      setNotesLoading(false);
     }
   }, [client]);
 
@@ -113,8 +136,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       }
     } catch (error) {
       console.error('❌ Erreur lors de la suppression:', error);
-      alert('Erreur lors de la suppression du document');
+        alert('Erreur lors de la suppression du document');
     }
+  };
+
+  const handleNoteAdded = (newNote: NoteClient) => {
+    setClientNotes(prev => [newNote, ...prev]);
+    setShowNoteModal(false);
   };
 
   // Charger les documents du client
@@ -130,6 +158,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       });
     }
   }, [activeTab, client, loadClientDocuments]);
+
+  // Charger les notes du client
+  useEffect(() => {
+    if (activeTab === 'notes' && client) {
+      loadClientNotes();
+    }
+  }, [activeTab, client, loadClientNotes]);
 
   // Calculer les données détaillées du client
   const clientData = useMemo(() => {
@@ -333,7 +368,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               { id: 'marquesMulti', label: '🔄 Marques Multi-Fournisseurs', icon: '🔗', shortLabel: 'Multi' },
               { id: 'familles', label: '📦 Familles', icon: '📋', shortLabel: 'Familles' },
               { id: 'timeline', label: '⏰ Timeline', icon: '📅', shortLabel: 'Timeline' },
-              { id: 'documents', label: '📄 Documents', icon: '📁', shortLabel: 'Docs' }
+              { id: 'documents', label: '📄 Documents', icon: '📁', shortLabel: 'Docs' },
+              { id: 'notes', label: '📝 Notes', icon: '📋', shortLabel: 'Notes' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1463,6 +1499,130 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               )}
             </div>
           )}
+
+          {/* Notes */}
+          {activeTab === 'notes' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-2xl font-bold text-gray-800">📝 Notes du Client</h3>
+                <button
+                  onClick={() => setShowNoteModal(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition-colors font-medium"
+                >
+                  ✏️ Nouvelle Note
+                </button>
+              </div>
+
+              {/* Statistiques des notes */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg p-4 text-center shadow-md border border-gray-200">
+                  <div className="text-2xl mb-2">📋</div>
+                  <div className="text-lg font-bold text-gray-800">{clientNotes.length}</div>
+                  <div className="text-sm text-gray-600">Total</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 text-center shadow-md border border-gray-200">
+                  <div className="text-2xl mb-2">✅</div>
+                  <div className="text-lg font-bold text-gray-800">
+                    {clientNotes.filter(n => n.typeNote === 'TO DO').length}
+                  </div>
+                  <div className="text-sm text-gray-600">To-Do</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 text-center shadow-md border border-gray-200">
+                  <div className="text-2xl mb-2">📝</div>
+                  <div className="text-lg font-bold text-gray-800">
+                    {clientNotes.filter(n => n.typeNote === 'NOTE SIMPLE').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Notes</div>
+                </div>
+                <div className="bg-white rounded-lg p-4 text-center shadow-md border border-gray-200">
+                  <div className="text-2xl mb-2">🔄</div>
+                  <div className="text-lg font-bold text-gray-800">
+                    {clientNotes.filter(n => n.statutTache === 'EN COURS').length}
+                  </div>
+                  <div className="text-sm text-gray-600">En cours</div>
+                </div>
+              </div>
+
+              {/* Liste des notes */}
+              {notesLoading ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                  <div className="text-4xl mb-4">⏳</div>
+                  <div className="text-lg text-gray-600">Chargement des notes...</div>
+                </div>
+              ) : clientNotes.length === 0 ? (
+                <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+                  <div className="text-4xl mb-4">📝</div>
+                  <div className="text-lg text-gray-600">Aucune note trouvée pour ce client</div>
+                  <div className="text-sm text-gray-500 mt-2">Commencez par créer votre première note</div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {clientNotes.map((note) => (
+                    <div
+                      key={note.idNote}
+                      className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">
+                            {note.typeNote === 'TO DO' ? '✅' : '📝'}
+                          </span>
+                          <span className="font-medium text-gray-900">{note.codeUnion}</span>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                            note.priorite === 'URGENTE' ? 'bg-red-100 text-red-800 border-red-200' :
+                            note.priorite === 'HAUTE' ? 'bg-orange-100 text-orange-800 border-orange-200' :
+                            note.priorite === 'NORMALE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            'bg-gray-100 text-gray-800 border-gray-200'
+                          }`}>
+                            {note.priorite}
+                          </span>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                            note.statutTache === 'TERMINEE' ? 'bg-green-100 text-green-800 border-green-200' :
+                            note.statutTache === 'EN COURS' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            'bg-red-100 text-red-800 border-red-200'
+                          }`}>
+                            {note.statutTache}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {note.tache && (
+                        <div className="text-gray-800 mb-3">
+                          <strong>🎯 Tâche :</strong> {note.tache}
+                        </div>
+                      )}
+                      
+                      {note.noteSimple && (
+                        <div className="text-gray-700 mb-3">
+                          <strong>📝 Note :</strong> {note.noteSimple}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+                        <span>👤 {note.auteur}</span>
+                        {note.assigneA && <span>🎯 Assigné à: {note.assigneA}</span>}
+                        <span>📅 {new Date(note.dateCreation).toLocaleDateString('fr-FR')}</span>
+                        {note.dateRappel && <span>⏰ Rappel: {new Date(note.dateRappel).toLocaleDateString('fr-FR')}</span>}
+                      </div>
+                      
+                      {note.tags && note.tags.length > 0 && (
+                        <div className="flex gap-2">
+                          {note.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {/* Modal d'export client */}
@@ -1522,6 +1682,16 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           }}
           documentUrl={selectedDocument.urlDrive}
           documentName={selectedDocument.nomFichier}
+        />
+      )}
+
+      {/* Modal d'ajout de note */}
+      {showNoteModal && (
+        <NoteModal
+          isOpen={showNoteModal}
+          onClose={() => setShowNoteModal(false)}
+          onNoteAdded={handleNoteAdded}
+          codeUnion={client?.codeUnion || ''}
         />
       )}
     </div>
