@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
-import { SECURITY_CONFIG, generateSecureToken } from '../config/security';
+import { SECURITY_CONFIG, generateSecureToken } from '../config/securityPublic';
 
 interface LoginScreenProps {
   onLogin: (success: boolean) => void;

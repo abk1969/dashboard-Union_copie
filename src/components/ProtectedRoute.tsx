@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { LoginScreen } from './LoginScreen';
-import { SECURITY_CONFIG, isTokenExpired } from '../config/security';
+import { SECURITY_CONFIG, isTokenExpired } from '../config/securityPublic';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
