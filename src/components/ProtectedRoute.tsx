@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { LoginScreen } from './LoginScreen';
-import { SECURITY_CONFIG, isTokenExpired } from '../config/securityPublic';
+import { isTokenExpired } from '../config/securityPublic';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +12,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     checkAuthentication();
-  }, []);
+  }, [checkAuthentication]);
 
   const checkAuthentication = useCallback(() => {
     try {
