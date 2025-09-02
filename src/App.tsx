@@ -38,7 +38,7 @@ function App() {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
-  const [selectedNote, setSelectedNote] = useState<any>(null);
+
 
   // Calcul des métriques globales
   const globalMetrics = useMemo(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { NoteClient, NoteFilter } from '../types';
+import { NoteClient } from '../types';
 import { notesClientsFictives, utilisateursFictifs } from '../data/notesData';
 import { formatDate } from '../utils/formatters';
 
