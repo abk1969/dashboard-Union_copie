@@ -8,6 +8,7 @@ export interface AdherentData {
   groupeFournisseur: string;
   annee: number;
   ca: number;
+  platform?: string; // Plateforme : 'acr', 'dca', 'exadis', 'alliance'
 }
 
 export interface AdherentSummary {

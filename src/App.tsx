@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
+import { assignPlatformToData, filterDataByPlatforms, getPlatformStats } from './utils/platformUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
 import { fallbackData } from './data/defaultData';
 import { fetchAdherentsData } from './config/supabase';
@@ -16,6 +18,7 @@ import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader'
 import { DocumentsSection } from './components/DocumentsSection';
 import { NotesClientsSection } from './components/NotesClientsSection';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PlatformSelector } from './components/PlatformSelector';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -25,8 +28,15 @@ import 'jspdf-autotable';
 import './styles/animations.css';
 import './styles/colors.css';
 
-function App() {
+function MainApp() {
+  const { activePlatforms } = usePlatform();
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
+  
+  // Données filtrées selon les plateformes actives
+  const filteredAdherentData = useMemo(() => {
+    const dataWithPlatforms = assignPlatformToData(allAdherentData);
+    return filterDataByPlatforms(dataWithPlatforms, activePlatforms);
+  }, [allAdherentData, activePlatforms]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents' | 'notes'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
@@ -40,13 +50,13 @@ function App() {
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
 
 
-  // Calcul des métriques globales
+    // Calcul des métriques globales
   const globalMetrics = useMemo(() => {
-    const caTotal2024 = allAdherentData
+    const caTotal2024 = filteredAdherentData
       .filter(item => item.annee === 2024)
       .reduce((sum, item) => sum + item.ca, 0);
-    
-    const caTotal2025 = allAdherentData
+
+    const caTotal2025 = filteredAdherentData
       .filter(item => item.annee === 2025)
       .reduce((sum, item) => sum + item.ca, 0);
     
@@ -57,13 +67,13 @@ function App() {
       caTotal2025,
       progression: Math.round(progression * 10) / 10
     };
-  }, [allAdherentData]);
+  }, [filteredAdherentData]);
 
-  // Calcul des résumés des adhérents
+    // Calcul des résumés des adhérents
   const currentAdherentsSummary = useMemo(() => {
     const adherentMap = new Map<string, AdherentSummary>();
-    
-    allAdherentData.forEach(item => {
+
+    filteredAdherentData.forEach(item => {
       const key = item.codeUnion;
       if (!adherentMap.has(key)) {
         adherentMap.set(key, {
@@ -96,13 +106,13 @@ function App() {
     });
     
     return Array.from(adherentMap.values());
-  }, [allAdherentData]);
+  }, [filteredAdherentData]);
 
-  // Performance par fournisseur
+    // Performance par fournisseur
   const currentFournisseursPerformance = useMemo(() => {
     const fournisseurMap = new Map<string, { ca2024: number; ca2025: number; adherents: Set<string> }>();
-    
-    allAdherentData.forEach(item => {
+
+    filteredAdherentData.forEach(item => {
       if (!fournisseurMap.has(item.fournisseur)) {
         fournisseurMap.set(item.fournisseur, { ca2024: 0, ca2025: 0, adherents: new Set() });
       }
@@ -112,12 +122,12 @@ function App() {
       fournisseur.adherents.add(item.codeUnion);
     });
 
-    const totalCA2025 = allAdherentData
+    const totalCA2025 = filteredAdherentData
       .filter(item => item.annee === 2025)
       .reduce((sum, item) => sum + item.ca, 0);
 
     // Calculer le nombre total d'adhérents du Groupement Union
-    const totalGroupementAdherents = new Set(allAdherentData.map(item => item.codeUnion)).size;
+    const totalGroupementAdherents = new Set(filteredAdherentData.map(item => item.codeUnion)).size;
 
     return Array.from(fournisseurMap.entries())
       .map(([fournisseur, data]) => {
@@ -139,13 +149,13 @@ function App() {
         };
       })
       .sort((a, b) => b.ca2025 - a.ca2025);
-  }, [allAdherentData, globalMetrics.caTotal2024]);
+  }, [filteredAdherentData, globalMetrics.caTotal2024]);
 
-  // Performance par famille
+    // Performance par famille
   const currentFamillesProduitsPerformance = useMemo(() => {
     const familleMap = new Map<string, { ca2024: number; ca2025: number }>();
-    
-    allAdherentData.forEach(item => {
+
+    filteredAdherentData.forEach(item => {
       if (!familleMap.has(item.sousFamille)) {
         familleMap.set(item.sousFamille, { ca2024: 0, ca2025: 0 });
       }
@@ -154,7 +164,7 @@ function App() {
       if (item.annee === 2025) famille.ca2025 += item.ca;
     });
 
-    const totalCA2025 = allAdherentData
+    const totalCA2025 = filteredAdherentData
       .filter(item => item.annee === 2025)
       .reduce((sum, item) => sum + item.ca, 0);
 
@@ -172,7 +182,7 @@ function App() {
         };
       })
       .sort((a, b) => b.ca2025 - a.ca2025);
-  }, [allAdherentData]);
+  }, [filteredAdherentData]);
 
   // Top/Flop clients
   const currentTopFlopClients = useMemo(() => {
@@ -320,16 +330,15 @@ function App() {
   };
 
   return (
-    <ProtectedRoute>
-      <>
-        {/* Écran de démarrage */}
-        {showStartup && (
-          <StartupScreen onComplete={() => setShowStartup(false)} />
-        )}
+    <>
+      {/* Écran de démarrage */}
+      {showStartup && (
+        <StartupScreen onComplete={() => setShowStartup(false)} />
+      )}
 
-        {/* Interface principale */}
-        <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-1000 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
-              {/* Header */}
+      {/* Interface principale */}
+      <div className={`min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 transition-all duration-1000 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+        {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
@@ -345,14 +354,19 @@ function App() {
                   {/* 🚀 Vercel trigger - Logo optimisé 24px + Titre stylisé */}
                 </div>
               </div>
-              {allAdherentData.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-green-600">💾</span>
-                  <span className="text-sm text-gray-500">
-                    {allAdherentData.length.toLocaleString('fr-FR')} enregistrements • Sauvegarde automatique activée
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center space-x-4">
+                {/* Sélecteur de plateformes */}
+                <PlatformSelector />
+                
+                {filteredAdherentData.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-green-600">💾</span>
+                    <span className="text-sm text-gray-500">
+                      {filteredAdherentData.length.toLocaleString('fr-FR')} enregistrements filtrés • Sauvegarde automatique activée
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -862,7 +876,7 @@ function App() {
          {activeTab === 'marques' && (
            <div className="space-y-6">
              <MarquesSection 
-               adherentsData={allAdherentData} 
+               adherentsData={filteredAdherentData} 
                famillesPerformance={currentFamillesProduitsPerformance}
              />
            </div>
@@ -871,7 +885,7 @@ function App() {
          {/* Onglet Groupe Clients */}
          {activeTab === 'groupeClients' && (
            <div className="space-y-6">
-             <GroupeClientsSection adherentsData={allAdherentData} />
+             <GroupeClientsSection adherentsData={filteredAdherentData} />
            </div>
          )}
 
@@ -898,8 +912,8 @@ function App() {
                totalProgression={globalMetrics.progression}
              />
 
-             {/* Export des données */}
-             <DataExporter adherentsData={allAdherentData} />
+                         {/* Export des données */}
+            <DataExporter adherentsData={filteredAdherentData} />
            </div>
          )}
 
@@ -950,7 +964,7 @@ function App() {
       {/* Modal de détails client */}
       <ClientDetailModal
         client={selectedClient}
-        allAdherentData={allAdherentData}
+        allAdherentData={filteredAdherentData}
         isOpen={showClientModal}
         onClose={() => {
           setShowClientModal(false);
@@ -961,7 +975,7 @@ function App() {
       {/* Modal de détails fournisseur */}
       <FournisseurDetailModal
         fournisseur={selectedFournisseur}
-        allAdherentData={allAdherentData}
+        allAdherentData={filteredAdherentData}
         isOpen={showFournisseurModal}
         onClose={() => {
           setShowFournisseurModal(false);
@@ -973,7 +987,7 @@ function App() {
       {/* Modal de détails famille de produits */}
       <FamilleDetailModalLegacy
         famille={selectedFamille}
-        allAdherentData={allAdherentData}
+        allAdherentData={filteredAdherentData}
         isOpen={showFamilleModal}
         onClose={() => {
           setShowFamilleModal(false);
@@ -997,8 +1011,18 @@ function App() {
           }}
         />
       )}
-        </div>
-      </>
+      </div>
+    </>
+  );
+}
+
+// Composant App wrapper avec PlatformProvider
+function App() {
+  return (
+    <ProtectedRoute>
+      <PlatformProvider>
+        <MainApp />
+      </PlatformProvider>
     </ProtectedRoute>
   );
 }
