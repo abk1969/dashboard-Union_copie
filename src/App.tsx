@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
 import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUtils';
+import { calculateRankings } from './utils/rankingUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
 import { fallbackData } from './data/defaultData';
 import { fetchAdherentsData } from './config/supabase';
@@ -105,7 +106,10 @@ function MainApp() {
       }
     });
     
-    return Array.from(adherentMap.values());
+    const adherents = Array.from(adherentMap.values());
+    
+    // Calculer les classements pour les adhérents
+    return calculateRankings(adherents);
   }, [filteredAdherentData]);
 
     // Performance par fournisseur

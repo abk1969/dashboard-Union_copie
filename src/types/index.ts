@@ -19,6 +19,9 @@ export interface AdherentSummary {
   ca2025: number;
   progression: number;
   statut: 'progression' | 'regression' | 'stable';
+  classement2024?: number;
+  classement2025?: number;
+  evolutionClassement?: number;
 }
 
 export interface FournisseurPerformance {

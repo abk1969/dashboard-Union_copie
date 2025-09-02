@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTable, useSortBy, useFilters, Column } from 'react-table';
 import { AdherentSummary } from '../types';
+import { MedalDisplay, EvolutionDisplay } from '../utils/rankingUtils';
 import 'jspdf-autotable';
 
 interface AdherentsTableProps {
@@ -16,6 +17,39 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onExportPDF, onCl
 
   const columns = useMemo<Column<AdherentSummary>[]>(
     () => [
+      {
+        Header: 'Classement 2024',
+        accessor: 'classement2024',
+        Cell: ({ value }: { value: number | undefined }) => (
+          <div className="flex justify-center">
+            {value ? <MedalDisplay classement={value} size="normal" /> : '-'}
+          </div>
+        ),
+        width: 120,
+        disableFilters: true,
+      },
+      {
+        Header: 'Classement 2025',
+        accessor: 'classement2025',
+        Cell: ({ value }: { value: number | undefined }) => (
+          <div className="flex justify-center">
+            {value ? <MedalDisplay classement={value} size="normal" /> : '-'}
+          </div>
+        ),
+        width: 120,
+        disableFilters: true,
+      },
+      {
+        Header: 'Évolution',
+        accessor: 'evolutionClassement',
+        Cell: ({ value }: { value: number | undefined }) => (
+          <div className="flex justify-center">
+            {value !== undefined ? <EvolutionDisplay evolutionClassement={value} compact={false} /> : '-'}
+          </div>
+        ),
+        width: 140,
+        disableFilters: true,
+      },
       {
         Header: 'Raison Sociale',
         accessor: 'raisonSociale',

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AdherentData } from '../types';
-import { formatCurrency, formatPercentage, formatProgression } from '../utils/formatters';
+import { formatCurrency, formatPercentageDirect, formatProgression } from '../utils/formatters';
 
 interface MarquesSectionProps {
   adherentsData: AdherentData[];
@@ -20,6 +20,9 @@ interface MarquePerformance {
   progression: number;
   pourcentage2024: number;
   pourcentage2025: number;
+  classement2024: number;
+  classement2025: number;
+  evolutionClassement: number; // Différence de classement (négatif = amélioration)
   fournisseurs: {
     [fournisseur: string]: {
       ca2024: number;
@@ -52,6 +55,9 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
           progression: 0,
           pourcentage2024: 0,
           pourcentage2025: 0,
+          classement2024: 0,
+          classement2025: 0,
+          evolutionClassement: 0,
           fournisseurs: {}
         });
       }
@@ -90,7 +96,27 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
       });
     });
 
-    return Array.from(marquesMap.values());
+    const marques = Array.from(marquesMap.values());
+
+    // Calculer les classements 2024 et 2025
+    const marquesByCA2024 = [...marques].sort((a, b) => b.ca2024 - a.ca2024);
+    const marquesByCA2025 = [...marques].sort((a, b) => b.ca2025 - a.ca2025);
+
+    // Attribuer les classements
+    marquesByCA2024.forEach((marque, index) => {
+      marque.classement2024 = index + 1;
+    });
+
+    marquesByCA2025.forEach((marque, index) => {
+      marque.classement2025 = index + 1;
+    });
+
+    // Calculer l'évolution du classement (négatif = amélioration)
+    marques.forEach(marque => {
+      marque.evolutionClassement = marque.classement2025 - marque.classement2024;
+    });
+
+    return marques;
   }, [adherentsData]);
 
   // Trier les marques
@@ -100,7 +126,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
       
       switch (sortBy) {
         case 'ca':
-          comparison = (b.ca2025 + b.ca2024) - (a.ca2025 + a.ca2024);
+          comparison = b.ca2025 - a.ca2025; // Tri par CA 2025 par défaut
           break;
         case 'progression':
           comparison = b.progression - a.progression;
@@ -142,6 +168,48 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const handleMarqueClick = (marque: string) => {
     console.log('Marque cliquée:', marque); // Debug
     setSelectedMarque(selectedMarque === marque ? null : marque);
+  };
+
+  // Fonction pour obtenir l'icône et la couleur de l'évolution du classement
+  const getClassementEvolution = (evolutionClassement: number) => {
+    if (evolutionClassement < 0) {
+      // Amélioration (montée dans le classement)
+      return {
+        icon: '⬆️',
+        color: 'text-green-600',
+        text: `+${Math.abs(evolutionClassement)} place${Math.abs(evolutionClassement) > 1 ? 's' : ''}`
+      };
+    } else if (evolutionClassement > 0) {
+      // Dégradation (descente dans le classement)
+      return {
+        icon: '⬇️',
+        color: 'text-red-600',
+        text: `-${evolutionClassement} place${evolutionClassement > 1 ? 's' : ''}`
+      };
+    } else {
+      // Stable
+      return {
+        icon: '➡️',
+        color: 'text-yellow-600',
+        text: 'Stable'
+      };
+    }
+  };
+
+  // Fonction pour obtenir les médailles selon le classement
+  const getMedaille = (classement: number) => {
+    switch (classement) {
+      case 1:
+        return { medal: '🥇', bg: 'from-yellow-400 to-yellow-600', text: 'Or' };
+      case 2:
+        return { medal: '🥈', bg: 'from-gray-300 to-gray-500', text: 'Argent' };
+      case 3:
+        return { medal: '🥉', bg: 'from-orange-400 to-orange-600', text: 'Bronze' };
+      case 4:
+        return { medal: '🍫', bg: 'from-amber-600 to-amber-800', text: 'Chocolat' };
+      default:
+        return { medal: classement.toString(), bg: 'from-blue-400 to-blue-600', text: `${classement}ème` };
+    }
   };
 
   return (
@@ -202,9 +270,12 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Progression Moyenne</p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatPercentage(sortedMarques.length > 0 ? 
-                  sortedMarques.reduce((sum, m) => sum + m.progression, 0) / sortedMarques.length : 0
-                )}
+                {(() => {
+                  const totalCA2024 = sortedMarques.reduce((sum, m) => sum + m.ca2024, 0);
+                  const totalCA2025 = sortedMarques.reduce((sum, m) => sum + m.ca2025, 0);
+                  const globalProgression = totalCA2024 > 0 ? ((totalCA2025 - totalCA2024) / totalCA2024) * 100 : 0;
+                  return formatProgression(globalProgression).value;
+                })()}
               </p>
             </div>
           </div>
@@ -238,14 +309,14 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
           <table className="min-w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th 
-                  className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('marque')}
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Classement</span>
-                    <span className="text-xs">{getSortIcon('marque')}</span>
-                  </div>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Classement 2024
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Classement 2025
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Évolution
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Marque
@@ -256,11 +327,16 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                 >
                   <div className="flex items-center justify-end space-x-1">
                     <span>CA 2024</span>
-                    <span className="text-xs">{getSortIcon('ca')}</span>
                   </div>
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  CA 2025
+                <th 
+                  className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('ca')}
+                >
+                  <div className="flex items-center justify-end space-x-1">
+                    <span>CA 2025</span>
+                    <span className="text-xs">{getSortIcon('ca')}</span>
+                  </div>
                 </th>
                 <th 
                   className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -291,14 +367,56 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                     }`}
                     onClick={() => handleMarqueClick(marque.marque)}
                   >
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-bold text-white">
-                            {startIndex + index + 1}
-                          </span>
-                        </div>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        {(() => {
+                          const medaille2024 = getMedaille(marque.classement2024);
+                          return (
+                            <>
+                              <div className={`flex-shrink-0 h-10 w-10 bg-gradient-to-br ${medaille2024.bg} rounded-full flex items-center justify-center shadow-lg`}>
+                                <span className="text-lg">
+                                  {medaille2024.medal}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-600 mt-1 font-medium">
+                                {medaille2024.text}
+                              </span>
+                            </>
+                          );
+                        })()}
                       </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        {(() => {
+                          const medaille2025 = getMedaille(marque.classement2025);
+                          return (
+                            <>
+                              <div className={`flex-shrink-0 h-10 w-10 bg-gradient-to-br ${medaille2025.bg} rounded-full flex items-center justify-center shadow-lg`}>
+                                <span className="text-lg">
+                                  {medaille2025.medal}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-600 mt-1 font-medium">
+                                {medaille2025.text}
+                              </span>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      {(() => {
+                        const evolution = getClassementEvolution(marque.evolutionClassement);
+                        return (
+                          <div className="flex items-center justify-center space-x-1">
+                            <span className="text-lg">{evolution.icon}</span>
+                            <span className={`text-sm font-medium ${evolution.color}`}>
+                              {evolution.text}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -317,10 +435,10 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {formatPercentage(marque.pourcentage2024)}
+                      {formatPercentageDirect(marque.pourcentage2024)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 text-center">
-                      {formatPercentage(marque.pourcentage2025)}
+                      {formatPercentageDirect(marque.pourcentage2025)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -332,7 +450,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                   {/* Détail par fournisseur directement sous la ligne */}
                   {selectedMarque === marque.marque && (
                     <tr>
-                      <td colSpan={8} className="px-0 py-0">
+                      <td colSpan={10} className="px-0 py-0">
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-semibold text-gray-800">
