@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
-import { assignPlatformToData, filterDataByPlatforms, getPlatformStats } from './utils/platformUtils';
+import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
 import { fallbackData } from './data/defaultData';
 import { fetchAdherentsData } from './config/supabase';
