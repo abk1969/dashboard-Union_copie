@@ -941,7 +941,6 @@ function App() {
                <NotesClientsSection 
                  onNoteClick={(note) => {
                    console.log('Note sélectionnée:', note);
-                   setSelectedNote(note);
                  }}
                />
              </div>
