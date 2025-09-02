@@ -10,10 +10,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuthentication();
-  }, [checkAuthentication]);
-
   const checkAuthentication = useCallback(() => {
     try {
       const authToken = localStorage.getItem('authToken');
