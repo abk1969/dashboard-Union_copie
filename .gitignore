@@ -61,9 +61,6 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-
 # Security files (NE JAMAIS COMMITER)
 src/config/security.ts
 security.config.js
@@ -74,9 +71,14 @@ auth.config.js
 *.temp
 
 # Backup files
+backups/
+backup-code-*/
 *.backup
 *.bak
 
 # Local configuration
 config.local.js
 settings.local.js
+
+# Vercel
+.vercel/

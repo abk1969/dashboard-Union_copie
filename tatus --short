@@ -1,0 +1,5 @@
+[33m11c703f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m  Vercel trigger - Commentaire ajouté pour forcer le déploiement
+[33md9e5dec[m  Correction Vercel - Création de securityPublic.ts pour déploiement - Import corrigé dans ProtectedRoute et LoginScreen - Compilation réussie pour Vercel
+[33mca9cb86[m  Logo optimisé et titre stylisé - Logo réduit à 24px avec proportions parfaites - Titre 'L'union fera toujours notre force' en cursif élégant - Largeur maximale 4xl pour une meilleure lisibilité - Mot 'toujours' mis en valeur en orange
+[33m7ab0cba[m  URGENCE SÉCURITÉ - Implémentation authentification obligatoire + Notes clients + Bouton Nouvelle Note opérationnel
+[33m8bc08c8[m  Correction finale ESLint : useCallback pour loadDocuments dans MagasinDetailModal - Déploiement Vercel maintenant possible
