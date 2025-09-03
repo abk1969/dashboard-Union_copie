@@ -12,6 +12,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const logout = useCallback(() => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('isAuthenticated');
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    console.log('🔒 Utilisateur déconnecté');
+  }, [setCurrentUser]);
+
   const checkAuthentication = useCallback(() => {
     try {
       const authToken = localStorage.getItem('authToken');
@@ -43,19 +51,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [logout, setCurrentUser]);
 
   useEffect(() => {
     checkAuthentication();
   }, [checkAuthentication]);
 
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('isAuthenticated');
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    console.log('🔒 Utilisateur déconnecté');
-  };
+
 
   const handleLogin = (success: boolean, user?: UserProfile) => {
     if (success && user) {

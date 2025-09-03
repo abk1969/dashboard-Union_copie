@@ -225,33 +225,7 @@ function MainApp() {
     };
   }, [currentAdherentsSummary]);
 
-  // Fonction d'export PDF
-  const handleExportPDF = (adherent: AdherentSummary) => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(20);
-    doc.text('Rapport Client - Groupement Union', 20, 20);
-    
-    doc.setFontSize(14);
-    doc.text(`Raison Sociale: ${adherent.raisonSociale}`, 20, 40);
-    doc.text(`Code Union: ${adherent.codeUnion}`, 20, 50);
-    doc.text(`Groupe Client: ${adherent.groupeClient}`, 20, 60);
-    
-    doc.setFontSize(12);
-    doc.text(`Chiffre d'affaires 2024: ${new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(adherent.ca2024)}`, 20, 80);
-    
-    doc.text(`Chiffre d'affaires 2025: ${new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(adherent.ca2025)}`, 20, 90);
-    
-    doc.text(`Progression: ${adherent.progression}%`, 20, 100);
-    
-    doc.save(`rapport-${adherent.codeUnion}-${new Date().toISOString().split('T')[0]}.pdf`);
-  };
+
 
   // Fonction de gestion des données importées
   const handleDataImported = (data: AdherentData[]) => {
