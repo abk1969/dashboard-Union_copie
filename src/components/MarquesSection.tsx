@@ -38,6 +38,22 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
+  const [expandedFamilles, setExpandedFamilles] = useState<Set<string>>(new Set());
+  const [currentFamillePage, setCurrentFamillePage] = useState(1);
+  const famillesPerPage = 20;
+
+  // Fonction pour gérer l'expansion des familles
+  const toggleFamilleExpansion = (famille: string) => {
+    setExpandedFamilles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(famille)) {
+        newSet.delete(famille);
+      } else {
+        newSet.add(famille);
+      }
+      return newSet;
+    });
+  };
 
   // Calculer les performances par marque
   const marquesPerformance = useMemo(() => {
@@ -118,6 +134,72 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
 
     return marques;
   }, [adherentsData]);
+
+  // Grouper les marques par famille (sousFamille) - Logique directe comme dans Fournisseurs
+  const marquesByFamille = useMemo(() => {
+    const grouped = new Map<string, MarquePerformance[]>();
+    
+    // Grouper directement depuis adherentsData pour avoir toutes les marques
+    adherentsData.forEach(adherent => {
+      const famille = adherent.sousFamille;
+      const marque = adherent.marque;
+      
+      if (!famille || !marque) return;
+      
+      if (!grouped.has(famille)) {
+        grouped.set(famille, []);
+      }
+      
+      // Vérifier si cette marque existe déjà dans le groupe
+      const existingMarque = grouped.get(famille)!.find(m => m.marque === marque);
+      
+      if (!existingMarque) {
+        // Créer une nouvelle entrée marque pour cette famille
+        const newMarque: MarquePerformance = {
+          marque,
+          ca2024: 0,
+          ca2025: 0,
+          progression: 0,
+          pourcentage2024: 0,
+          pourcentage2025: 0,
+          classement2024: 0,
+          classement2025: 0,
+          evolutionClassement: 0,
+          fournisseurs: {}
+        };
+        grouped.get(famille)!.push(newMarque);
+      }
+    });
+    
+    // Maintenant calculer les CA pour chaque marque dans chaque famille
+    grouped.forEach((marques, famille) => {
+      marques.forEach(marque => {
+        const marqueData = adherentsData.filter(adherent => 
+          adherent.sousFamille === famille && adherent.marque === marque.marque
+        );
+        
+        marqueData.forEach(adherent => {
+          if (adherent.annee === 2024) {
+            marque.ca2024 += adherent.ca;
+          } else if (adherent.annee === 2025) {
+            marque.ca2025 += adherent.ca;
+          }
+        });
+        
+        // Calculer la progression
+        marque.progression = marque.ca2024 > 0 ? ((marque.ca2025 - marque.ca2024) / marque.ca2024) * 100 : 0;
+      });
+    });
+    
+    return grouped;
+  }, [adherentsData]);
+
+  // Calculs de pagination pour les familles
+  const totalFamilles = famillesPerformance?.length || 0;
+  const totalFamillePages = Math.ceil(totalFamilles / famillesPerPage);
+  const startFamilleIndex = (currentFamillePage - 1) * famillesPerPage;
+  const endFamilleIndex = startFamilleIndex + famillesPerPage;
+  const currentFamilles = famillesPerformance?.slice(startFamilleIndex, endFamilleIndex) || [];
 
   // Trier les marques
   const sortedMarques = useMemo(() => {
@@ -555,26 +637,128 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {famillesPerformance.slice(0, 20).map((item) => (
-                  <tr key={item.sousFamille} className="hover:bg-gray-50 cursor-pointer">
-                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{item.sousFamille}</td>
-                    <td className="py-3 px-4 text-sm text-right text-gray-700">
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-gray-700">
-                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right">
-                      <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
-                  </tr>
-                ))}
+                {currentFamilles.map((item) => {
+                  const isExpanded = expandedFamilles.has(item.sousFamille);
+                  const marquesInFamille = marquesByFamille.get(item.sousFamille) || [];
+                  
+                  return (
+                    <React.Fragment key={item.sousFamille}>
+                      {/* Ligne principale de la famille */}
+                      <tr 
+                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                        onClick={() => toggleFamilleExpansion(item.sousFamille)}
+                      >
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                          <div className="flex items-center space-x-2">
+                            <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                              ▶️
+                            </span>
+                            <span>{item.sousFamille}</span>
+                            {marquesInFamille.length > 0 && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                {marquesInFamille.length} marque{marquesInFamille.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2025)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right">
+                          <span className={`font-medium ${item.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {item.progression >= 0 ? '+' : ''}{item.progression.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
+                      </tr>
+                      
+                      {/* Lignes des marques détaillées (si famille développée) */}
+                      {isExpanded && marquesInFamille.length > 0 && (
+                        <>
+                          {marquesInFamille
+                            .sort((a, b) => b.ca2025 - a.ca2025)
+                            .map((marque) => (
+                            <tr key={`${item.sousFamille}-${marque.marque}`} className="bg-blue-50 hover:bg-blue-100">
+                              <td className="py-2 px-8 text-sm text-gray-700">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-blue-500">🏷️</span>
+                                  <span className="font-medium">{marque.marque}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2024)}
+                              </td>
+                              <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2025)}
+                              </td>
+                              <td className="py-2 px-4 text-sm text-right">
+                                <span className={`font-medium ${marque.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {marque.progression >= 0 ? '+' : ''}{marque.progression.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                {marque.pourcentage2025.toFixed(1)}%
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination pour les familles */}
+          {totalFamillePages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Affichage de {startFamilleIndex + 1} à {Math.min(endFamilleIndex, totalFamilles)} sur {totalFamilles} familles
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentFamillePage(prev => Math.max(1, prev - 1))}
+                  disabled={currentFamillePage === 1}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Précédent
+                </button>
+                
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalFamillePages) }, (_, i) => {
+                    const pageNum = Math.max(1, Math.min(totalFamillePages - 4, currentFamillePage - 2)) + i;
+                    if (pageNum > totalFamillePages) return null;
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentFamillePage(pageNum)}
+                        className={`px-3 py-2 text-sm font-medium rounded-md ${
+                          currentFamillePage === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                
+                <button
+                  onClick={() => setCurrentFamillePage(prev => Math.min(totalFamillePages, prev + 1))}
+                  disabled={currentFamillePage === totalFamillePages}
+                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Suivant
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
