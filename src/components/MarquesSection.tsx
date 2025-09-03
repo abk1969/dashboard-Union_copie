@@ -216,40 +216,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const endFamilleIndex = startFamilleIndex + famillesPerPage;
   const currentFamilles = famillesPerformance?.slice(startFamilleIndex, endFamilleIndex) || [];
 
-  // Détails d'une marque sélectionnée (fournisseurs associés)
-  const marqueDetails = useMemo(() => {
-    if (!selectedMarqueDetails) return null;
-    
-    const marqueData = adherentsData.filter(adherent => adherent.marque === selectedMarqueDetails);
-    const fournisseursMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
-    
-    marqueData.forEach(adherent => {
-      const fournisseur = adherent.fournisseur || 'Non assigné';
-      if (!fournisseursMap.has(fournisseur)) {
-        fournisseursMap.set(fournisseur, { ca2024: 0, ca2025: 0, progression: 0 });
-      }
-      
-      const fournisseurData = fournisseursMap.get(fournisseur)!;
-      if (adherent.annee === 2024) {
-        fournisseurData.ca2024 += adherent.ca;
-      } else if (adherent.annee === 2025) {
-        fournisseurData.ca2025 += adherent.ca;
-      }
-    });
-    
-    // Calculer les progressions
-    fournisseursMap.forEach(fournisseur => {
-      fournisseur.progression = fournisseur.ca2024 > 0 ? ((fournisseur.ca2025 - fournisseur.ca2024) / fournisseur.ca2024) * 100 : 0;
-    });
-    
-    return {
-      marque: selectedMarqueDetails,
-      fournisseurs: Array.from(fournisseursMap.entries()).map(([fournisseur, data]) => ({
-        fournisseur,
-        ...data
-      })).sort((a, b) => b.ca2025 - a.ca2025)
-    };
-  }, [selectedMarqueDetails, adherentsData]);
+
 
   // Détails d'une famille sélectionnée (marques associées)
   const familleDetails = useMemo(() => {
