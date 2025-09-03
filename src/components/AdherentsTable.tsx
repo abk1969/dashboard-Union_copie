@@ -2,15 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useTable, useSortBy, useFilters, Column } from 'react-table';
 import { AdherentSummary } from '../types';
 import { MedalDisplay, EvolutionDisplay } from '../utils/rankingUtils';
-import 'jspdf-autotable';
 
 interface AdherentsTableProps {
   data: AdherentSummary[];
-  onExportPDF: (adherent: AdherentSummary) => void;
   onClientClick: (client: AdherentSummary) => void;
 }
 
-const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onExportPDF, onClientClick }) => {
+const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onClientClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -60,13 +58,6 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onExportPDF, onCl
           >
             {value}
           </button>
-        ),
-      },
-      {
-        Header: 'Code Union',
-        accessor: 'codeUnion',
-        Cell: ({ value }: { value: string }) => (
-          <div className="font-mono text-sm text-gray-600">{value}</div>
         ),
       },
       {
@@ -136,20 +127,8 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onExportPDF, onCl
           );
         },
       },
-      {
-        Header: 'Actions',
-        id: 'actions',
-        Cell: ({ row }: { row: any }) => (
-          <button
-            onClick={() => onExportPDF(row.original)}
-            className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded hover:bg-blue-50"
-          >
-            📄 Export PDF
-          </button>
-        ),
-      },
     ],
-    [onExportPDF, onClientClick]
+    [onClientClick]
   );
 
   const filteredData = useMemo(() => {

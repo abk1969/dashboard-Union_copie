@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
-import { SECURITY_CONFIG, generateSecureToken } from '../config/securityPublic';
+import { authenticateUser, generateSecureToken, UserProfile } from '../config/securityPublic';
+import { useUser } from '../contexts/UserContext';
 
 interface LoginScreenProps {
-  onLogin: (success: boolean) => void;
+  onLogin: (success: boolean, user?: UserProfile) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+  const { setCurrentUser } = useUser();
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
@@ -14,28 +16,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Utilisation de la configuration centralisée
-  const VALID_CREDENTIALS = SECURITY_CONFIG.CREDENTIALS;
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    try {
+        try {
       // Simulation d'un délai de vérification
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (credentials.username === VALID_CREDENTIALS.username && 
-          credentials.password === VALID_CREDENTIALS.password) {
+      // Authentifier l'utilisateur avec le nouveau système
+      const user = authenticateUser(credentials.username, credentials.password);
+      
+      if (user) {
         // Stocker le token d'authentification sécurisé
-        const authToken = generateSecureToken(credentials.username);
+        const authToken = generateSecureToken(user.username);
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('loginTime', Date.now().toString());
-        
-        console.log('✅ Authentification réussie');
-        onLogin(true);
+
+        // Mettre à jour le contexte utilisateur
+        setCurrentUser(user);
+
+        console.log('✅ Authentification réussie pour:', user.displayName);
+        onLogin(true, user);
       } else {
         setError('❌ Identifiants incorrects. Veuillez réessayer.');
         console.error('❌ Tentative de connexion échouée avec:', credentials.username);

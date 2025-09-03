@@ -20,6 +20,7 @@ import { DocumentsSection } from './components/DocumentsSection';
 import { NotesClientsSection } from './components/NotesClientsSection';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PlatformSelector } from './components/PlatformSelector';
+import { UserProvider, useUser } from './contexts/UserContext';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -30,8 +31,17 @@ import './styles/animations.css';
 import './styles/colors.css';
 
 function MainApp() {
-  const { activePlatforms } = usePlatform();
+  const { activePlatforms, setActivePlatforms } = usePlatform();
+  const { currentUser, isAdmin } = useUser();
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
+
+  // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
+  useEffect(() => {
+    if (currentUser && !isAdmin) {
+      // Pour les utilisateurs non-admin, filtrer selon leurs plateformes autorisées
+      setActivePlatforms(currentUser.allowedPlatforms);
+    }
+  }, [currentUser, isAdmin, setActivePlatforms]);
   
   // Données filtrées selon les plateformes actives
   const filteredAdherentData = useMemo(() => {
@@ -347,20 +357,47 @@ function MainApp() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <Logo />
+                {currentUser?.theme?.logo && (currentUser.theme.logo.startsWith('/images/') || currentUser.theme.logo.startsWith('/image/')) ? (
+                  <img 
+                    src={currentUser.theme.logo} 
+                    alt={currentUser.theme.brandName}
+                    className="h-12 w-auto object-contain"
+                    onError={(e) => {
+                      console.log('Logo image failed to load, falling back to default');
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : currentUser?.theme?.logo ? (
+                  <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                    {currentUser.theme.logo}
+                  </div>
+                ) : (
+                  <Logo />
+                )}
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">
-                    Dashboard
+                  <h1 
+                    className="text-3xl font-bold text-gray-900"
+                    style={{ color: currentUser?.theme?.primaryColor || '#1F2937' }}
+                  >
+                    {currentUser?.theme?.brandName || 'Dashboard'}
                   </h1>
                   <p className="mt-2 text-gray-600 font-serif italic text-lg max-w-4xl leading-relaxed">
-                    L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
+                    {currentUser?.role === 'alliance' ? (
+                      <>
+                        L'avenir se <span style={{ color: currentUser?.theme?.primaryColor || '#003f7f' }} className="font-bold">dessine ici</span>
+                      </>
+                    ) : (
+                      <>
+                        L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
+                      </>
+                    )}
                   </p>
                   {/* 🚀 Vercel trigger - Logo optimisé 24px + Titre stylisé */}
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Sélecteur de plateformes */}
-                <PlatformSelector />
+                {/* Sélecteur de plateformes - visible seulement pour les admins */}
+                {isAdmin && <PlatformSelector />}
                 
                 {filteredAdherentData.length > 0 && (
                   <div className="flex items-center space-x-2">
@@ -543,6 +580,19 @@ function MainApp() {
                            <div className="text-xs text-gray-500">
                              2024: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(client.ca2024)}
                            </div>
+                           {(() => {
+                             const progression = client.ca2024 > 0 ? ((client.ca2025 - client.ca2024) / client.ca2024) * 100 : 0;
+                             const progressionEur = client.ca2025 - client.ca2024;
+                             const icon = progression > 0 ? '⬆️' : progression < 0 ? '⬇️' : '➡️';
+                             const color = progression > 0 ? 'text-green-600' : progression < 0 ? 'text-red-600' : 'text-gray-600';
+                             return (
+                               <div className={`text-xs ${color} font-medium flex items-center justify-end space-x-1`}>
+                                 <span>{icon}</span>
+                                 <span>{progression >= 0 ? '+' : ''}{progression.toFixed(1)}%</span>
+                                 <span>({progressionEur >= 0 ? '+' : ''}{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(progressionEur)})</span>
+                               </div>
+                             );
+                           })()}
                          </div>
                        </div>
                      ))}
@@ -566,8 +616,12 @@ function MainApp() {
                            <span className="text-sm font-medium text-gray-700">{client.raisonSociale}</span>
                          </div>
                          <div className="text-right">
-                           <div className="text-sm font-semibold text-blue-700">
-                             +{client.progression.toFixed(1)}%
+                           <div className="text-sm font-semibold text-blue-700 flex items-center justify-end space-x-1">
+                             <span>⬆️</span>
+                             <span>+{client.progression.toFixed(1)}%</span>
+                           </div>
+                           <div className="text-xs text-blue-600 font-medium">
+                             +{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(client.ca2025 - client.ca2024)}
                            </div>
                            <div className="text-xs text-gray-500">
                              CA 2025: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(client.ca2025)}
@@ -598,8 +652,12 @@ function MainApp() {
                            <span className="text-sm font-medium text-gray-700">{client.raisonSociale}</span>
                          </div>
                          <div className="text-right">
-                           <div className="text-sm font-semibold text-red-700">
-                             {client.progression.toFixed(1)}%
+                           <div className="text-sm font-semibold text-red-700 flex items-center justify-end space-x-1">
+                             <span>⬇️</span>
+                             <span>{client.progression.toFixed(1)}%</span>
+                           </div>
+                           <div className="text-xs text-red-600 font-medium">
+                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(client.ca2025 - client.ca2024)}
                            </div>
                            <div className="text-xs text-gray-500">
                              CA 2025: {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(client.ca2025)}
@@ -620,7 +678,6 @@ function MainApp() {
             {/* Table des adhérents */}
             <AdherentsTable
               data={currentAdherentsSummary}
-              onExportPDF={handleExportPDF}
               onClientClick={handleClientClick}
             />
           </div>
@@ -1020,14 +1077,16 @@ function MainApp() {
   );
 }
 
-// Composant App wrapper avec PlatformProvider
+// Composant App wrapper avec UserProvider et PlatformProvider
 function App() {
   return (
-    <ProtectedRoute>
-      <PlatformProvider>
-        <MainApp />
-      </PlatformProvider>
-    </ProtectedRoute>
+    <UserProvider>
+      <ProtectedRoute>
+        <PlatformProvider>
+          <MainApp />
+        </PlatformProvider>
+      </ProtectedRoute>
+    </UserProvider>
   );
 }
 

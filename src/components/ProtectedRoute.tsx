@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { LoginScreen } from './LoginScreen';
-import { isTokenExpired } from '../config/securityPublic';
+import { isTokenExpired, getUserFromToken, UserProfile } from '../config/securityPublic';
+import { useUser } from '../contexts/UserContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { setCurrentUser } = useUser();
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -18,7 +20,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       if (authToken && isAuth === 'true') {
         // Vérifier si le token n'a pas expiré
         if (!isTokenExpired(authToken)) {
-          setIsAuthenticated(true);
+          // Récupérer et définir l'utilisateur actuel
+          const user = getUserFromToken(authToken);
+          if (user) {
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+          } else {
+            console.log('❌ Utilisateur non trouvé pour le token');
+            logout();
+          }
         } else {
           // Token expiré, déconnecter l'utilisateur
           console.log('⏰ Token expiré, déconnexion automatique');
@@ -42,12 +52,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('isAuthenticated');
+    setCurrentUser(null);
     setIsAuthenticated(false);
     console.log('🔒 Utilisateur déconnecté');
   };
 
-  const handleLogin = (success: boolean) => {
-    if (success) {
+  const handleLogin = (success: boolean, user?: UserProfile) => {
+    if (success && user) {
+      setCurrentUser(user);
       setIsAuthenticated(true);
     }
   };
