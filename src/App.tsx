@@ -25,8 +25,8 @@ import { UserProvider, useUser } from './contexts/UserContext';
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
 import MobileNavigation from './components/MobileNavigation';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+
+
 import './styles/animations.css';
 import './styles/colors.css';
 
