@@ -33,7 +33,7 @@ interface MarquePerformance {
 }
 
 const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, famillesPerformance }) => {
-  const [selectedMarque, setSelectedMarque] = useState<string | null>(null);
+
   const [sortBy, setSortBy] = useState<'ca' | 'progression' | 'marque'>('ca');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,6 +41,8 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const [expandedFamilles, setExpandedFamilles] = useState<Set<string>>(new Set());
   const [currentFamillePage, setCurrentFamillePage] = useState(1);
   const famillesPerPage = 20;
+  const [selectedMarqueDetails, setSelectedMarqueDetails] = useState<string | null>(null);
+  const [selectedFamilleDetails, setSelectedFamilleDetails] = useState<string | null>(null);
 
   // Fonction pour gérer l'expansion des familles
   const toggleFamilleExpansion = (famille: string) => {
@@ -53,6 +55,19 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
       }
       return newSet;
     });
+  };
+
+  // Fonction pour gérer le clic sur une marque
+  const handleMarqueClick = (marque: string) => {
+    console.log('🖱️ Clic sur marque:', marque);
+    setSelectedMarqueDetails(marque);
+    setSelectedFamilleDetails(null); // Fermer les détails de famille
+  };
+
+  // Fonction pour gérer le clic sur une famille
+  const handleFamilleClick = (famille: string) => {
+    setSelectedFamilleDetails(famille);
+    setSelectedMarqueDetails(null); // Fermer les détails de marque
   };
 
   // Calculer les performances par marque
@@ -201,6 +216,76 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const endFamilleIndex = startFamilleIndex + famillesPerPage;
   const currentFamilles = famillesPerformance?.slice(startFamilleIndex, endFamilleIndex) || [];
 
+  // Détails d'une marque sélectionnée (fournisseurs associés)
+  const marqueDetails = useMemo(() => {
+    if (!selectedMarqueDetails) return null;
+    
+    const marqueData = adherentsData.filter(adherent => adherent.marque === selectedMarqueDetails);
+    const fournisseursMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
+    
+    marqueData.forEach(adherent => {
+      const fournisseur = adherent.fournisseur || 'Non assigné';
+      if (!fournisseursMap.has(fournisseur)) {
+        fournisseursMap.set(fournisseur, { ca2024: 0, ca2025: 0, progression: 0 });
+      }
+      
+      const fournisseurData = fournisseursMap.get(fournisseur)!;
+      if (adherent.annee === 2024) {
+        fournisseurData.ca2024 += adherent.ca;
+      } else if (adherent.annee === 2025) {
+        fournisseurData.ca2025 += adherent.ca;
+      }
+    });
+    
+    // Calculer les progressions
+    fournisseursMap.forEach(fournisseur => {
+      fournisseur.progression = fournisseur.ca2024 > 0 ? ((fournisseur.ca2025 - fournisseur.ca2024) / fournisseur.ca2024) * 100 : 0;
+    });
+    
+    return {
+      marque: selectedMarqueDetails,
+      fournisseurs: Array.from(fournisseursMap.entries()).map(([fournisseur, data]) => ({
+        fournisseur,
+        ...data
+      })).sort((a, b) => b.ca2025 - a.ca2025)
+    };
+  }, [selectedMarqueDetails, adherentsData]);
+
+  // Détails d'une famille sélectionnée (marques associées)
+  const familleDetails = useMemo(() => {
+    if (!selectedFamilleDetails) return null;
+    
+    const familleData = adherentsData.filter(adherent => adherent.sousFamille === selectedFamilleDetails);
+    const marquesMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
+    
+    familleData.forEach(adherent => {
+      const marque = adherent.marque;
+      if (!marquesMap.has(marque)) {
+        marquesMap.set(marque, { ca2024: 0, ca2025: 0, progression: 0 });
+      }
+      
+      const marqueData = marquesMap.get(marque)!;
+      if (adherent.annee === 2024) {
+        marqueData.ca2024 += adherent.ca;
+      } else if (adherent.annee === 2025) {
+        marqueData.ca2025 += adherent.ca;
+      }
+    });
+    
+    // Calculer les progressions
+    marquesMap.forEach(marque => {
+      marque.progression = marque.ca2024 > 0 ? ((marque.ca2025 - marque.ca2024) / marque.ca2024) * 100 : 0;
+    });
+    
+    return {
+      famille: selectedFamilleDetails,
+      marques: Array.from(marquesMap.entries()).map(([marque, data]) => ({
+        marque,
+        ...data
+      })).sort((a, b) => b.ca2025 - a.ca2025)
+    };
+  }, [selectedFamilleDetails, adherentsData]);
+
   // Trier les marques
   const sortedMarques = useMemo(() => {
     return [...marquesPerformance].sort((a, b) => {
@@ -230,7 +315,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    setSelectedMarque(null); // Fermer le détail lors du changement de page
+    setSelectedMarqueDetails(null); // Fermer le détail lors du changement de page
   };
 
   const handleSort = (field: 'ca' | 'progression' | 'marque') => {
@@ -247,10 +332,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
-  const handleMarqueClick = (marque: string) => {
-    console.log('Marque cliquée:', marque); // Debug
-    setSelectedMarque(selectedMarque === marque ? null : marque);
-  };
+
 
   // Fonction pour obtenir l'icône et la couleur de l'évolution du classement
   const getClassementEvolution = (evolutionClassement: number) => {
@@ -445,7 +527,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                 <React.Fragment key={marque.marque}>
                   <tr 
                     className={`hover:bg-blue-50 cursor-pointer transition-all duration-200 ${
-                      selectedMarque === marque.marque ? 'bg-blue-100' : ''
+                      selectedMarqueDetails === marque.marque ? 'bg-blue-100' : ''
                     }`}
                     onClick={() => handleMarqueClick(marque.marque)}
                   >
@@ -530,16 +612,16 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                   </tr>
                   
                   {/* Détail par fournisseur directement sous la ligne */}
-                  {selectedMarque === marque.marque && (
+                  {selectedMarqueDetails === marque.marque && (
                     <tr>
                       <td colSpan={10} className="px-0 py-0">
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-400 p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="text-lg font-semibold text-gray-800">
-                              📊 Détail par Fournisseur : {selectedMarque}
+                              📊 Détail par Fournisseur : {selectedMarqueDetails}
                             </h3>
                             <button 
-                              onClick={() => setSelectedMarque(null)}
+                              onClick={() => setSelectedMarqueDetails(null)}
                               className="text-gray-500 hover:text-gray-700 text-lg font-bold"
                             >
                               ✕
@@ -565,6 +647,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                       </td>
                     </tr>
                   )}
+
                 </React.Fragment>
               ))}
             </tbody>
@@ -608,6 +691,8 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
             </div>
           </div>
         )}
+
+
       </div>
 
       {/* Performance par Famille de Produits */}
@@ -653,7 +738,15 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                             <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                               ▶️
                             </span>
-                            <span>{item.sousFamille}</span>
+                            <span 
+                              className="hover:text-blue-600 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFamilleClick(item.sousFamille);
+                              }}
+                            >
+                              {item.sousFamille}
+                            </span>
                             {marquesInFamille.length > 0 && (
                               <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
                                 {marquesInFamille.length} marque{marquesInFamille.length > 1 ? 's' : ''}
@@ -681,11 +774,11 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                           {marquesInFamille
                             .sort((a, b) => b.ca2025 - a.ca2025)
                             .map((marque) => (
-                            <tr key={`${item.sousFamille}-${marque.marque}`} className="bg-blue-50 hover:bg-blue-100">
+                            <tr key={`${item.sousFamille}-${marque.marque}`} className="bg-blue-50 hover:bg-blue-100 cursor-pointer" onClick={() => handleMarqueClick(marque.marque)}>
                               <td className="py-2 px-8 text-sm text-gray-700">
                                 <div className="flex items-center space-x-2">
                                   <span className="text-blue-500">🏷️</span>
-                                  <span className="font-medium">{marque.marque}</span>
+                                  <span className="font-medium text-blue-700 hover:text-blue-900">{marque.marque}</span>
                                 </div>
                               </td>
                               <td className="py-2 px-4 text-sm text-right text-gray-600">
@@ -759,6 +852,59 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
               </div>
             </div>
           )}
+        </div>
+      )}
+
+
+
+      {/* Détails d'une famille sélectionnée */}
+      {familleDetails && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-800">📦 Détails de la famille: {familleDetails.famille}</h3>
+              <p className="text-gray-600 mt-1">
+                Répartition par marques
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedFamilleDetails(null)}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Marque</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {familleDetails.marques.map((marque) => (
+                  <tr key={marque.marque} className="hover:bg-gray-50">
+                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{marque.marque}</td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-700">
+                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2024)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right text-gray-700">
+                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2025)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-right">
+                      <span className={`font-medium ${marque.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {marque.progression >= 0 ? '+' : ''}{marque.progression.toFixed(1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
