@@ -358,7 +358,7 @@ function MainApp() {
                   <p className="mt-2 text-gray-600 font-serif italic text-lg max-w-4xl leading-relaxed">
                     {currentUser?.role === 'alliance' ? (
                       <>
-                        L'avenir se <span style={{ color: currentUser?.theme?.primaryColor || '#003f7f' }} className="font-bold">dessine ici</span>
+                        La <span style={{ color: currentUser?.theme?.primaryColor || '#003f7f' }} className="font-bold">stratégie du groupe</span> commence ici
                       </>
                     ) : (
                       <>

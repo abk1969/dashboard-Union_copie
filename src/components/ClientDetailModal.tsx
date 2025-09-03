@@ -83,6 +83,21 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [notesLoading, setNotesLoading] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
 
+  // États pour les détails des marques et familles
+  const [selectedMarqueDetails, setSelectedMarqueDetails] = useState<string | null>(null);
+  const [selectedFamilleDetails, setSelectedFamilleDetails] = useState<string | null>(null);
+
+  // Fonctions pour gérer les clics sur marques et familles
+  const handleMarqueClick = (marque: string) => {
+    setSelectedMarqueDetails(marque);
+    setSelectedFamilleDetails(null);
+  };
+
+  const handleFamilleClick = (famille: string) => {
+    setSelectedFamilleDetails(famille);
+    setSelectedMarqueDetails(null);
+  };
+
   const loadClientDocuments = useCallback(async () => {
     if (!client) return;
     
@@ -311,6 +326,80 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       uniqueFamilles: famillesMap.size
     };
   }, [client, allAdherentData]);
+
+  // Détails d'une marque sélectionnée (familles associées pour ce client)
+  const marqueDetails = useMemo(() => {
+    if (!selectedMarqueDetails || !client) return null;
+    
+    const marqueData = allAdherentData.filter(adherent => 
+      adherent.codeUnion === client.codeUnion && adherent.marque === selectedMarqueDetails
+    );
+    const famillesMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
+    
+    marqueData.forEach(adherent => {
+      const famille = adherent.sousFamille;
+      if (!famillesMap.has(famille)) {
+        famillesMap.set(famille, { ca2024: 0, ca2025: 0, progression: 0 });
+      }
+      
+      const familleData = famillesMap.get(famille)!;
+      if (adherent.annee === 2024) {
+        familleData.ca2024 += adherent.ca;
+      } else if (adherent.annee === 2025) {
+        familleData.ca2025 += adherent.ca;
+      }
+    });
+    
+    // Calculer les progressions
+    famillesMap.forEach(famille => {
+      famille.progression = famille.ca2024 > 0 ? ((famille.ca2025 - famille.ca2024) / famille.ca2024) * 100 : 0;
+    });
+    
+    return {
+      marque: selectedMarqueDetails,
+      familles: Array.from(famillesMap.entries()).map(([famille, data]) => ({
+        famille,
+        ...data
+      })).sort((a, b) => b.ca2025 - a.ca2025)
+    };
+  }, [selectedMarqueDetails, client, allAdherentData]);
+
+  // Détails d'une famille sélectionnée (marques associées pour ce client)
+  const familleDetails = useMemo(() => {
+    if (!selectedFamilleDetails || !client) return null;
+    
+    const familleData = allAdherentData.filter(adherent => 
+      adherent.codeUnion === client.codeUnion && adherent.sousFamille === selectedFamilleDetails
+    );
+    const marquesMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
+    
+    familleData.forEach(adherent => {
+      const marque = adherent.marque;
+      if (!marquesMap.has(marque)) {
+        marquesMap.set(marque, { ca2024: 0, ca2025: 0, progression: 0 });
+      }
+      
+      const marqueData = marquesMap.get(marque)!;
+      if (adherent.annee === 2024) {
+        marqueData.ca2024 += adherent.ca;
+      } else if (adherent.annee === 2025) {
+        marqueData.ca2025 += adherent.ca;
+      }
+    });
+    
+    // Calculer les progressions
+    marquesMap.forEach(marque => {
+      marque.progression = marque.ca2024 > 0 ? ((marque.ca2025 - marque.ca2024) / marque.ca2024) * 100 : 0;
+    });
+    
+    return {
+      famille: selectedFamilleDetails,
+      marques: Array.from(marquesMap.entries()).map(([marque, data]) => ({
+        marque,
+        ...data
+      })).sort((a, b) => b.ca2025 - a.ca2025)
+    };
+  }, [selectedFamilleDetails, client, allAdherentData]);
 
   if (!isOpen || !client || !clientData) return null;
 
@@ -593,13 +682,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
                 {clientData.marquesPerformance.map((item, index) => (
-                  <div key={item.marque} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  <div key={item.marque} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md cursor-pointer transition-shadow" onClick={() => handleMarqueClick(item.marque)}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-purple-500 text-white text-sm flex items-center justify-center font-bold">
                           {index + 1}
                         </div>
-                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.marque}</span>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base hover:text-purple-600">{item.marque}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.progression > 5 ? 'bg-green-100 text-green-800' :
@@ -652,8 +741,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {clientData.marquesPerformance.map((item, index) => (
-                          <tr key={item.marque} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.marque}</td>
+                          <tr key={item.marque} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-purple-50 cursor-pointer transition-colors`} onClick={() => handleMarqueClick(item.marque)}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hover:text-purple-600">{item.marque}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
                             </td>
@@ -1234,13 +1323,13 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
                 {clientData.famillesPerformance.map((item, index) => (
-                  <div key={item.famille} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
+                  <div key={item.famille} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md cursor-pointer transition-shadow" onClick={() => handleFamilleClick(item.famille)}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-orange-500 text-white text-sm flex items-center justify-center font-bold">
                           {index + 1}
                         </div>
-                        <span className="font-semibold text-gray-900 text-sm sm:text-base">{item.famille}</span>
+                        <span className="font-semibold text-gray-900 text-sm sm:text-base hover:text-orange-600">{item.famille}</span>
                       </div>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.progression > 5 ? 'bg-green-100 text-green-800' :
@@ -1291,8 +1380,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {clientData.famillesPerformance.map((item, index) => (
-                          <tr key={item.famille} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.famille}</td>
+                          <tr key={item.famille} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-orange-50 cursor-pointer transition-colors`} onClick={() => handleFamilleClick(item.famille)}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hover:text-orange-600">{item.famille}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
                               {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(item.ca2024)}
                             </td>
@@ -1693,6 +1782,116 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           onNoteAdded={handleNoteAdded}
           codeUnion={client?.codeUnion || ''}
         />
+      )}
+
+      {/* Détails d'une marque sélectionnée */}
+      {marqueDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800">🏷️ Détails de la marque: {marqueDetails.marque}</h3>
+                  <p className="text-gray-600 mt-1">
+                    Répartition par famille de produits pour {client?.raisonSociale}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedMarqueDetails(null)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Famille</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {marqueDetails.familles.map((famille) => (
+                      <tr key={famille.famille} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{famille.famille}</td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(famille.ca2024)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(famille.ca2025)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right">
+                          <span className={`font-medium ${famille.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {famille.progression >= 0 ? '+' : ''}{famille.progression.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Détails d'une famille sélectionnée */}
+      {familleDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800">📦 Détails de la famille: {familleDetails.famille}</h3>
+                  <p className="text-gray-600 mt-1">
+                    Répartition par marques pour {client?.raisonSociale}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedFamilleDetails(null)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Marque</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
+                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {familleDetails.marques.map((marque) => (
+                      <tr key={marque.marque} className="hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm font-medium text-gray-900">{marque.marque}</td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2024)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right text-gray-700">
+                          {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2025)}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-right">
+                          <span className={`font-medium ${marque.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {marque.progression >= 0 ? '+' : ''}{marque.progression.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
