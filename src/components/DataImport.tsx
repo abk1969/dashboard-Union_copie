@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { AdherentData } from '../types';
+import { supabase } from '../config/supabase';
 
 interface DataImportProps {
   onDataImported: (data: AdherentData[]) => void;
@@ -24,6 +25,51 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     annee: 1,                // Colonne 1 : Année
     ca: 11                   // Colonne 11 : CA (€)
   });
+  const [pushToSupabase, setPushToSupabase] = useState(false);
+
+  // Fonction pour pousser les données vers Supabase
+  const pushDataToSupabase = async (data: AdherentData[]) => {
+    try {
+      console.log('🔄 Poussage vers Supabase...', data.length, 'enregistrements');
+      
+      // Supprimer les anciennes données avant d'ajouter les nouvelles
+      console.log('🗑️ Suppression des anciennes données...');
+      
+      const { error: deleteError } = await supabase
+        .from('adherents')
+        .delete()
+        .neq('id', 0); // Supprimer tous les enregistrements
+      
+      if (deleteError) {
+        throw new Error(`Erreur lors de la suppression: ${deleteError.message}`);
+      }
+      
+      console.log('✅ Anciennes données supprimées');
+      
+      // Insérer les nouvelles données par lots
+      const batchSize = 100;
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+        
+        const { error: insertError } = await supabase
+          .from('adherents')
+          .insert(batch);
+        
+        if (insertError) {
+          throw new Error(`Erreur lot ${Math.floor(i/batchSize) + 1}: ${insertError.message}`);
+        }
+        
+        console.log(`✅ Lot ${Math.floor(i/batchSize) + 1} inséré (${batch.length} enregistrements)`);
+      }
+      
+      console.log('🎉 Toutes les données poussées vers Supabase !');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du poussage vers Supabase:', error);
+      throw error;
+    }
+  };
 
   const processExcelFile = async (file: File): Promise<AdherentData[]> => {
     return new Promise((resolve, reject) => {
@@ -75,12 +121,96 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     });
   };
 
+  // Fonction de détection automatique des colonnes
+  const detectColumnMapping = (headers: string[]): Record<string, number> => {
+    const mapping: Record<string, number> = {};
+    
+    // Vérifier si la première ligne contient des en-têtes ou des données
+    const firstRow = headers[0] || '';
+    const isHeaderRow = firstRow.toLowerCase().includes('mois') || 
+                       firstRow.toLowerCase().includes('année') || 
+                       firstRow.toLowerCase().includes('code') ||
+                       firstRow.toLowerCase().includes('raison');
+    
+    console.log('Détection en-têtes:', { firstRow, isHeaderRow });
+    
+    // Si c'est une ligne d'en-têtes, utiliser les vrais noms de colonnes
+    if (isHeaderRow) {
+      headers.forEach((header, index) => {
+        const headerLower = header.toLowerCase().trim();
+        
+        // Mapping intelligent basé sur les mots-clés
+        if (headerLower.includes('code') && headerLower.includes('un')) {
+          mapping.codeUnion = index;
+        } else if (headerLower.includes('raison') && headerLower.includes('sociale')) {
+          mapping.raisonSociale = index;
+        } else if (headerLower.includes('groupe') && headerLower.includes('client')) {
+          mapping.groupeClient = index;
+        } else if (headerLower.includes('fournisseur') && !headerLower.includes('groupe')) {
+          mapping.fournisseur = index;
+        } else if (headerLower.includes('marque')) {
+          mapping.marque = index;
+        } else if (headerLower.includes('sous') && headerLower.includes('famille')) {
+          mapping.sousFamille = index;
+        } else if (headerLower.includes('groupe') && (headerLower.includes('frs') || headerLower.includes('fournisseur'))) {
+          mapping.groupeFournisseur = index;
+        } else if (headerLower.includes('année') || headerLower.includes('annee')) {
+          mapping.annee = index;
+        } else if (headerLower.includes('ca') || headerLower.includes('chiffre')) {
+          mapping.ca = index;
+        }
+      });
+    } else {
+      // Si ce n'est pas une ligne d'en-têtes, utiliser le mapping par position
+      // Basé sur la structure que vous avez montrée
+      mapping.codeUnion = 2;      // Colonne 2: Code Un
+      mapping.raisonSociale = 3;  // Colonne 3: Raison Sociale
+      mapping.groupeClient = 4;   // Colonne 4: Groupe Client
+      mapping.fournisseur = 6;    // Colonne 6: Fournisseur
+      mapping.marque = 7;         // Colonne 7: Marque
+      mapping.groupeFournisseur = 8; // Colonne 8: Groupe FRS
+      mapping.sousFamille = 10;   // Colonne 10: Sous Famille
+      mapping.annee = 1;          // Colonne 1: Année
+      mapping.ca = 11;            // Colonne 11: CA (€)
+    }
+    
+    console.log('Détection automatique:', { headers, mapping });
+    return mapping;
+  };
+
   const convertToAdherentData = (rawData: any[]): AdherentData[] => {
     console.log('Données brutes reçues:', rawData.length, 'lignes');
     console.log('Mapping des colonnes:', columnMapping);
     
-    // Ignorer la première ligne si c'est un en-tête
-    const dataRows = rawData.slice(1);
+    // Détection automatique des colonnes basée sur les en-têtes
+    const headers = rawData[0] || [];
+    const autoMapping = detectColumnMapping(headers);
+    console.log('Mapping automatique détecté:', autoMapping);
+    
+    // Utiliser le mapping automatique si pas de mapping manuel
+    let finalMapping = Object.keys(columnMapping).length > 0 ? columnMapping : autoMapping;
+    
+    // Si le mapping automatique n'a pas trouvé les bonnes colonnes, forcer le mapping
+    if (!finalMapping.codeUnion || !finalMapping.raisonSociale) {
+      console.log('Mapping automatique incomplet, utilisation du mapping forcé');
+      finalMapping = {
+        codeUnion: 2,      // Colonne 2: Code Un
+        raisonSociale: 3,  // Colonne 3: Raison Sociale
+        groupeClient: 4,   // Colonne 4: Groupe Client
+        fournisseur: 6,    // Colonne 6: Fournisseur
+        marque: 7,         // Colonne 7: Marque
+        groupeFournisseur: 8, // Colonne 8: Groupe FRS
+        sousFamille: 10,   // Colonne 10: Sous Famille
+        annee: 1,          // Colonne 1: Année
+        ca: 11             // Colonne 11: CA (€)
+      };
+    }
+    
+    // Forcer le mapping basé sur votre structure Excel
+    // Votre fichier commence directement par les données, pas d'en-têtes
+    const dataRows = rawData;
+    
+    console.log('Utilisation du mapping forcé pour votre structure Excel');
     console.log('Après suppression en-tête:', dataRows.length, 'lignes');
     
     const processedData = dataRows
@@ -92,7 +222,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
         }
         
         // Vérifier qu'on a assez de colonnes
-        const maxColumnIndex = Math.max(...Object.values(columnMapping));
+        const maxColumnIndex = Math.max(...Object.values(finalMapping));
         if (row.length <= maxColumnIndex) {
           console.log(`Ligne ${index + 1} pas assez de colonnes:`, row.length, 'vs', maxColumnIndex + 1);
           return false;
@@ -102,16 +232,29 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       })
       .map((row: any, index: number) => {
         try {
+          // Debug pour la colonne CA
+          const caValue = row[finalMapping.ca];
+          const caString = String(caValue || '0');
+          const caCleaned = caString.replace(',', '.').replace(/\s/g, '');
+          const caParsed = parseFloat(caCleaned);
+          
+          console.log(`Ligne ${index + 1} CA debug:`, {
+            original: caValue,
+            string: caString,
+            cleaned: caCleaned,
+            parsed: caParsed
+          });
+          
           const adherentData: AdherentData = {
-            raisonSociale: String(row[columnMapping.raisonSociale] || '').trim(),
-            codeUnion: String(row[columnMapping.codeUnion] || '').trim(),
-            groupeClient: String(row[columnMapping.groupeClient] || '').trim(),
-            fournisseur: String(row[columnMapping.fournisseur] || '').trim(),
-            marque: String(row[columnMapping.marque] || '').trim(),
-            sousFamille: String(row[columnMapping.sousFamille] || '').trim(),
-            groupeFournisseur: String(row[columnMapping.groupeFournisseur] || '').trim(),
-            annee: parseInt(String(row[columnMapping.annee] || '2024')),
-            ca: parseFloat(String(row[columnMapping.ca] || '0').replace(',', '.'))
+            raisonSociale: String(row[finalMapping.raisonSociale] || '').trim(),
+            codeUnion: String(row[finalMapping.codeUnion] || '').trim(),
+            groupeClient: String(row[finalMapping.groupeClient] || '').trim(),
+            fournisseur: String(row[finalMapping.fournisseur] || '').trim(),
+            marque: String(row[finalMapping.marque] || '').trim(),
+            sousFamille: String(row[finalMapping.sousFamille] || '').trim(),
+            groupeFournisseur: String(row[finalMapping.groupeFournisseur] || '').trim(),
+            annee: parseInt(String(row[finalMapping.annee] || '2024')),
+            ca: caParsed
           };
           
           // Validation supplémentaire
@@ -183,6 +326,17 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       setImportStatus(`✅ ${importedData.length} lignes importées avec succès !`);
       onDataImported(importedData);
       
+      // Pousser vers Supabase si activé
+      if (pushToSupabase && importedData.length > 0) {
+        setImportStatus(`🔄 Poussage vers Supabase...`);
+        try {
+          await pushDataToSupabase(importedData);
+          setImportStatus(`🎉 ${importedData.length} lignes importées et remplacées dans Supabase !`);
+        } catch (error) {
+          setImportStatus(`⚠️ Import local réussi, mais erreur Supabase: ${error}`);
+        }
+      }
+      
       setTimeout(() => setImportStatus(''), 5000);
     } catch (error) {
       setImportStatus(`❌ Erreur lors de l'import : ${error}`);
@@ -236,8 +390,19 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
         <h3 className="text-lg font-semibold text-gray-700">
           📥 Import de Données
         </h3>
-        <div className="text-sm text-gray-500">
-          Supporte Excel (.xlsx, .xls) et CSV (.csv)
+        <div className="flex items-center space-x-4">
+          <div className="text-sm text-gray-500">
+            Supporte Excel (.xlsx, .xls) et CSV (.csv)
+          </div>
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={pushToSupabase}
+              onChange={(e) => setPushToSupabase(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">Remplacer dans Supabase</span>
+          </label>
         </div>
       </div>
 

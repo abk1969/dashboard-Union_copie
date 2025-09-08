@@ -171,3 +171,4 @@ export const EvolutionDisplay: React.FC<{ evolutionClassement: number; compact?:
     </div>
   );
 };
+

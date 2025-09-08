@@ -17,7 +17,6 @@ import DataExporter from './components/DataExporter';
 import AdvancedExport from './components/AdvancedExport';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
 import { DocumentsSection } from './components/DocumentsSection';
-import { NotesClientsSection } from './components/NotesClientsSection';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PlatformSelector } from './components/PlatformSelector';
 import { UserProvider, useUser } from './contexts/UserContext';
@@ -48,7 +47,7 @@ function MainApp() {
     const dataWithPlatforms = assignPlatformToData(allAdherentData);
     return filterDataByPlatforms(dataWithPlatforms, activePlatforms);
   }, [allAdherentData, activePlatforms]);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents' | 'notes'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -56,6 +55,10 @@ function MainApp() {
   const [selectedFamille, setSelectedFamille] = useState<FamilleProduitPerformance | null>(null);
   const [showFamilleModal, setShowFamilleModal] = useState(false);
   const [showStartup, setShowStartup] = useState(true);
+
+
+
+
   const [pageLoaded, setPageLoaded] = useState(false);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
@@ -370,6 +373,15 @@ function MainApp() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {/* Bouton Notes & Projets */}
+                <a
+                  href="/notes"
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <span className="mr-2">📝</span>
+                  Notes & Projets
+                </a>
+                
                 {/* Sélecteur de plateformes - visible seulement pour les admins */}
                 {isAdmin && <PlatformSelector />}
                 
@@ -458,16 +470,6 @@ function MainApp() {
                }`}
              >
                📁 Documents
-             </button>
-             <button
-               onClick={() => setActiveTab('notes')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'notes'
-                   ? 'bg-pink-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-pink-50 border border-gray-200 hover:border-pink-300'
-               }`}
-             >
-               📝 Notes
              </button>
           </div>
         </div>
@@ -984,16 +986,6 @@ function MainApp() {
              </div>
            )}
 
-           {/* Onglet Notes */}
-           {activeTab === 'notes' && (
-             <div className="space-y-6">
-               <NotesClientsSection 
-                 onNoteClick={(note) => {
-                   console.log('Note sélectionnée:', note);
-                 }}
-               />
-             </div>
-           )}
       </main>
 
       {/* Modal de détails client */}

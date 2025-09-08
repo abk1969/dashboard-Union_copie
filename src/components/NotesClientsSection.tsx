@@ -1,6 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { NoteClient } from '../types';
-import { notesClientsFictives, utilisateursFictifs } from '../data/notesData';
+// import { notesClientsFictives, utilisateursFictifs } from '../data/notesData';
+
+// Données temporaires
+const notesClientsFictives: NoteClient[] = [];
+const utilisateursFictifs = [
+  { id: '1', nom: 'Dupont', prenom: 'Jean' },
+  { id: '2', nom: 'Martin', prenom: 'Marie' },
+  { id: '3', nom: 'Bernard', prenom: 'Pierre' }
+];
 import { formatDate } from '../utils/formatters';
 
 interface NotesClientsSectionProps {

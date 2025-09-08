@@ -7,8 +7,8 @@ import { DocumentService } from '../services/documentService';
 import { DOCUMENT_TYPES } from '../config/documentTypes';
 import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
 import PDFViewer from './PDFViewer';
-import { getNotesByCodeUnion } from '../data/notesData';
-import { NoteModal } from './NoteModal';
+// import { getNotesByCodeUnion } from '../data/notesData';
+// import { NoteModal } from './NoteModal';
 
 interface ClientDetailModalProps {
   client: AdherentSummary | null;
@@ -81,7 +81,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   // États pour les notes
   const [clientNotes, setClientNotes] = useState<NoteClient[]>([]);
   const [notesLoading, setNotesLoading] = useState(false);
-  const [showNoteModal, setShowNoteModal] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [showNoteModal] = useState(false);
 
   // États pour les détails des marques et familles
   const [selectedMarqueDetails, setSelectedMarqueDetails] = useState<string | null>(null);
@@ -120,7 +121,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     console.log('🔄 Chargement des notes pour le client:', client.codeUnion);
     setNotesLoading(true);
     try {
-      const notes = getNotesByCodeUnion(client.codeUnion);
+      const notes: NoteClient[] = []; // Temporairement vide
       console.log('📝 Notes récupérées:', notes);
       setClientNotes(notes);
     } catch (error) {
@@ -155,9 +156,9 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleNoteAdded = (newNote: NoteClient) => {
     setClientNotes(prev => [newNote, ...prev]);
-    setShowNoteModal(false);
   };
 
   // Charger les documents du client
@@ -1595,7 +1596,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-2xl font-bold text-gray-800">📝 Notes du Client</h3>
                 <button
-                  onClick={() => setShowNoteModal(true)}
+                  onClick={() => {/* setShowNoteModal(true) */}}
                   className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 transition-colors font-medium"
                 >
                   ✏️ Nouvelle Note
@@ -1774,15 +1775,15 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         />
       )}
 
-      {/* Modal d'ajout de note */}
-      {showNoteModal && (
+      {/* Modal d'ajout de note - Temporairement désactivée */}
+      {/* {showNoteModal && (
         <NoteModal
           isOpen={showNoteModal}
           onClose={() => setShowNoteModal(false)}
           onNoteAdded={handleNoteAdded}
           codeUnion={client?.codeUnion || ''}
         />
-      )}
+      )} */}
 
       {/* Détails d'une marque sélectionnée */}
       {marqueDetails && (

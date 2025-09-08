@@ -1,6 +1,13 @@
 import React, { useState } from 'react';
 import { NoteClient } from '../types';
-import { utilisateursFictifs } from '../data/notesData';
+// import { utilisateursFictifs } from '../data/notesData';
+
+// Données temporaires
+const utilisateursFictifs = [
+  { id: '1', nom: 'Dupont', prenom: 'Jean' },
+  { id: '2', nom: 'Martin', prenom: 'Marie' },
+  { id: '3', nom: 'Bernard', prenom: 'Pierre' }
+];
 import CloseButton from './CloseButton';
 
 interface NoteModalProps {
