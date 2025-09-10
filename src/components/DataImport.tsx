@@ -15,15 +15,15 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [filePreview, setFilePreview] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<{[key: string]: number}>({
-    raisonSociale: 3,        // Colonne 3 : Raison Sociale
-    codeUnion: 2,            // Colonne 2 : Code Union
-    groupeClient: 4,         // Colonne 4 : Groupe Client
-    fournisseur: 6,          // Colonne 6 : Fournisseur
-    marque: 7,               // Colonne 7 : Marque
-    sousFamille: 10,         // Colonne 10 : Sous Famille
-    groupeFournisseur: 8,    // Colonne 8 : Groupe FRS
-    annee: 1,                // Colonne 1 : Année
-    ca: 11                   // Colonne 11 : CA (€)
+    raisonSociale: 4,        // Colonne 4 : Raison Sociale
+    codeUnion: 3,            // Colonne 3 : Code Union
+    groupeClient: 5,         // Colonne 5 : Groupe Client
+    fournisseur: 7,          // Colonne 7 : Fournisseur
+    marque: 8,               // Colonne 8 : Marque
+    sousFamille: 11,         // Colonne 11 : Sous Famille
+    groupeFournisseur: 9,    // Colonne 9 : Groupe FRS
+    annee: 2,                // Colonne 2 : Année
+    ca: 12                   // Colonne 12 : CA (€) - CORRECT !
   });
   const [pushToSupabase, setPushToSupabase] = useState(false);
 
