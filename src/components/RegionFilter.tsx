@@ -3,6 +3,9 @@ import { useRegion } from '../contexts/RegionContext';
 
 const RegionFilter: React.FC = () => {
   const { selectedRegion, setSelectedRegion, availableRegions, isRegionFiltered } = useRegion();
+  
+  // Debug temporaire
+  console.log('🌍 Régions disponibles:', availableRegions);
 
   return (
     <div className="flex items-center space-x-3">
@@ -17,9 +20,13 @@ const RegionFilter: React.FC = () => {
           px-3 py-2 border border-gray-300 rounded-md text-sm
           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
           ${isRegionFiltered ? 'bg-blue-50 border-blue-300' : 'bg-white'}
+          ${availableRegions.length === 0 ? 'bg-gray-50 text-gray-400' : ''}
         `}
+        disabled={availableRegions.length === 0}
       >
-        <option value="all">Toutes les régions</option>
+        <option value="all">
+          {availableRegions.length === 0 ? 'Aucune région (réimporter Excel)' : 'Toutes les régions'}
+        </option>
         {availableRegions.map(region => (
           <option key={region} value={region}>
             {region}

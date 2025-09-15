@@ -26,6 +26,7 @@ export interface SupabaseAdherent {
   codeUnion: string;
   raisonSociale: string;
   groupeClient: string;
+  regionCommerciale?: string; // Nouvelle colonne région
   fournisseur: string;
   marque: string;
   sousFamille: string;

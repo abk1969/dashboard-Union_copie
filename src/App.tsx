@@ -57,6 +57,8 @@ function MainApp() {
   // Mettre à jour les régions disponibles quand les données changent
   useEffect(() => {
     const regions = extractUniqueRegions(allAdherentData);
+    console.log('🔍 Extraction régions:', regions);
+    console.log('📊 Échantillon données:', allAdherentData.slice(0, 3));
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
