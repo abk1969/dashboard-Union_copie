@@ -59,10 +59,15 @@ function MainApp() {
     const regions = extractUniqueRegions(allAdherentData);
     console.log('🔍 Extraction régions:', regions);
     console.log('📊 Échantillon données:', allAdherentData.slice(0, 3));
-    console.log('🌍 Champs région échantillon:', allAdherentData.slice(0, 3).map(d => ({ 
+    const regionSample = allAdherentData.slice(0, 3).map(d => ({ 
       codeUnion: d.codeUnion, 
-      regionCommerciale: d.regionCommerciale 
-    })));
+      regionCommerciale: d.regionCommerciale,
+      hasRegion: !!d.regionCommerciale
+    }));
+    console.log('🌍 Champs région échantillon:', regionSample);
+    regionSample.forEach((item, index) => {
+      console.log(`  ${index + 1}. ${item.codeUnion} → région: "${item.regionCommerciale}" (${item.hasRegion})`);
+    });
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
