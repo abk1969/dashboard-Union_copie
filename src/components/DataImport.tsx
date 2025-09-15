@@ -34,6 +34,10 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   const pushDataToSupabase = async (data: AdherentData[]) => {
     try {
       console.log('🔄 Poussage vers Supabase...', data.length, 'enregistrements');
+      console.log('🌍 Échantillon avec régions:', data.slice(0, 3).map(d => ({ 
+        codeUnion: d.codeUnion, 
+        regionCommerciale: d.regionCommerciale 
+      })));
       
       // Supprimer les anciennes données avant d'ajouter les nouvelles
       console.log('🗑️ Suppression des anciennes données...');
@@ -856,8 +860,10 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       onDataImported(importedData);
       
       // Pousser vers Supabase si activé
+      console.log('🔍 Vérification sauvegarde:', { pushToSupabase, dataLength: importedData.length });
       if (pushToSupabase && importedData.length > 0) {
         setImportStatus(`🔄 Poussage vers Supabase...`);
+        console.log('🚀 Début sauvegarde Supabase avec régions...');
         try {
           await pushDataToSupabase(importedData);
           setImportStatus(`🎉 ${importedData.length} lignes importées et remplacées dans Supabase !`);
