@@ -34,10 +34,14 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   const pushDataToSupabase = async (data: AdherentData[]) => {
     try {
       console.log('🔄 Poussage vers Supabase...', data.length, 'enregistrements');
-      console.log('🌍 Échantillon avec régions:', data.slice(0, 3).map(d => ({ 
+        console.log('🌍 Échantillon avec régions:', data.slice(0, 3).map(d => ({ 
         codeUnion: d.codeUnion, 
         regionCommerciale: d.regionCommerciale 
       })));
+      
+      // Compter les données avec région
+      const withRegion = data.filter(d => d.regionCommerciale && d.regionCommerciale.trim() !== '');
+      console.log(`📊 Données avec région: ${withRegion.length}/${data.length}`);
       
       // Supprimer les anciennes données avant d'ajouter les nouvelles
       console.log('🗑️ Suppression des anciennes données...');
@@ -70,6 +74,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       }
       
       console.log('🎉 Toutes les données poussées vers Supabase !');
+      console.log('✅ Sauvegarde complète avec régions dans Supabase');
       return true;
       
     } catch (error) {

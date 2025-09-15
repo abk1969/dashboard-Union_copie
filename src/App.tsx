@@ -59,6 +59,10 @@ function MainApp() {
     const regions = extractUniqueRegions(allAdherentData);
     console.log('🔍 Extraction régions:', regions);
     console.log('📊 Échantillon données:', allAdherentData.slice(0, 3));
+    console.log('🌍 Champs région échantillon:', allAdherentData.slice(0, 3).map(d => ({ 
+      codeUnion: d.codeUnion, 
+      regionCommerciale: d.regionCommerciale 
+    })));
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
