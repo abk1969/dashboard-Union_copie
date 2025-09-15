@@ -25,7 +25,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     annee: 1,                // Colonne B : Année (2025)
     ca: 11                   // Colonne L : CA (€) - 20,82, 36, 138,46
   });
-  const [pushToSupabase, setPushToSupabase] = useState(true); // Activé par défaut
+  const [pushToSupabase, setPushToSupabase] = useState(true); // Réactivé après création colonne
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [totalCA, setTotalCA] = useState<number>(0);
   const [statsFournisseurs, setStatsFournisseurs] = useState<Record<string, { count: number; total: number }>>({});
