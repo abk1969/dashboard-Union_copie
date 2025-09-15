@@ -680,6 +680,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       codeUnion: r.codeUnion,
       raisonSociale: r.raisonSociale,
       groupeClient: r.groupeClient,
+      regionCommerciale: r.regionCommerciale,
       fournisseur: r.fournisseur,
       marque: r.marque,
       sousFamille: r.sousFamille,

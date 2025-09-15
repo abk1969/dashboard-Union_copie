@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
+import { RegionProvider, useRegion, extractUniqueRegions, filterDataByRegion } from './contexts/RegionContext';
 import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUtils';
 import { calculateRankings } from './utils/rankingUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
@@ -19,6 +20,9 @@ import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader'
 import { DocumentsSection } from './components/DocumentsSection';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PlatformSelector } from './components/PlatformSelector';
+import RegionFilter from './components/RegionFilter';
+import PeriodIndicator from './components/PeriodIndicator';
+import PeriodAlert from './components/PeriodAlert';
 import { UserProvider, useUser } from './contexts/UserContext';
 
 import StartupScreen from './components/StartupScreen';
@@ -32,6 +36,7 @@ import './styles/colors.css';
 function MainApp() {
   const { activePlatforms, setActivePlatforms } = usePlatform();
   const { currentUser, isAdmin } = useUser();
+  const { selectedRegion, setAvailableRegions } = useRegion();
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
@@ -42,11 +47,18 @@ function MainApp() {
     }
   }, [currentUser, isAdmin, setActivePlatforms]);
   
-  // Données filtrées selon les plateformes actives
+  // Données filtrées selon les plateformes actives et la région
   const filteredAdherentData = useMemo(() => {
     const dataWithPlatforms = assignPlatformToData(allAdherentData);
-    return filterDataByPlatforms(dataWithPlatforms, activePlatforms);
-  }, [allAdherentData, activePlatforms]);
+    const dataFilteredByPlatforms = filterDataByPlatforms(dataWithPlatforms, activePlatforms);
+    return filterDataByRegion(dataFilteredByPlatforms, selectedRegion);
+  }, [allAdherentData, activePlatforms, selectedRegion]);
+
+  // Mettre à jour les régions disponibles quand les données changent
+  useEffect(() => {
+    const regions = extractUniqueRegions(allAdherentData);
+    setAvailableRegions(regions);
+  }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
@@ -383,14 +395,26 @@ function MainApp() {
                 </a>
                 
                 {/* Sélecteur de plateformes - visible seulement pour les admins */}
-                {isAdmin && <PlatformSelector />}
+                {isAdmin && (
+                  <div className="space-y-3">
+                    <PlatformSelector />
+                    {/* Filtre par région - sous le filtre plateforme pour les admins */}
+                    <RegionFilter />
+                  </div>
+                )}
+                
+                {/* Filtre par région - visible pour les utilisateurs non-admins */}
+                {!isAdmin && <RegionFilter />}
                 
                 {filteredAdherentData.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-green-600">💾</span>
-                    <span className="text-sm text-gray-500">
-                      {filteredAdherentData.length.toLocaleString('fr-FR')} enregistrements filtrés • Sauvegarde automatique activée
-                    </span>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-green-600">💾</span>
+                      <span className="text-sm text-gray-500">
+                        {filteredAdherentData.length.toLocaleString('fr-FR')} enregistrements filtrés • Sauvegarde automatique activée
+                      </span>
+                    </div>
+                    <PeriodIndicator variant="badge" />
                   </div>
                 )}
               </div>
@@ -482,19 +506,28 @@ function MainApp() {
 
              {/* Contenu principal */}
        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+            {/* Alerte période - visible sur tous les onglets */}
+            <PeriodAlert />
+            
             {/* Métriques globales */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
               <div className="bg-white rounded-xl border border-blue-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
                 <div className="text-xl sm:text-2xl font-bold text-blue-600">
                   {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2024)}
                 </div>
-                <div className="text-sm sm:text-base text-gray-600">CA Total 2024</div>
+                <div className="text-sm sm:text-base text-gray-600 flex items-center gap-1">
+                  CA Total 2024 
+                  <PeriodIndicator variant="inline" size="sm" />
+                </div>
               </div>
               <div className="bg-white rounded-xl border border-green-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
                 <div className="text-xl sm:text-2xl font-bold text-green-600">
                   {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(globalMetrics.caTotal2025)}
                 </div>
-                <div className="text-sm sm:text-base text-gray-600">CA Total 2025</div>
+                <div className="text-sm sm:text-base text-gray-600 flex items-center gap-1">
+                  CA Total 2025 
+                  <PeriodIndicator variant="inline" size="sm" />
+                </div>
               </div>
               <div className="bg-white rounded-xl border border-orange-200 p-4 sm:p-6 shadow-lg hover:shadow-xl transition-shadow duration-200">
                 <div className={`text-xl sm:text-2xl font-bold ${globalMetrics.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1049,7 +1082,9 @@ function App() {
     <UserProvider>
       <ProtectedRoute>
         <PlatformProvider>
-          <MainApp />
+          <RegionProvider>
+            <MainApp />
+          </RegionProvider>
         </PlatformProvider>
       </ProtectedRoute>
     </UserProvider>

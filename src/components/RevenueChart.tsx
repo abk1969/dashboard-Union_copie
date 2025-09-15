@@ -31,9 +31,10 @@ interface RevenueChartProps {
   type: 'line' | 'bar' | 'doughnut';
   title: string;
   chartType: 'fournisseur' | 'famille';
+  compact?: boolean;
 }
 
-const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartType }) => {
+const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartType, compact = false }) => {
   const isFournisseur = chartType === 'fournisseur';
   
   const chartData = type === 'doughnut' ? {
@@ -62,7 +63,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartTyp
     labels: data.map(item => isFournisseur ? (item as FournisseurPerformance).fournisseur : (item as FamilleProduitPerformance).sousFamille),
     datasets: [
       {
-        label: 'CA 2024',
+        label: 'CA 2024 (Jan-Août)',
         data: data.map(item => isFournisseur ? (item as FournisseurPerformance).ca2024 : (item as FamilleProduitPerformance).ca2024),
         borderColor: 'rgb(59, 130, 246)',
         backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -70,7 +71,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartTyp
         fill: true,
       },
       {
-        label: 'CA 2025 (6 mois)',
+        label: 'CA 2025 (Jan-Août)',
         data: data.map(item => isFournisseur ? (item as FournisseurPerformance).ca2025 : (item as FamilleProduitPerformance).ca2025),
         borderColor: 'rgb(16, 185, 129)',
         backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -82,15 +83,22 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartTyp
 
   const options = type === 'doughnut' ? {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'bottom' as const,
+        labels: {
+          padding: compact ? 10 : 20,
+          font: {
+            size: compact ? 10 : 12,
+          },
+        },
       },
       title: {
-        display: true,
+        display: title !== '',
         text: title,
         font: {
-          size: 16,
+          size: compact ? 12 : 16,
           weight: 'bold' as const,
         },
       },

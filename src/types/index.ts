@@ -2,6 +2,7 @@ export interface AdherentData {
   raisonSociale: string;
   codeUnion: string;
   groupeClient: string;
+  regionCommerciale?: string; // Région commerciale (REGION PARISIENNE, NORD, SUD, etc.)
   fournisseur: string;
   marque: string;
   sousFamille: string;
@@ -52,6 +53,7 @@ export interface TopFlopClient {
 
 export interface Filtres {
   groupeClient?: string;
+  regionCommerciale?: string;
   fournisseur?: string;
   marque?: string;
   sousFamille?: string;
