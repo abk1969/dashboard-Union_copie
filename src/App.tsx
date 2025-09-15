@@ -68,6 +68,12 @@ function MainApp() {
     regionSample.forEach((item, index) => {
       console.log(`  ${index + 1}. ${item.codeUnion} → région: "${item.regionCommerciale}" (${item.hasRegion})`);
     });
+    
+    // Log direct sans objet
+    console.log('🚨 DIAGNOSTIC DIRECT:');
+    console.log('Premier élément - codeUnion:', allAdherentData[0]?.codeUnion);
+    console.log('Premier élément - regionCommerciale:', allAdherentData[0]?.regionCommerciale);
+    console.log('Toutes les clés du premier élément:', Object.keys(allAdherentData[0] || {}));
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
