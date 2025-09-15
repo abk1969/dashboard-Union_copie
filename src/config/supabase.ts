@@ -50,7 +50,7 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       const offset = page * pageSize;
       console.log(`📄 Récupération de la page ${page + 1} (offset: ${offset})...`);
       
-      const response = await fetch(getSupabaseRestUrl(`adherents?select=*&limit=${pageSize}&offset=${offset}`), {
+      const response = await fetch(getSupabaseRestUrl(`adherents?select=*,regionCommerciale&limit=${pageSize}&offset=${offset}`), {
         method: 'GET',
         headers: getSupabaseHeaders()
       });
@@ -61,6 +61,12 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       
       const pageData = await response.json();
       console.log(`✅ Page ${page + 1} récupérée:`, pageData.length, 'enregistrements');
+      
+      // Debug: voir les colonnes du premier élément
+      if (page === 0 && pageData.length > 0) {
+        console.log('🔍 Colonnes Supabase:', Object.keys(pageData[0]));
+        console.log('🌍 Premier élément regionCommerciale:', pageData[0].regionCommerciale);
+      }
       
       if (pageData.length === 0) {
         hasMoreData = false;
