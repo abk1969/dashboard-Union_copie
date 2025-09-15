@@ -50,7 +50,9 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       const offset = page * pageSize;
       console.log(`📄 Récupération de la page ${page + 1} (offset: ${offset})...`);
       
-      const response = await fetch(getSupabaseRestUrl(`adherents?select=*,regionCommerciale&limit=${pageSize}&offset=${offset}`), {
+      const requestUrl = `adherents?select=codeUnion,raisonSociale,groupeClient,fournisseur,marque,sousFamille,groupeFournisseur,annee,ca,regionCommerciale&limit=${pageSize}&offset=${offset}`;
+      console.log('🔗 URL Supabase:', requestUrl);
+      const response = await fetch(getSupabaseRestUrl(requestUrl), {
         method: 'GET',
         headers: getSupabaseHeaders()
       });
