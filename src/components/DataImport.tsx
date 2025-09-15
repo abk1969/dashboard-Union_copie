@@ -15,17 +15,20 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [filePreview, setFilePreview] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<{[key: string]: number}>({
-    raisonSociale: 4,        // Colonne 4 : Raison Sociale
-    codeUnion: 3,            // Colonne 3 : Code Union
-    groupeClient: 5,         // Colonne 5 : Groupe Client
-    fournisseur: 7,          // Colonne 7 : Fournisseur
-    marque: 8,               // Colonne 8 : Marque
-    sousFamille: 11,         // Colonne 11 : Sous Famille
-    groupeFournisseur: 9,    // Colonne 9 : Groupe FRS
-    annee: 2,                // Colonne 2 : Année
-    ca: 12                   // Colonne 12 : CA (€) - CORRECT !
+    raisonSociale: 3,        // Colonne D : Raison Sociale (GARAGE RAVIER)
+    codeUnion: 2,            // Colonne C : Code Union (J0154, M0247)
+    groupeClient: 4,         // Colonne E : Groupe Client (GROUPE JUMBO)
+    fournisseur: 6,          // Colonne G : Fournisseur (DCA)
+    marque: 7,               // Colonne H : Marque (diframa, ALCAR, AUTOCASH)
+    sousFamille: 10,         // Colonne K : Sous Famille (Divers Produit atelier, Valve)
+    groupeFournisseur: 8,    // Colonne I : Groupe FRS (vide pour DCA)
+    annee: 1,                // Colonne B : Année (2025)
+    ca: 11                   // Colonne L : CA (€) - 20,82, 36, 138,46
   });
   const [pushToSupabase, setPushToSupabase] = useState(false);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
+  const [totalCA, setTotalCA] = useState<number>(0);
+  const [statsFournisseurs, setStatsFournisseurs] = useState<Record<string, { count: number; total: number }>>({});
 
   // Fonction pour pousser les données vers Supabase
   const pushDataToSupabase = async (data: AdherentData[]) => {
@@ -76,11 +79,41 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
+          console.log('📊 Lecture du fichier Excel - Taille:', file.size, 'bytes');
+          
           const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
+          const workbook = XLSX.read(data, { 
+            type: 'array',
+            // Options pour les gros fichiers
+            cellHTML: false,
+            cellNF: false,
+            cellText: false,
+            cellDates: false,
+            sheetStubs: false,
+            // Augmenter les limites
+            dense: true
+          });
+          
           const sheetName = workbook.SheetNames[0];
+          console.log('📋 Feuille Excel:', sheetName);
+          
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          // Vérifier la plage de données
+          const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
+          console.log('📐 Plage de données détectée:', worksheet['!ref']);
+          console.log('📊 Nombre de lignes théoriques:', range.e.r + 1);
+          console.log('📊 Nombre de colonnes théoriques:', range.e.c + 1);
+          
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+            header: 1,
+            // Options pour éviter les limitations
+            range: worksheet['!ref'],
+            defval: '',
+            blankrows: true
+          });
+          
+          console.log('✅ Données JSON extraites:', jsonData.length, 'lignes');
           
           // Afficher l'aperçu d'abord
           setFilePreview(jsonData.slice(0, 5)); // Premières 5 lignes
@@ -90,6 +123,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
           const processedData = convertToAdherentData(jsonData);
           resolve(processedData);
         } catch (error) {
+          console.error('❌ Erreur lors de la lecture Excel:', error);
           reject(error);
         }
       };
@@ -100,11 +134,23 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
 
   const processCSVFile = async (file: File): Promise<AdherentData[]> => {
     return new Promise((resolve, reject) => {
+      console.log('📄 Lecture du fichier CSV - Taille:', file.size, 'bytes');
+      
       Papa.parse(file, {
         header: false, // Pas d'en-tête automatique
         skipEmptyLines: true,
+        // Options pour les gros fichiers
+        chunk: undefined, // Pas de chunking pour garder toutes les données
+        worker: false, // Pas de worker pour éviter les limitations
         complete: (results) => {
           try {
+            console.log('✅ Données CSV extraites:', results.data.length, 'lignes');
+            console.log('📊 Erreurs CSV:', results.errors.length);
+            
+            if (results.errors.length > 0) {
+              console.warn('⚠️ Erreurs lors du parsing CSV:', results.errors.slice(0, 5));
+            }
+            
             // Afficher l'aperçu d'abord
             setFilePreview(results.data.slice(0, 5)); // Premières 5 lignes
             setShowPreview(true);
@@ -113,10 +159,14 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             const processedData = convertToAdherentData(results.data);
             resolve(processedData);
           } catch (error) {
+            console.error('❌ Erreur lors du traitement CSV:', error);
             reject(error);
           }
         },
-        error: (error) => reject(error)
+        error: (error) => {
+          console.error('❌ Erreur lors de la lecture CSV:', error);
+          reject(error);
+        }
       });
     });
   };
@@ -178,100 +228,578 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     return mapping;
   };
 
-  const convertToAdherentData = (rawData: any[]): AdherentData[] => {
-    console.log('Données brutes reçues:', rawData.length, 'lignes');
-    console.log('Mapping des colonnes:', columnMapping);
+  // Fonction pour normaliser une ligne en gérant les cellules vides
+  const normalizeRow = (row: any[]): any[] => {
+    if (!row || row.length === 0) return [];
     
-    // Détection automatique des colonnes basée sur les en-têtes
-    const headers = rawData[0] || [];
-    const autoMapping = detectColumnMapping(headers);
-    console.log('Mapping automatique détecté:', autoMapping);
+    // Créer un tableau avec une taille fixe pour éviter les décalements
+    const normalizedRow = new Array(20).fill(''); // Taille suffisante pour toutes les colonnes
     
-    // Utiliser le mapping automatique si pas de mapping manuel
-    let finalMapping = Object.keys(columnMapping).length > 0 ? columnMapping : autoMapping;
+    // Copier les valeurs existantes
+    row.forEach((value, index) => {
+      if (index < normalizedRow.length) {
+        normalizedRow[index] = value || '';
+      }
+    });
     
-    // Si le mapping automatique n'a pas trouvé les bonnes colonnes, forcer le mapping
-    if (!finalMapping.codeUnion || !finalMapping.raisonSociale) {
-      console.log('Mapping automatique incomplet, utilisation du mapping forcé');
-      finalMapping = {
-        codeUnion: 2,      // Colonne 2: Code Un
-        raisonSociale: 3,  // Colonne 3: Raison Sociale
-        groupeClient: 4,   // Colonne 4: Groupe Client
-        fournisseur: 6,    // Colonne 6: Fournisseur
-        marque: 7,         // Colonne 7: Marque
-        groupeFournisseur: 8, // Colonne 8: Groupe FRS
-        sousFamille: 10,   // Colonne 10: Sous Famille
-        annee: 1,          // Colonne 1: Année
-        ca: 11             // Colonne 11: CA (€)
-      };
+    // Gestion spéciale pour la colonne groupe_frs (colonne I = index 8)
+    // Cette colonne est vide pour tous les fournisseurs sauf Alliance
+    const fournisseur = String(normalizedRow[6] || '').trim().toLowerCase(); // Colonne G = fournisseur
+    if (fournisseur !== 'alliance' && fournisseur !== '') {
+      // S'assurer que la colonne groupe_frs est vide pour les autres fournisseurs
+      normalizedRow[8] = ''; // Colonne I = groupe_frs
     }
     
-    // Forcer le mapping basé sur votre structure Excel
-    // Votre fichier commence directement par les données, pas d'en-têtes
-    const dataRows = rawData;
+    return normalizedRow;
+  };
+
+  // Fonction pour valider la cohérence des données et détecter les décalements
+  const validateDataConsistency = (dataRows: any[], mapping: Record<string, number>): { isValid: boolean; warnings: string[] } => {
+    const warnings: string[] = [];
     
-    console.log('Utilisation du mapping forcé pour votre structure Excel');
-    console.log('Après suppression en-tête:', dataRows.length, 'lignes');
+    // Analyser les premières 20 lignes pour détecter les problèmes
+    const sampleRows = dataRows.slice(0, Math.min(20, dataRows.length));
     
-    const processedData = dataRows
-      .filter((row: any, index: number) => {
-        // Vérifier que la ligne n'est pas vide
-        if (!row || row.length === 0) {
-          console.log(`Ligne ${index + 1} vide, ignorée`);
-          return false;
+    // Vérifier la cohérence des colonnes critiques
+    const criticalFields = ['codeUnion', 'raisonSociale', 'ca'];
+    
+    criticalFields.forEach(field => {
+      const colIndex = mapping[field];
+      if (colIndex === undefined) {
+        warnings.push(`⚠️ Colonne ${field} non trouvée dans le mapping`);
+        return;
+      }
+      
+      const values = sampleRows
+        .map(row => String(row[colIndex] || '').trim())
+        .filter(v => v);
+      
+      if (values.length === 0) {
+        warnings.push(`⚠️ Aucune valeur trouvée pour ${field} en colonne ${colIndex}`);
+        return;
+      }
+      
+      // Vérifier les patterns spécifiques
+      if (field === 'codeUnion') {
+        const validCodes = values.filter(v => /^M\d{4}$/.test(v) || /^[A-Z]\d{3,4}$/.test(v));
+        if (validCodes.length < values.length * 0.8) {
+          warnings.push(`⚠️ Codes Union suspects en colonne ${colIndex}: ${values.slice(0, 3).join(', ')}...`);
         }
+      }
+      
+      if (field === 'ca') {
+        const validNumbers = values.filter(v => /^\d+[,.]?\d*$/.test(v.replace(/\s/g, '')));
+        if (validNumbers.length < values.length * 0.8) {
+          warnings.push(`⚠️ Valeurs CA suspectes en colonne ${colIndex}: ${values.slice(0, 3).join(', ')}...`);
+        }
+      }
+    });
+    
+    // Détecter les décalements potentiels
+    const rowLengths = sampleRows.map(row => row.length);
+    const avgLength = rowLengths.reduce((a, b) => a + b, 0) / rowLengths.length;
+    const inconsistentRows = rowLengths.filter(len => Math.abs(len - avgLength) > 2);
+    
+    if (inconsistentRows.length > sampleRows.length * 0.1) {
+      warnings.push(`⚠️ ${inconsistentRows.length} lignes avec un nombre de colonnes incohérent (décalement possible)`);
+    }
+    
+    // Vérifier spécifiquement la colonne groupe_frs (colonne I = index 8)
+    const groupeFrsValues = sampleRows
+      .map(row => String(row[8] || '').trim())
+      .filter(v => v);
+    
+    const fournisseurValues = sampleRows
+      .map(row => String(row[6] || '').trim().toLowerCase()) // Colonne G = fournisseur
+      .filter(v => v);
+    
+    // Vérifier que la colonne groupe_frs est vide pour les non-Alliance
+    let groupeFrsIssues = 0;
+    sampleRows.forEach((row, index) => {
+      const fournisseur = String(row[6] || '').trim().toLowerCase(); // Colonne G = fournisseur
+      const groupeFrs = String(row[8] || '').trim(); // Colonne I = groupe_frs
+      
+      if (fournisseur && fournisseur !== 'alliance' && groupeFrs !== '') {
+        groupeFrsIssues++;
+        console.log(`Ligne ${index + 1}: fournisseur=${fournisseur}, groupe_frs=${groupeFrs}`);
+      }
+    });
+    
+    if (groupeFrsIssues > 0) {
+      warnings.push(`⚠️ ${groupeFrsIssues} lignes avec groupe_frs rempli pour des fournisseurs non-Alliance`);
+    }
+    
+    // Vérifier les cellules vides au milieu des lignes (sauf groupe_frs)
+    let emptyMiddleCells = 0;
+    sampleRows.forEach((row, rowIndex) => {
+      for (let i = 1; i < row.length - 1; i++) {
+        if (i !== 8 && (!row[i] || String(row[i]).trim() === '')) { // Exclure la colonne groupe_frs
+          emptyMiddleCells++;
+        }
+      }
+    });
+    
+    if (emptyMiddleCells > sampleRows.length * 2) {
+      warnings.push(`⚠️ Nombreuses cellules vides détectées (${emptyMiddleCells}), risque de décalement`);
+    }
+    
+    return {
+      isValid: warnings.length === 0,
+      warnings
+    };
+  };
+
+  // Fonction pour détecter la structure réelle des données
+  const detectDataStructure = (dataRows: any[]): Record<string, number> => {
+    console.log('🔍 Détection de la structure des données...');
+    
+    // Analyser les premières lignes pour détecter les patterns
+    const sampleRows = dataRows.slice(0, Math.min(10, dataRows.length));
+    const columnPatterns: { [key: string]: number[] } = {};
+    
+    // Patterns de détection pour chaque champ
+    const patterns = {
+      codeUnion: [/^M\d{4}$/, /^J\d{4}$/, /^[A-Z]\d{3,4}$/],
+      raisonSociale: [/^[A-Z][A-Z\s&'-]+$/i],
+      groupeClient: [/^GROUPE/i, /^[A-Z][A-Z\s&'-]+$/i],
+      fournisseur: [/^Alliance$/i, /^ACR$/i, /^DCA$/i, /^Exadis$/i, /^EXADIS$/i],
+      marque: [/^[A-Z][A-Z\s&'-]+$/i],
+      annee: [/^20\d{2}$/],
+      ca: [/^\d+[,.]?\d*$/, /^\d+[,.]?\d*\s*€?$/]
+    };
+    
+    // Analyser chaque colonne
+    for (let colIndex = 0; colIndex < 20; colIndex++) {
+      const columnValues = sampleRows.map(row => String(row[colIndex] || '').trim()).filter(v => v);
+      
+      if (columnValues.length === 0) continue;
+      
+      // Tester chaque pattern
+      Object.entries(patterns).forEach(([field, fieldPatterns]) => {
+        const matches = columnValues.filter(value => 
+          fieldPatterns.some(pattern => pattern.test(value))
+        ).length;
         
-        // Vérifier qu'on a assez de colonnes
-        const maxColumnIndex = Math.max(...Object.values(finalMapping));
-        if (row.length <= maxColumnIndex) {
-          console.log(`Ligne ${index + 1} pas assez de colonnes:`, row.length, 'vs', maxColumnIndex + 1);
-          return false;
-        }
+        const matchRate = matches / columnValues.length;
         
-        return true;
-      })
-      .map((row: any, index: number) => {
-        try {
-          // Debug pour la colonne CA
-          const caValue = row[finalMapping.ca];
-          const caString = String(caValue || '0');
-          const caCleaned = caString.replace(',', '.').replace(/\s/g, '');
-          const caParsed = parseFloat(caCleaned);
-          
-          console.log(`Ligne ${index + 1} CA debug:`, {
-            original: caValue,
-            string: caString,
-            cleaned: caCleaned,
-            parsed: caParsed
-          });
-          
-          const adherentData: AdherentData = {
-            raisonSociale: String(row[finalMapping.raisonSociale] || '').trim(),
-            codeUnion: String(row[finalMapping.codeUnion] || '').trim(),
-            groupeClient: String(row[finalMapping.groupeClient] || '').trim(),
-            fournisseur: String(row[finalMapping.fournisseur] || '').trim(),
-            marque: String(row[finalMapping.marque] || '').trim(),
-            sousFamille: String(row[finalMapping.sousFamille] || '').trim(),
-            groupeFournisseur: String(row[finalMapping.groupeFournisseur] || '').trim(),
-            annee: parseInt(String(row[finalMapping.annee] || '2024')),
-            ca: caParsed
-          };
-          
-          // Validation supplémentaire
-          if (adherentData.raisonSociale === '' || adherentData.codeUnion === '') {
-            console.log(`Ligne ${index + 1} données essentielles manquantes:`, adherentData);
-            return null;
-          }
-          
-          return adherentData;
-        } catch (error) {
-          console.warn(`Erreur de conversion ligne ${index + 1}:`, error, row);
-          return null;
+        if (matchRate > 0.7) { // 70% de correspondance minimum
+          if (!columnPatterns[field]) columnPatterns[field] = [];
+          columnPatterns[field].push(colIndex);
         }
-      })
-      .filter((item): item is AdherentData => item !== null);
+      });
+    }
     
-    console.log('Données finales traitées:', processedData.length, 'lignes');
+    // Choisir la meilleure colonne pour chaque champ
+    const detectedMapping: Record<string, number> = {};
+    Object.entries(columnPatterns).forEach(([field, columns]) => {
+      if (columns.length > 0) {
+        // Prendre la colonne avec le plus de correspondances
+        detectedMapping[field] = columns[0];
+      }
+    });
+    
+    console.log('🎯 Structure détectée:', detectedMapping);
+    return detectedMapping;
+  };
+
+  const convertToAdherentData = (rawData: any[]): AdherentData[] => {
+    console.log('📄 LECTURE SIMPLE - Données reçues:', rawData.length, 'lignes');
+    
+    // Mapping simple et fixe
+    const mapping = {
+      codeUnion: 2,      // Colonne C
+      raisonSociale: 3,  // Colonne D  
+      groupeClient: 4,   // Colonne E
+      fournisseur: 6,    // Colonne G
+      marque: 7,         // Colonne H
+      groupeFournisseur: 8, // Colonne I
+      sousFamille: 10,   // Colonne K
+      annee: 1,          // Colonne B
+      ca: 11             // Colonne L
+    };
+    
+    console.log('📊 Mapping fixe utilisé:', mapping);
+    
+    // Afficher les premières lignes simplement
+    console.log('🔍 Premières lignes:');
+    rawData.slice(0, 3).forEach((row, index) => {
+      console.log(`Ligne ${index + 1}:`, {
+        B_Annee: row[1],
+        C_CodeUnion: row[2], 
+        G_Fournisseur: row[6],
+        L_CA: row[11]
+      });
+    });
+    
+    // ========================================
+    // AGRÉGATION ROBUSTE AVEC CLÉ COMPLÈTE
+    // ========================================
+    
+    // Utils de normalisation avec nettoyage agressif des guillemets Excel
+    const norm = (s: unknown): string => {
+      let cleaned = String(s ?? "")
+        .replace(/\u00A0|\u202F/g, " ")   // NBSP -> espace normal
+        .trim();
+      
+      // Nettoyage spécial pour les guillemets Excel mal échappés
+      if (cleaned === '""' || cleaned === "''" || cleaned === '""""') {
+        cleaned = ''; // Chaîne vide littérale
+      } else {
+        cleaned = cleaned
+          .replace(/^["']+|["']+$/g, "")  // Supprime guillemets en début/fin
+          .replace(/^""|""$/g, "")        // Supprime guillemets doubles échappés
+          .replace(/^'|'$/g, "");         // Supprime guillemets simples
+      }
+      
+      return cleaned.trim().toUpperCase();
+    };
+
+    const toNumber = (value: unknown): number => {
+      if (typeof value === "number") return Math.round(value * 100) / 100;
+      const s = String(value ?? "")
+        .replace(/\s/g, "")     // supprime espaces (y compris NBSP)
+        .replace(",", ".");     // virgule -> point
+      
+      // accepter notation scientifique valide (4.44e-16, -7.11e-15...)
+      const n = Number(s);
+      if (!Number.isFinite(n)) return NaN;
+      
+      // normaliser les valeurs très proches de 0 (notation scientifique)
+      return Math.abs(n) < 1e-9 ? 0 : Math.round(n * 100) / 100;
+    };
+
+    // Type pour une ligne normalisée
+    interface RowData {
+      mois: string;
+      annee: number;
+      codeUnion: string;
+      raisonSociale: string;
+      groupeClient: string;
+      regionCommerciale: string;
+      fournisseur: string;
+      marque: string;
+      groupeFRS: string; // non utilisé dans la clé
+      famille: string;
+      sousFamille: string;
+      ca: number;
+    }
+
+    // Fonction pour créer une clé d'agrégation complète
+    const keyOf = (r: RowData): string => {
+      return [
+        r.mois,
+        r.annee,
+        r.codeUnion,
+        r.raisonSociale,
+        r.groupeClient,
+        r.regionCommerciale,
+        r.fournisseur,
+        r.marque,
+        r.famille,
+        r.sousFamille
+        // ❌ PAS groupeFRS - vide pour ACR/DCA/EXADIS
+      ].map(norm).join("|");
+    };
+
+    // Tracking détaillé des rejets avec montants
+    let droppedByRule: Record<string, {count: number, sum: number}> = {};
+    
+    const drop = (reason: string, row: any, ca: number = 0) => {
+      const entry = droppedByRule[reason] ?? { count: 0, sum: 0 };
+      droppedByRule[reason] = { 
+        count: entry.count + 1, 
+        sum: entry.sum + (Number.isFinite(ca) ? ca : 0) 
+      };
+    };
+    
+    // Fonction pour vérifier les champs STRICTEMENT requis (ultra-minimal)
+    const isRequiredOk = (codeUnion: string, fournisseur: string, annee: number, ca: number) => {
+      const yearOk = annee > 2000 && annee < 2100;
+      const codeOk = codeUnion.length > 0; // Déjà normalisé par norm()
+      const supplierOk = fournisseur.length > 0; // Déjà normalisé par norm()
+      const caOk = Number.isFinite(ca);
+      
+      return yearOk && codeOk && supplierOk && caOk;
+    };
+    
+    let montantsNegatifsTrouves = 0;
+    
+    console.log('🔍 DÉBUT PARSING AVEC FILTRES ASSOUPLIS:');
+    
+    // ========================================
+    // PHASE 1: MAPPING BRUT → RowData
+    // ========================================
+    const mapped: RowData[] = [];
+    const invalid: any[] = [];
+    
+    for (let i = 0; i < rawData.length; i++) {
+      const row = rawData[i];
+      
+      // 1. Ignorer les lignes complètement vides
+      if (!row || row.length < 3) {
+        drop('ligne_vide', row);
+        continue;
+      }
+      
+      // 2. Ignorer UNIQUEMENT la ligne d'entête (où Année === 'Année')
+      const anneeRaw = row[mapping.annee];
+      if (String(anneeRaw).trim().toLowerCase() === 'année') {
+        drop('entete', row);
+        continue;
+      }
+      
+      // 3. Extraction CA avec acceptation de la notation scientifique
+      const ca = toNumber(row[mapping.ca]);
+      
+      if (isNaN(ca)) {
+        drop('CA_NaN_unparseable', row);
+        invalid.push({ ligne: i + 1, ca_raw: row[mapping.ca] });
+        continue;
+      }
+      
+      // 4. Extraction des champs MINIMAUX requis avec normalisation robuste
+      let codeUnion = norm(row[mapping.codeUnion] || '');
+      const fournisseur = norm(row[mapping.fournisseur] || '');
+      const raisonSociale = norm(row[mapping.raisonSociale] || '');
+      
+      // Si codeUnion est vide, générer un fallback pour ne pas perdre la ligne
+      if (codeUnion.length === 0 && fournisseur.length > 0) {
+        codeUnion = `UNKNOWN_${fournisseur}_${i}`; // Fallback unique
+      }
+      
+      // 5. Conversion année (ultra-permissive)
+      let annee = 2024; // fallback par défaut
+      if (anneeRaw) {
+        const parsedAnnee = parseInt(String(anneeRaw));
+        if (parsedAnnee > 2000 && parsedAnnee < 2100) {
+          annee = parsedAnnee;
+        } else if (parsedAnnee === 24) {
+          annee = 2024; // format court "24" → 2024
+        } else if (parsedAnnee === 25) {
+          annee = 2025; // format court "25" → 2025
+        }
+        // Sinon garder le fallback 2024
+      }
+      
+      // 6. Validation STRICTEMENT nécessaire avec logs détaillés
+      if (!isRequiredOk(codeUnion, fournisseur, annee, ca)) {
+        // Log détaillé des 10 premiers rejets pour diagnostic
+        const rejetCount = droppedByRule['champs_requis_manquants']?.count || 0;
+        if (rejetCount < 10) {
+          // Logs plus détaillés avec JSON.stringify pour éviter [Object object]
+          console.log(`❌ REJET ligne ${i + 1}:`);
+          console.log(`  - codeUnion: "${codeUnion}" (length: ${codeUnion.length})`);
+          console.log(`  - fournisseur: "${fournisseur}" (length: ${fournisseur.length})`);
+          console.log(`  - raisonSociale: "${raisonSociale}" (length: ${raisonSociale.length})`);
+          console.log(`  - annee: ${annee}`);
+          console.log(`  - ca: ${ca}`);
+          console.log(`  - raw_codeUnion: ${JSON.stringify(row[mapping.codeUnion])}`);
+          console.log(`  - raw_fournisseur: ${JSON.stringify(row[mapping.fournisseur])}`);
+          console.log(`  - raw_raisonSociale: ${JSON.stringify(row[mapping.raisonSociale])}`);
+          
+          // Test des critères individuellement
+          console.log(`  - Tests individuels:`);
+          console.log(`    * annee > 2000 && < 2100: ${annee > 2000 && annee < 2100}`);
+          console.log(`    * codeUnion.length > 0: ${codeUnion.length > 0}`);
+          console.log(`    * fournisseur.length > 0: ${fournisseur.length > 0}`);
+          console.log(`    * Number.isFinite(ca): ${Number.isFinite(ca)}`);
+        }
+        drop('champs_requis_manquants', row, ca);
+        continue;
+      }
+      
+      // 7. Compter les négatifs (pas un rejet!)
+      if (ca < 0) {
+        montantsNegatifsTrouves++;
+      }
+      
+      // 8. Créer la RowData avec TOUS les champs (même vides)
+      const rowData: RowData = {
+        mois: String(row[0] || 'cumul-annuel'),
+        annee,
+        codeUnion,
+        raisonSociale,
+        groupeClient: String(row[mapping.groupeClient] || ''),       // ✅ PEUT ÊTRE VIDE
+        regionCommerciale: String(row[5] || ''),                      // ✅ PEUT ÊTRE VIDE
+        fournisseur,
+        marque: String(row[mapping.marque] || ''),                    // ✅ PEUT ÊTRE VIDE
+        groupeFRS: String(row[mapping.groupeFournisseur] || ''),      // ✅ PEUT ÊTRE VIDE (par design)
+        famille: String(row[9] || ''),                                // ✅ PEUT ÊTRE VIDE
+        sousFamille: String(row[mapping.sousFamille] || ''),          // ✅ PEUT ÊTRE VIDE
+        ca
+      };
+      
+      mapped.push(rowData);
+    }
+    
+    // ========================================
+    // PHASE 2: CALCUL TOTAL AVANT AGRÉGATION + RÉFÉRENCE EXCEL
+    // ========================================
+    const totalBefore = mapped.reduce((sum, r) => sum + r.ca, 0);
+    const expectedExcelTotal = 25454528.70; // Référence Excel
+    
+    // Totaux par fournisseur AVANT agrégation
+    const sumByFournisseur = (rows: RowData[]): Record<string, number> => {
+      return rows.reduce((acc, r) => {
+        const fournisseur = norm(r.fournisseur);
+        acc[fournisseur] = (acc[fournisseur] || 0) + r.ca;
+        return acc;
+      }, {} as Record<string, number>);
+    };
+    
+    const suppliersBefore = sumByFournisseur(mapped);
+    
+    // ========================================
+    // PHASE 3: AGRÉGATION AVEC CLÉ COMPLÈTE
+    // ========================================
+    const aggregationMap = new Map<string, RowData>();
+    let lignesAgregees = 0;
+    
+    for (const r of mapped) {
+      const key = keyOf(r);
+      const existing = aggregationMap.get(key);
+      
+      if (existing) {
+        // ADDITIONNER avec arrondi à 2 décimales
+        existing.ca = Math.round((existing.ca + r.ca) * 100) / 100;
+        lignesAgregees++;
+        
+        if (lignesAgregees <= 5) {
+          console.log(`🔄 Agrégation: ${r.codeUnion}-${norm(r.fournisseur)} → CA: ${existing.ca.toFixed(2)} €`);
+        }
+      } else {
+        // Nouvelle entrée (clone pour éviter les mutations)
+        aggregationMap.set(key, { ...r });
+      }
+    }
+    
+    // ========================================
+    // PHASE 4: CONVERSION VERS AdherentData
+    // ========================================
+    const processedData: AdherentData[] = Array.from(aggregationMap.values()).map(r => ({
+      codeUnion: r.codeUnion,
+      raisonSociale: r.raisonSociale,
+      groupeClient: r.groupeClient,
+      fournisseur: r.fournisseur,
+      marque: r.marque,
+      sousFamille: r.sousFamille,
+      groupeFournisseur: r.groupeFRS,
+      annee: r.annee,
+      ca: r.ca
+    }));
+    
+    // ========================================
+    // PHASE 5: CONTRÔLE DE COHÉRENCE COMPLET
+    // ========================================
+    const totalAfter = processedData.reduce((sum, item) => sum + item.ca, 0);
+    
+    // Totaux par fournisseur APRÈS agrégation
+    const suppliersAfter: Record<string, number> = {};
+    processedData.forEach(r => {
+      const fournisseur = norm(r.fournisseur);
+      suppliersAfter[fournisseur] = (suppliersAfter[fournisseur] || 0) + r.ca;
+    });
+    
+    // Calculs avec analyse des montants négatifs
+    const ca2024 = processedData.filter(item => item.annee === 2024).reduce((sum, item) => sum + item.ca, 0);
+    const ca2025 = processedData.filter(item => item.annee === 2025).reduce((sum, item) => sum + item.ca, 0);
+    const total = ca2024 + ca2025;
+    
+    // Analyser les montants négatifs
+    const montantsNegatifs = processedData.filter(item => item.ca < 0);
+    const totalNegatif = montantsNegatifs.reduce((sum, item) => sum + item.ca, 0);
+    const montantsPositifs = processedData.filter(item => item.ca > 0);
+    const totalPositif = montantsPositifs.reduce((sum, item) => sum + item.ca, 0);
+    
+    console.log('📊 RAPPORT DE COHÉRENCE COMPLET:');
+    console.log('═══════════════════════════════════════');
+    console.log(`📥 LIGNES LUES: ${rawData.length}`);
+    console.log(`📋 LIGNES MAPPÉES: ${mapped.length}`);
+    console.log(`🔄 LIGNES AGRÉGÉES: ${lignesAgregees}`);
+    console.log(`✅ LIGNES FINALES: ${processedData.length}`);
+    console.log(`➖ MONTANTS NÉGATIFS TROUVÉS: ${montantsNegatifsTrouves}`);
+    console.log('');
+    console.log('📋 DÉTAIL DES REJETS PAR RÈGLE:');
+    console.table(droppedByRule);
+    console.log('');
+    console.log('💰 CONTRÔLE DE COHÉRENCE TOTAUX:');
+    console.log(`  Référence Excel: ${expectedExcelTotal.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+    console.log(`  Total AVANT agrégation: ${Math.round(totalBefore * 100) / 100} €`);
+    console.log(`  Total APRÈS agrégation: ${Math.round(totalAfter * 100) / 100} €`);
+    console.log(`  Écart vs Excel: ${Math.round((totalBefore - expectedExcelTotal) * 100) / 100} €`);
+    console.log(`  Différence AVANT/APRÈS: ${Math.round((totalAfter - totalBefore) * 100) / 100} €`);
+    console.log('');
+    console.log('🏢 TOTAUX PAR FOURNISSEUR AVANT/APRÈS:');
+    
+    const allSuppliers = Array.from(new Set([...Object.keys(suppliersBefore), ...Object.keys(suppliersAfter)]));
+    allSuppliers.forEach(supplier => {
+      const before = suppliersBefore[supplier] || 0;
+      const after = suppliersAfter[supplier] || 0;
+      const diff = after - before;
+      console.log(`  ${supplier}:`);
+      console.log(`    AVANT: ${before.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+      console.log(`    APRÈS: ${after.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+      console.log(`    DIFF: ${diff.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`);
+    });
+    console.log('');
+    console.log('💰 TOTAUX PAR ANNÉE:');
+    console.log(`  CA 2024: ${ca2024.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log(`  CA 2025: ${ca2025.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log(`  TOTAL IMPORTÉ: ${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log('');
+    console.log('📊 ANALYSE MONTANTS:');
+    console.log(`  Montants positifs: ${montantsPositifs.length} lignes = ${totalPositif.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log(`  Montants négatifs: ${montantsNegatifs.length} lignes = ${totalNegatif.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    
+    // Contrôle de cohérence avec montant attendu
+    const montantAttendu = 25454528.70;
+    const ecart = total - montantAttendu;
+    const ecartPourcentage = (ecart / montantAttendu * 100);
+    
+    console.log('');
+    console.log('🎯 CONTRÔLE DE COHÉRENCE:');
+    console.log(`  Montant attendu (Excel): ${montantAttendu.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log(`  Montant importé: ${total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+    console.log(`  ÉCART: ${ecart.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € (${ecartPourcentage.toFixed(3)}%)`);
+    
+    if (montantsNegatifs.length > 0) {
+      console.log('');
+      console.log('📋 EXEMPLES MONTANTS NÉGATIFS:');
+      montantsNegatifs.slice(0, 5).forEach(item => {
+        console.log(`  ${item.codeUnion} - ${item.fournisseur}: ${item.ca.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+      });
+    }
+    
+    // Analyse par fournisseur
+    const analyseParFournisseur = processedData.reduce((acc, item) => {
+      const fournisseur = item.fournisseur || 'Inconnu';
+      if (!acc[fournisseur]) {
+        acc[fournisseur] = { count: 0, total: 0, negatifs: 0, totalNegatif: 0 };
+      }
+      acc[fournisseur].count++;
+      acc[fournisseur].total += item.ca;
+      if (item.ca < 0) {
+        acc[fournisseur].negatifs++;
+        acc[fournisseur].totalNegatif += item.ca;
+      }
+      return acc;
+    }, {} as Record<string, { count: number; total: number; negatifs: number; totalNegatif: number }>);
+    
+    console.log('');
+    console.log('🏢 ANALYSE PAR FOURNISSEUR:');
+    Object.entries(analyseParFournisseur).forEach(([fournisseur, stats]) => {
+      console.log(`  ${fournisseur}:`);
+      console.log(`    Lignes: ${stats.count}`);
+      console.log(`    Total CA: ${stats.total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+      if (stats.negatifs > 0) {
+        console.log(`    Montants négatifs: ${stats.negatifs} lignes = ${stats.totalNegatif.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
+      }
+    });
+    
+    // Mise à jour des states
+    setTotalCA(total);
+    setImportStatus(`✅ ${processedData.length} lignes - Total: ${total.toLocaleString('fr-FR')} €`);
+    
     return processedData;
   };
 
@@ -488,14 +1016,14 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(columnMapping).map(([field, columnIndex]) => (
                 <div key={field} className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-blue-700 min-w-[120px]">
+                  <label className="text-sm font-medium text-blue-700 min-w-[140px]">
                     {field === 'raisonSociale' ? 'Raison Sociale' :
                      field === 'codeUnion' ? 'Code Union' :
                      field === 'groupeClient' ? 'Groupe Client' :
                      field === 'fournisseur' ? 'Fournisseur' :
                      field === 'marque' ? 'Marque' :
                      field === 'sousFamille' ? 'Sous Famille' :
-                     field === 'groupeFournisseur' ? 'Groupe Fournisseur' :
+                     field === 'groupeFournisseur' ? '🏢 Groupe FRS (Famille)' :
                      field === 'annee' ? 'Année' :
                      field === 'ca' ? 'CA (€)' : field}:
                   </label>
@@ -510,6 +1038,11 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
                       </option>
                     ))}
                   </select>
+                  {field === 'groupeFournisseur' && (
+                    <span className="text-xs text-gray-500">
+                      (Vide sauf Alliance)
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -535,28 +1068,100 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
 
       {/* Instructions */}
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-700 mb-2">📋 Structure de vos données :</h4>
+        <h4 className="font-medium text-gray-700 mb-2">📋 Structure de votre nouveau tableau :</h4>
         <div className="text-sm text-gray-600 space-y-1">
-          <div>• <strong>Colonne 0</strong> : Mois (cumul-annuel)</div>
-          <div>• <strong>Colonne 1</strong> : Année (2024/2025)</div>
-          <div>• <strong>Colonne 2</strong> : Code Union (M0114, M0109, etc.)</div>
-          <div>• <strong>Colonne 3</strong> : Raison Sociale (Nom de l'entreprise)</div>
-          <div>• <strong>Colonne 4</strong> : Groupe Client (GROUPE LES LYONNAIS, etc.)</div>
-          <div>• <strong>Colonne 5</strong> : Région Commerciale (LYON, SUD, etc.)</div>
-          <div>• <strong>Colonne 6</strong> : Fournisseur (Alliance, ACR, DCA, Exadis)</div>
-          <div>• <strong>Colonne 7</strong> : Marque (GAMOTECH, AIRTEX, etc.)</div>
-          <div>• <strong>Colonne 8</strong> : Groupe FRS (AIER, AIRTEX PRODUCTS, etc.)</div>
-          <div>• <strong>Colonne 9</strong> : Famille (injection essence et diesel vl, etc.)</div>
-          <div>• <strong>Colonne 10</strong> : Sous Famille (injecteurs cr, pompes, etc.)</div>
-          <div>• <strong>Colonne 11</strong> : CA (€) (Chiffre d'affaires)</div>
+          <div>• <strong>Colonne A (0)</strong> : Mois (cumul-annuel)</div>
+          <div>• <strong>Colonne B (1)</strong> : Année (2025)</div>
+          <div>• <strong>Colonne C (2)</strong> : Code Union (J0154, M0247, etc.)</div>
+          <div>• <strong>Colonne D (3)</strong> : Raison Sociale (GARAGE RAVIER, Jumbo Pneus...)</div>
+          <div>• <strong>Colonne E (4)</strong> : Groupe Client (GROUPE JUMBO, etc.)</div>
+          <div>• <strong>Colonne F (5)</strong> : Région Commerciale (REGION PARISIENNE, NORD, etc.)</div>
+          <div>• <strong>Colonne G (6)</strong> : Fournisseur (DCA, Alliance, ACR, Exadis)</div>
+          <div>• <strong>Colonne H (7)</strong> : Marque (diframa, ALCAR, AUTOCASH, etc.)</div>
+          <div>• <strong>Colonne I (8)</strong> : Groupe FRS (vide pour DCA)</div>
+          <div>• <strong>Colonne J (9)</strong> : Famille (ATELIER, DIVERS, FREINAGE, etc.)</div>
+          <div>• <strong>Colonne K (10)</strong> : Sous Famille (Divers Produit atelier, Valve, etc.)</div>
+          <div>• <strong>Colonne L (11)</strong> : CA (€) (20,82, 36, 138,46, etc.)</div>
         </div>
         <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
           <div className="text-sm text-green-800">
-            <strong>✅ Mapping automatique :</strong> Le système a détecté votre structure et configuré automatiquement 
-            le mapping des colonnes. Vous pouvez ajuster si nécessaire.
+            <strong>✅ Mapping corrigé :</strong> Le mapping correspond maintenant exactement à la structure 
+            de vos données. Plus de confusion possible !
+          </div>
+        </div>
+        <div className="mt-2 p-3 bg-blue-50 rounded border border-blue-200">
+          <div className="text-sm text-blue-800">
+            <strong>🔧 Structure figée :</strong> Chaque colonne a une position fixe. Les cellules vides 
+            ne causent plus de décalement.
           </div>
         </div>
       </div>
+
+      {/* Statistiques d'import */}
+      {totalCA > 0 && (
+        <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+          <h4 className="font-medium text-green-800 mb-3">💰 Statistiques d'import</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-3 rounded border">
+              <div className="text-lg font-semibold text-green-700">
+                {new Intl.NumberFormat('fr-FR', {
+                  style: 'currency',
+                  currency: 'EUR'
+                }).format(totalCA)}
+              </div>
+              <div className="text-sm text-gray-600">Montant total CA importé</div>
+            </div>
+            
+            <div className="bg-white p-3 rounded border">
+              <div className="text-lg font-semibold text-blue-700">
+                {Object.values(statsFournisseurs).reduce((sum, stats) => sum + stats.count, 0)}
+              </div>
+              <div className="text-sm text-gray-600">Lignes importées</div>
+            </div>
+          </div>
+          
+          {Object.keys(statsFournisseurs).length > 0 && (
+            <div className="mt-4">
+              <h5 className="font-medium text-green-700 mb-2">Répartition par fournisseur :</h5>
+              <div className="space-y-2">
+                {Object.entries(statsFournisseurs).map(([fournisseur, stats]) => (
+                  <div key={fournisseur} className="flex justify-between items-center bg-white p-2 rounded border">
+                    <span className="font-medium">{fournisseur}</span>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold">
+                        {new Intl.NumberFormat('fr-FR', {
+                          style: 'currency',
+                          currency: 'EUR'
+                        }).format(stats.total)}
+                      </div>
+                      <div className="text-xs text-gray-500">{stats.count} lignes</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Avertissements d'import */}
+      {importWarnings.length > 0 && (
+        <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <h4 className="font-medium text-yellow-800 mb-2">⚠️ Avertissements détectés :</h4>
+          <ul className="text-sm text-yellow-700 space-y-1">
+            {importWarnings.map((warning, index) => (
+              <li key={index} className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>{warning}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 text-xs text-yellow-600">
+            💡 Ces avertissements peuvent indiquer des décalements de colonnes. Vérifiez vos données avant de continuer.
+          </div>
+        </div>
+      )}
 
       {/* Statut de l'import */}
       {importStatus && (
@@ -565,6 +1170,8 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             ? 'bg-green-100 text-green-800' 
             : importStatus.includes('❌') 
             ? 'bg-red-100 text-red-800'
+            : importStatus.includes('⚠️')
+            ? 'bg-yellow-100 text-yellow-800'
             : 'bg-blue-100 text-blue-800'
         }`}>
           {importStatus}
