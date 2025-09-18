@@ -422,29 +422,30 @@ function MainApp() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Sélecteur de plateformes - visible seulement pour les admins */}
-                {isAdmin && (
-                  <div className="space-y-3">
-                    <PlatformSelector />
-                    {/* Filtre par région - sous le filtre plateforme pour les admins */}
-                    <RegionFilter />
-                  </div>
-                )}
-                
-                {/* Filtre par région - visible pour les utilisateurs non-admins */}
-                {!isAdmin && <RegionFilter />}
-                
-                {filteredAdherentData.length > 0 && (
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-green-600">💾</span>
-                      <span className="text-sm text-gray-500">
-                        {filteredAdherentData.length.toLocaleString('fr-FR')} enregistrements filtrés • Sauvegarde automatique activée
+                {/* Informations utilisateur */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-lg">
+                        {currentUser?.prenom?.charAt(0) || 'U'}
                       </span>
                     </div>
-                    <PeriodIndicator variant="badge" />
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {currentUser?.prenom} {currentUser?.nom}
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        {currentUser?.equipe || 'Équipe'} • {currentUser?.role || 'Utilisateur'}
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* Filtres */}
+                <div className="space-y-3">
+                  <PlatformSelector />
+                  <RegionFilter />
+                </div>
               </div>
             </div>
           </div>
