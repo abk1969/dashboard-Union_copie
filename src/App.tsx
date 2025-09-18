@@ -1078,11 +1078,7 @@ function MainApp() {
       )}
 
       {/* Chatbot flottant Maurice */}
-      <FloatingChatbot 
-        adherentData={allAdherentData}
-        tasks={tasks}
-        users={users}
-      />
+      <FloatingChatbot />
       </div>
     </>
   );
