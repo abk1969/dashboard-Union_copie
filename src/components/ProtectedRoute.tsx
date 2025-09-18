@@ -1,73 +1,51 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { LoginScreen } from './LoginScreen';
-import { isTokenExpired, getUserFromToken, UserProfile } from '../config/securityPublic';
 import { useUser } from '../contexts/UserContext';
+import OnboardingPage from './OnboardingPage';
+import RealLoginPage from './RealLoginPage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { setCurrentUser } = useUser();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { currentUser, isAuthenticated, loading, logout } = useUser();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingSkipped, setOnboardingSkipped] = useState(false);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('isAuthenticated');
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-    console.log('🔒 Utilisateur déconnecté');
-  }, [setCurrentUser]);
-
-  const checkAuthentication = useCallback(() => {
-    try {
-      const authToken = localStorage.getItem('authToken');
-      const isAuth = localStorage.getItem('isAuthenticated');
-
-      if (authToken && isAuth === 'true') {
-        // Vérifier si le token n'a pas expiré
-        if (!isTokenExpired(authToken)) {
-          // Récupérer et définir l'utilisateur actuel
-          const user = getUserFromToken(authToken);
-          if (user) {
-            setCurrentUser(user);
-            setIsAuthenticated(true);
-          } else {
-            console.log('❌ Utilisateur non trouvé pour le token');
-            logout();
-          }
-        } else {
-          // Token expiré, déconnecter l'utilisateur
-          console.log('⏰ Token expiré, déconnexion automatique');
-          logout();
-        }
-      } else {
-        setIsAuthenticated(false);
-      }
-    } catch (error) {
-      console.error('❌ Erreur lors de la vérification de l\'authentification:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [logout, setCurrentUser]);
-
+  // Gérer l'affichage de l'onboarding
   useEffect(() => {
-    checkAuthentication();
-  }, [checkAuthentication]);
-
-
-
-  const handleLogin = (success: boolean, user?: UserProfile) => {
-    if (success && user) {
-      setCurrentUser(user);
-      setIsAuthenticated(true);
+    if (isAuthenticated && currentUser && !onboardingSkipped) {
+      // Nettoyer les anciennes clés de localStorage (migration)
+      const userOnboardingKey = `lastLogin_${currentUser.email}`;
+      localStorage.removeItem(userOnboardingKey);
+      localStorage.removeItem('lastLogin'); // Ancienne clé globale
+      
+      // Afficher l'onboarding à chaque connexion
+      setShowOnboarding(true);
     }
-  };
+  }, [isAuthenticated, currentUser, onboardingSkipped]);
+
+  // Fonction pour passer l'onboarding
+  const handleSkipOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    setOnboardingSkipped(true);
+  }, []);
+
+  // Pour debug : forcer l'onboarding avec Ctrl+Shift+O
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'O' && currentUser) {
+        setOnboardingSkipped(false);
+        setShowOnboarding(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentUser]);
 
   // Afficher un loader pendant la vérification
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
@@ -80,7 +58,18 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Si non authentifié, afficher l'écran de connexion
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <RealLoginPage />;
+  }
+
+  // Si authentifié, vérifier si on doit afficher l'onboarding
+  if (showOnboarding && currentUser) {
+    return (
+      <OnboardingPage 
+        userName={currentUser.prenom || 'Utilisateur'} 
+        userEmail={currentUser.email || ''}
+        onSkip={handleSkipOnboarding}
+      />
+    );
   }
 
   // Si authentifié, afficher l'application avec un bouton de déconnexion

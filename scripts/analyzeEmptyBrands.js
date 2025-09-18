@@ -184,3 +184,4 @@ async function analyzeEmptyBrands() {
 
 // Exécuter l'analyse
 analyzeEmptyBrands();
+

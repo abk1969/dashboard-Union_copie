@@ -3,9 +3,6 @@ import { useRegion } from '../contexts/RegionContext';
 
 const RegionFilter: React.FC = () => {
   const { selectedRegion, setSelectedRegion, availableRegions, isRegionFiltered } = useRegion();
-  
-  // Debug temporaire
-  console.log('🌍 Régions disponibles:', availableRegions);
 
   return (
     <div className="flex items-center space-x-3">

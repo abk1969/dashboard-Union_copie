@@ -97,3 +97,4 @@ async function checkSupabaseCount() {
 
 // Exécuter la vérification
 checkSupabaseCount();
+

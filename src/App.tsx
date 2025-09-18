@@ -6,6 +6,8 @@ import { calculateRankings } from './utils/rankingUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
 import { fallbackData } from './data/defaultData';
 import { fetchAdherentsData } from './config/supabase';
+import { fetchTasks, fetchUsers } from './config/supabase-users';
+import './styles/onboarding.css';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
@@ -14,16 +16,18 @@ import MarquesSection from './components/MarquesSection';
 import GroupeClientsSection from './components/GroupeClientsSection';
 import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
-import DataExporter from './components/DataExporter';
-import AdvancedExport from './components/AdvancedExport';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
-import { DocumentsSection } from './components/DocumentsSection';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PlatformSelector } from './components/PlatformSelector';
 import RegionFilter from './components/RegionFilter';
 import PeriodIndicator from './components/PeriodIndicator';
 import PeriodAlert from './components/PeriodAlert';
+import TodoListSimple from './components/TodoListSimple';
+import UserManagement from './components/UserManagement';
+import FloatingChatbot from './components/FloatingChatbot';
 import { UserProvider, useUser } from './contexts/UserContext';
+import LoginPage from './components/LoginPage';
+import OnboardingPage from './components/OnboardingPage';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -35,17 +39,34 @@ import './styles/colors.css';
 
 function MainApp() {
   const { activePlatforms, setActivePlatforms } = usePlatform();
-  const { currentUser, isAdmin } = useUser();
+  const { currentUser, isAdmin, isAuthenticated, loading: userLoading } = useUser();
   const { selectedRegion, setAvailableRegions } = useRegion();
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
   useEffect(() => {
     if (currentUser && !isAdmin) {
       // Pour les utilisateurs non-admin, filtrer selon leurs plateformes autorisées
-      setActivePlatforms(currentUser.allowedPlatforms);
+      setActivePlatforms(currentUser.plateformesAutorisees || ['Toutes']);
     }
   }, [currentUser, isAdmin, setActivePlatforms]);
+
+  // Gérer l'affichage de l'onboarding
+  useEffect(() => {
+    if (isAuthenticated && currentUser) {
+      // Vérifier si c'est la première connexion de la journée
+      const lastLogin = localStorage.getItem('lastLogin');
+      const today = new Date().toDateString();
+      
+      if (lastLogin !== today) {
+        setShowOnboarding(true);
+        localStorage.setItem('lastLogin', today);
+      }
+    }
+  }, [isAuthenticated, currentUser]);
   
   // Données filtrées selon les plateformes actives et la région
   const filteredAdherentData = useMemo(() => {
@@ -57,26 +78,9 @@ function MainApp() {
   // Mettre à jour les régions disponibles quand les données changent
   useEffect(() => {
     const regions = extractUniqueRegions(allAdherentData);
-    console.log('🔍 Extraction régions:', regions);
-    console.log('📊 Échantillon données:', allAdherentData.slice(0, 3));
-    const regionSample = allAdherentData.slice(0, 3).map(d => ({ 
-      codeUnion: d.codeUnion, 
-      regionCommerciale: d.regionCommerciale,
-      hasRegion: !!d.regionCommerciale
-    }));
-    console.log('🌍 Champs région échantillon:', regionSample);
-    regionSample.forEach((item, index) => {
-      console.log(`  ${index + 1}. ${item.codeUnion} → région: "${item.regionCommerciale}" (${item.hasRegion})`);
-    });
-    
-    // Log direct sans objet
-    console.log('🚨 DIAGNOSTIC DIRECT:');
-    console.log('Premier élément - codeUnion:', allAdherentData[0]?.codeUnion);
-    console.log('Premier élément - regionCommerciale:', allAdherentData[0]?.regionCommerciale);
-    console.log('Toutes les clés du premier élément:', Object.keys(allAdherentData[0] || {}));
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'export' | 'import' | 'documents'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'import' | 'todo' | 'users'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -91,6 +95,8 @@ function MainApp() {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
+  
+  // États pour le chatbot
 
 
     // Calcul des métriques globales
@@ -322,6 +328,29 @@ function MainApp() {
         
         console.log('✅ Données chargées depuis Supabase:', convertedData.length, 'enregistrements');
         setAllAdherentData(convertedData);
+        
+        // Charger les tâches et utilisateurs pour le chatbot
+        console.log('🔄 Chargement des tâches et utilisateurs...');
+        try {
+          const [tasksData, usersData] = await Promise.all([
+            fetchTasks().catch(err => {
+              console.warn('⚠️ Erreur chargement tâches:', err);
+              return [];
+            }),
+            fetchUsers().catch(err => {
+              console.warn('⚠️ Erreur chargement utilisateurs:', err);
+              return [];
+            })
+          ]);
+          
+          setTasks(tasksData);
+          setUsers(usersData);
+          console.log('✅ Tâches chargées:', tasksData.length);
+          console.log('✅ Utilisateurs chargés:', usersData.length);
+        } catch (error) {
+          console.warn('⚠️ Erreur lors du chargement des tâches/utilisateurs:', error);
+        }
+        
       } else {
         console.log('⚠️ Aucune donnée trouvée dans Supabase, utilisation du fallback');
         setAllAdherentData(fallbackData);
@@ -363,54 +392,36 @@ function MainApp() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                {currentUser?.theme?.logo && (currentUser.theme.logo.startsWith('/images/') || currentUser.theme.logo.startsWith('/image/')) ? (
+                {currentUser?.avatarUrl && (currentUser.avatarUrl.startsWith('/images/') || currentUser.avatarUrl.startsWith('/image/')) ? (
                   <img 
-                    src={currentUser.theme.logo} 
-                    alt={currentUser.theme.brandName}
+                    src={currentUser.avatarUrl} 
+                    alt="Logo"
                     className="h-12 w-auto object-contain"
                     onError={(e) => {
                       console.log('Logo image failed to load, falling back to default');
                       e.currentTarget.style.display = 'none';
                     }}
                   />
-                ) : currentUser?.theme?.logo ? (
+                ) : currentUser?.avatarUrl ? (
                   <div className="flex-shrink-0 h-8 w-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                    {currentUser.theme.logo}
+                    {currentUser.prenom?.charAt(0) || 'U'}
                   </div>
                 ) : (
                   <Logo />
                 )}
                 <div>
-                  <h1 
+                  <h1
                     className="text-3xl font-bold text-gray-900"
-                    style={{ color: currentUser?.theme?.primaryColor || '#1F2937' }}
                   >
-                    {currentUser?.theme?.brandName || 'Dashboard'}
+                    Dashboard Union
                   </h1>
                   <p className="mt-2 text-gray-600 font-serif italic text-lg max-w-4xl leading-relaxed">
-                    {currentUser?.role === 'alliance' ? (
-                      <>
-                        La <span style={{ color: currentUser?.theme?.primaryColor || '#003f7f' }} className="font-bold">stratégie du groupe</span> commence ici
-                      </>
-                    ) : (
-                      <>
-                        L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
-                      </>
-                    )}
+                    L'union fera <span className="text-orange-500 font-bold">toujours</span> notre force
                   </p>
                   {/* 🚀 Vercel trigger - Logo optimisé 24px + Titre stylisé */}
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Bouton Notes & Projets */}
-                <a
-                  href="/notes"
-                  className="flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <span className="mr-2">📝</span>
-                  Notes & Projets
-                </a>
-                
                 {/* Sélecteur de plateformes - visible seulement pour les admins */}
                 {isAdmin && (
                   <div className="space-y-3">
@@ -483,16 +494,6 @@ function MainApp() {
                👥 Groupe Clients
              </button>
                          <button
-               onClick={() => setActiveTab('export')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'export'
-                   ? 'bg-purple-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200 hover:border-purple-300'
-               }`}
-             >
-               📊 Export
-             </button>
-             <button
                onClick={() => setActiveTab('import')}
                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                  activeTab === 'import'
@@ -502,15 +503,27 @@ function MainApp() {
              >
                📥 Import
              </button>
+             
              <button
-               onClick={() => setActiveTab('documents')}
+               onClick={() => setActiveTab('todo')}
                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'documents'
-                   ? 'bg-emerald-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-300'
+                 activeTab === 'todo'
+                   ? 'bg-purple-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200 hover:border-purple-300'
                }`}
              >
-               📁 Documents
+               📋 To-Do List
+             </button>
+             
+             <button
+               onClick={() => setActiveTab('users')}
+               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                 activeTab === 'users'
+                   ? 'bg-indigo-600 text-white shadow-lg'
+                   : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300'
+               }`}
+             >
+               👥 Utilisateurs
              </button>
           </div>
         </div>
@@ -976,34 +989,6 @@ function MainApp() {
            </div>
          )}
 
-         {/* Onglet Export */}
-         {activeTab === 'export' && (
-           <div className="space-y-6">
-             <div className="flex items-center justify-between">
-               <div>
-                 <h3 className="text-2xl font-bold text-gray-800">📊 Export et Rapports</h3>
-                 <p className="text-gray-600 mt-1">
-                   Export avancé des données et génération de rapports détaillés
-                 </p>
-               </div>
-             </div>
-
-             {/* Export Avancé */}
-             <AdvancedExport
-               adherentsData={currentAdherentsSummary}
-               fournisseursPerformance={currentFournisseursPerformance}
-               famillesPerformance={currentFamillesProduitsPerformance}
-               currentTopFlopClients={currentTopFlopClients}
-               totalCA2024={globalMetrics.caTotal2024}
-               totalCA2025={globalMetrics.caTotal2025}
-               totalProgression={globalMetrics.progression}
-             />
-
-                         {/* Export des données */}
-            <DataExporter adherentsData={filteredAdherentData} />
-           </div>
-         )}
-
                                      {/* Onglet Import */}
            {activeTab === 'import' && (
              <div className="space-y-6">
@@ -1023,16 +1008,19 @@ function MainApp() {
              </div>
            )}
 
-           {/* Onglet Documents */}
-           {activeTab === 'documents' && (
+           {/* Onglet To-Do List */}
+           {activeTab === 'todo' && (
              <div className="space-y-6">
-               <DocumentsSection 
-                 onDocumentUploaded={(document) => {
-                   console.log('Document uploadé:', document);
-                 }}
+               <TodoListSimple 
+                 adherentData={filteredAdherentData}
                />
-               
-               
+             </div>
+           )}
+
+           {/* Onglet Utilisateurs */}
+           {activeTab === 'users' && (
+             <div className="space-y-6">
+               <UserManagement />
              </div>
            )}
 
@@ -1088,6 +1076,13 @@ function MainApp() {
           }}
         />
       )}
+
+      {/* Chatbot flottant */}
+      <FloatingChatbot 
+        adherentData={allAdherentData}
+        tasks={tasks}
+        users={users}
+      />
       </div>
     </>
   );

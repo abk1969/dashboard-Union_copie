@@ -135,3 +135,4 @@ async function analyzeData() {
 
 // Exécuter l'analyse
 analyzeData();
+

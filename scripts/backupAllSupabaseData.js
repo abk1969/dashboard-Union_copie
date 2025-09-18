@@ -110,3 +110,4 @@ async function backupAllSupabaseData() {
 
 // Exécuter la sauvegarde
 backupAllSupabaseData();
+

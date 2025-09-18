@@ -64,12 +64,6 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       const pageData = await response.json();
       console.log(`✅ Page ${page + 1} récupérée:`, pageData.length, 'enregistrements');
       
-      // Debug: voir les colonnes du premier élément
-      if (page === 0 && pageData.length > 0) {
-        console.log('🔍 Colonnes Supabase:', Object.keys(pageData[0]));
-        console.log('🌍 Premier élément regionCommerciale:', pageData[0].regionCommerciale);
-      }
-      
       if (pageData.length === 0) {
         hasMoreData = false;
       } else {

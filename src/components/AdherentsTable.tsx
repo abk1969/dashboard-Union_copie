@@ -196,32 +196,43 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onClientClick }) 
       <div className="overflow-x-auto">
         <table {...getTableProps()} className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
-            {headerGroups.map((headerGroup) => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map((column: any) => (
-                  <th
-                    {...column.getHeaderProps(column.getSortByToggleProps())}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    {column.render('Header')}
-                    <span className="ml-2">
-                      {column.isSorted ? (column.isSortedDesc ? ' ↓' : ' ↑') : ''}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            ))}
+            {headerGroups.map((headerGroup) => {
+              const { key: headerGroupKey, ...headerGroupProps } = headerGroup.getHeaderGroupProps();
+              return (
+                <tr key={headerGroupKey} {...headerGroupProps}>
+                  {headerGroup.headers.map((column: any) => {
+                    const { key: columnKey, ...columnProps } = column.getHeaderProps(column.getSortByToggleProps());
+                    return (
+                      <th
+                        key={columnKey}
+                        {...columnProps}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      >
+                        {column.render('Header')}
+                        <span className="ml-2">
+                          {column.isSorted ? (column.isSortedDesc ? ' ↓' : ' ↑') : ''}
+                        </span>
+                      </th>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </thead>
           <tbody {...getTableBodyProps()} className="bg-white divide-y divide-gray-200">
             {currentPageData.map((row) => {
               prepareRow(row);
+              const { key, ...rowProps } = row.getRowProps();
               return (
-                <tr {...row.getRowProps()} className="hover:bg-gray-50">
-                  {row.cells.map((cell) => (
-                    <td {...cell.getCellProps()} className="px-6 py-4 whitespace-nowrap">
-                      {cell.render('Cell')}
-                    </td>
-                  ))}
+                <tr key={key} {...rowProps} className="hover:bg-gray-50">
+                  {row.cells.map((cell) => {
+                    const { key: cellKey, ...cellProps } = cell.getCellProps();
+                    return (
+                      <td key={cellKey} {...cellProps} className="px-6 py-4 whitespace-nowrap">
+                        {cell.render('Cell')}
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}

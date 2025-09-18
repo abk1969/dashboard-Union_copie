@@ -212,3 +212,4 @@ async function compareWithExcel() {
 
 // Exécuter l'analyse
 compareWithExcel();
+

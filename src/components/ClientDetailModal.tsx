@@ -163,15 +163,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
   // Charger les documents du client
   useEffect(() => {
-    console.log('🔍 useEffect triggered:', { activeTab, clientCode: client?.codeUnion });
     if (activeTab === 'documents' && client) {
-      console.log('✅ Conditions remplies, appel de loadClientDocuments');
       loadClientDocuments();
-    } else {
-      console.log('❌ Conditions non remplies:', { 
-        activeTabIsDocuments: activeTab === 'documents', 
-        clientExists: !!client 
-      });
     }
   }, [activeTab, client, loadClientDocuments]);
 
@@ -648,28 +641,31 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Graphique */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Répartition par Fournisseur (2025)</h4>
-                  {(() => {
-                    const chartData = clientData.fournisseursPerformance.map(item => ({
-                      fournisseur: item.fournisseur,
-                      ca2024: item.ca2024,
-                      ca2025: item.ca2025,
-                      pourcentageTotal: item.pourcentage2025,
-                      progression: item.progression,
-                      pourcentage2024: item.pourcentage2024,
-                      pourcentage2025: item.pourcentage2025
-                    }));
-                    return (
-                      <RevenueChart
-                        data={chartData}
-                        type="doughnut"
-                        title=""
-                        chartType="fournisseur"
-                      />
-                    );
-                  })()}
+                {/* Graphique - Version compacte */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <h4 className="text-base font-semibold text-gray-800 mb-3">Répartition par Fournisseur (2025)</h4>
+                  <div className="h-48 w-full flex justify-center">
+                    {(() => {
+                      const chartData = clientData.fournisseursPerformance.map(item => ({
+                        fournisseur: item.fournisseur,
+                        ca2024: item.ca2024,
+                        ca2025: item.ca2025,
+                        pourcentageTotal: item.pourcentage2025,
+                        progression: item.progression,
+                        pourcentage2024: item.pourcentage2024,
+                        pourcentage2025: item.pourcentage2025
+                      }));
+                      return (
+                        <RevenueChart
+                          data={chartData}
+                          type="doughnut"
+                          title=""
+                          chartType="fournisseur"
+                          compact={true}
+                        />
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>

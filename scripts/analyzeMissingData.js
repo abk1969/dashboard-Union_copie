@@ -170,3 +170,4 @@ async function analyzeMissingData() {
 
 // Exécuter l'analyse
 analyzeMissingData();
+

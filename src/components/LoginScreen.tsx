@@ -35,8 +35,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('loginTime', Date.now().toString());
 
+        // Mapper les rôles
+        const mapRole = (role: string): 'direction_generale' | 'direction_developpement' | 'commercial' | 'administratif' | 'communication' | 'adv' => {
+          switch (role) {
+            case 'admin': return 'direction_generale';
+            case 'alliance': return 'direction_developpement';
+            case 'acr': return 'commercial';
+            case 'dca': return 'commercial';
+            case 'exadis': return 'commercial';
+            default: return 'commercial';
+          }
+        };
+
         // Mettre à jour le contexte utilisateur
-        setCurrentUser(user);
+        const convertedUser = {
+          id: '1',
+          email: user.username + '@union.com',
+          nom: user.displayName?.split(' ')[1] || 'Utilisateur',
+          prenom: user.displayName?.split(' ')[0] || 'Utilisateur',
+          roles: [mapRole(user.role)],
+          equipe: 'Équipe Commerciale',
+          actif: true,
+          avatarUrl: user.theme?.logo || undefined,
+          dateCreation: new Date().toISOString(),
+          derniereConnexion: new Date().toISOString(),
+          plateformesAutorisees: user.allowedPlatforms || ['Toutes'],
+          regionCommerciale: 'Paris'
+        };
+        setCurrentUser(convertedUser);
 
         console.log('✅ Authentification réussie pour:', user.displayName);
         onLogin(true, user);

@@ -240,3 +240,72 @@ export interface NoteFilter {
   dateDebut?: Date;
   dateFin?: Date;
 }
+
+// Nouvelles interfaces pour la to-do list ludique
+export interface TodoTask {
+  id: string;
+  clientCode: string;
+  title: string;
+  description?: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: 'prospection' | 'suivi' | 'relance' | 'commercial' | 'admin' | 'other';
+  assignedTo?: string;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  tags?: string[];
+  notes?: string;
+  // Nouvelles propriétés pour les notes
+  noteSimple?: string;
+  noteIa?: string;
+  typeNote?: 'TASK' | 'NOTE SIMPLE' | 'RAPPORT VISITE' | 'ACTION COMMERCIALE';
+  auteur?: string;
+  dateRappel?: string;
+  plateforme?: string;
+  regionCommerciale?: string;
+}
+
+export interface TodoList {
+  tasks: TodoTask[];
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+}
+
+export interface TodoStats {
+  total: number;
+  completed: number;
+  pending: number;
+  overdue: number;
+  completionRate: number;
+  byPriority: {
+    low: number;
+    medium: number;
+    high: number;
+    urgent: number;
+  };
+  byCategory: {
+    prospection: number;
+    suivi: number;
+    relance: number;
+    commercial: number;
+    admin: number;
+    other: number;
+  };
+}
+
+export interface TaskAssignment {
+  taskId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  assignedAt: string;
+  status: 'assigned' | 'accepted' | 'declined' | 'completed';
+  dueDate?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: string;
+}
