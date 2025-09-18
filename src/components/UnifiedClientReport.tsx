@@ -157,10 +157,13 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
       - Génère 2-3 actions maximum
       - Sois concret et actionnable`;
 
-      const response = await callOpenAI([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ], 'gpt-3.5-turbo');
+      const response = await callOpenAI({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        model: 'gpt-3.5-turbo'
+      });
 
       // Parser la réponse JSON
       try {
