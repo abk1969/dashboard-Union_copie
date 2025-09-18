@@ -24,7 +24,7 @@ import PeriodIndicator from './components/PeriodIndicator';
 import PeriodAlert from './components/PeriodAlert';
 import TodoListSimple from './components/TodoListSimple';
 import UserManagement from './components/UserManagement';
-// import FloatingChatbot from './components/FloatingChatbot'; // Temporairement désactivé
+import FloatingChatbot from './components/FloatingChatbot';
 import { UserProvider, useUser } from './contexts/UserContext';
 import LoginPage from './components/LoginPage';
 import OnboardingPage from './components/OnboardingPage';
@@ -1077,12 +1077,12 @@ function MainApp() {
         />
       )}
 
-      {/* Chatbot flottant - Temporairement désactivé */}
-      {/* <FloatingChatbot 
+      {/* Chatbot flottant Maurice */}
+      <FloatingChatbot 
         adherentData={allAdherentData}
         tasks={tasks}
         users={users}
-      /> */}
+      />
       </div>
     </>
   );
