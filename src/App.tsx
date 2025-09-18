@@ -26,7 +26,7 @@ import TodoListSimple from './components/TodoListSimple';
 import UserManagement from './components/UserManagement';
 import FloatingChatbot from './components/FloatingChatbot';
 import { UserProvider, useUser } from './contexts/UserContext';
-import LoginPage from './components/LoginPage';
+import RealLoginPage from './components/RealLoginPage';
 import OnboardingPage from './components/OnboardingPage';
 
 import StartupScreen from './components/StartupScreen';
