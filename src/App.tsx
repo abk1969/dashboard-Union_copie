@@ -435,7 +435,7 @@ function MainApp() {
                         {currentUser?.prenom} {currentUser?.nom}
                       </h3>
                       <p className="text-sm text-gray-500">
-                        {currentUser?.equipe || 'Équipe'} • {currentUser?.role || 'Utilisateur'}
+                        {currentUser?.equipe || 'Équipe'} • {currentUser?.roles?.[0] || 'Utilisateur'}
                       </p>
                     </div>
                   </div>
