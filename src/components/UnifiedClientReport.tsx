@@ -166,14 +166,16 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
 
       // Parser la réponse JSON
       try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return {
-            objectives: parsed.objectives || '',
-            observations: parsed.observations || '',
-            actions: parsed.actions || [] // Array d'actions
-          };
+        if (response.success && response.response) {
+          const jsonMatch = response.response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            return {
+              objectives: parsed.objectives || '',
+              observations: parsed.observations || '',
+              actions: parsed.actions || [] // Array d'actions
+            };
+          }
         }
       } catch (parseError) {
         console.warn('Erreur parsing JSON, utilisation du texte brut');
