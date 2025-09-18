@@ -161,8 +161,7 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ],
-        model: 'gpt-3.5-turbo'
+        ]
       });
 
       // Parser la réponse JSON
