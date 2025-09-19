@@ -81,6 +81,26 @@ export const getTaskLikeStats = async (taskId: string): Promise<LikeStats | null
   }
 };
 
+// Fonction pour obtenir les utilisateurs qui ont liké une tâche
+export const getTaskLikers = async (taskId: string): Promise<{userEmail: string, likedAt: string}[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('task_likes')
+      .select('user_email, created_at')
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data?.map((like: any) => ({
+      userEmail: like.user_email,
+      likedAt: like.created_at
+    })) || [];
+  } catch (error) {
+    console.error('Erreur lors de la récupération des likers:', error);
+    return [];
+  }
+};
+
 // Fonction pour obtenir tous les likes d'un utilisateur
 export const getUserLikes = async (userEmail: string): Promise<TaskLike[]> => {
   try {
