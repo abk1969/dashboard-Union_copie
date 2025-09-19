@@ -333,12 +333,21 @@ ${contextData}
 
 Réponds de manière professionnelle, précise et actionnable. Utilise les données exactes et sois très spécifique sur les chiffres.`;
 
-      const response = await callOpenAI([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
-      ]);
+      const response = await callOpenAI({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ]
+      });
 
-      setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+      if (response.success && response.response) {
+        setMessages(prev => [...prev, { role: 'assistant', content: response.response! }]);
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: `Erreur: ${response.error || 'Réponse invalide de l\'API'}` 
+        }]);
+      }
     } catch (error) {
       console.error('Erreur Maurice:', error);
       setMessages(prev => [...prev, { 
