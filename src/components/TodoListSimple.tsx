@@ -17,6 +17,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [filterUser, setFilterUser] = useState<string>('all');
   const [clientSearch, setClientSearch] = useState<string>('');
+  const [filterClient, setFilterClient] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('tasks');
   const [showForm, setShowForm] = useState(false);
   const [showAssignment, setShowAssignment] = useState(false);
@@ -138,7 +139,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     }
   };
 
-  // Filtrer les tâches par utilisateur et type
+  // Filtrer les tâches par utilisateur, type et client
   const filteredTasks = tasks.filter(task => {
     // Debug: afficher les types de tâches
     if (filterType === 'tasks') {
@@ -157,7 +158,10 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     const userMatch = filterUser === 'all' || 
       (task.assignedTo && users.find(u => u.id === filterUser)?.email === task.assignedTo);
     
-    return typeMatch && userMatch;
+    // Filtre par client
+    const clientMatch = filterClient === 'all' || task.clientCode === filterClient;
+    
+    return typeMatch && userMatch && clientMatch;
   });
   
   // Dédupliquer les clients et filtrer par recherche
@@ -469,7 +473,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         </button>
         
         {/* Filtres */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700">Type:</label>
             <select
@@ -497,6 +501,61 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               ))}
             </select>
           </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Client:</label>
+            <select
+              value={filterClient}
+              onChange={(e) => setFilterClient(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 min-w-[200px]"
+            >
+              <option value="all">Tous les clients</option>
+              {uniqueClients
+                .filter(client => 
+                  client.codeUnion.toLowerCase().includes(clientSearch.toLowerCase()) ||
+                  client.raisonSociale.toLowerCase().includes(clientSearch.toLowerCase())
+                )
+                .slice(0, 50) // Limite à 50 clients pour les performances
+                .map((client, index) => (
+                  <option key={`${client.codeUnion}-${index}`} value={client.codeUnion}>
+                    {client.codeUnion} - {client.raisonSociale}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Rechercher un client..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48"
+            />
+            {clientSearch && (
+              <button
+                onClick={() => setClientSearch('')}
+                className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-sm"
+                title="Effacer la recherche"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {(filterUser !== 'all' || filterClient !== 'all' || filterType !== 'all') && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setFilterUser('all');
+                  setFilterClient('all');
+                  setFilterType('all');
+                  setClientSearch('');
+                }}
+                className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-sm font-medium"
+                title="Effacer tous les filtres"
+              >
+                🗑️ Effacer filtres
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -643,16 +702,30 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               - Filtrées par <span className="font-medium text-blue-600">{getUserNameByEmail(users.find(u => u.id === filterUser)?.email || '')}</span>
             </span>
           )}
+          {filterClient !== 'all' && (
+            <span className="text-sm text-gray-600 ml-2">
+              - Client: <span className="font-medium text-green-600">{getClientNameByCode(filterClient)}</span>
+            </span>
+          )}
         </h3>
         {filteredTasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="text-4xl mb-2">📝</div>
             <div>
               {filterType === 'notes' 
-                ? (filterUser === 'all' ? 'Aucune note créée' : 'Aucune note assignée à cet utilisateur')
+                ? (filterUser === 'all' && filterClient === 'all' ? 'Aucune note créée' : 
+                   filterUser !== 'all' && filterClient === 'all' ? 'Aucune note assignée à cet utilisateur' :
+                   filterUser === 'all' && filterClient !== 'all' ? 'Aucune note pour ce client' :
+                   'Aucune note assignée à cet utilisateur pour ce client')
                 : filterType === 'tasks'
-                ? (filterUser === 'all' ? 'Aucune tâche créée' : 'Aucune tâche assignée à cet utilisateur')
-                : (filterUser === 'all' ? 'Aucun élément créé' : 'Aucun élément assigné à cet utilisateur')
+                ? (filterUser === 'all' && filterClient === 'all' ? 'Aucune tâche créée' : 
+                   filterUser !== 'all' && filterClient === 'all' ? 'Aucune tâche assignée à cet utilisateur' :
+                   filterUser === 'all' && filterClient !== 'all' ? 'Aucune tâche pour ce client' :
+                   'Aucune tâche assignée à cet utilisateur pour ce client')
+                : (filterUser === 'all' && filterClient === 'all' ? 'Aucun élément créé' : 
+                   filterUser !== 'all' && filterClient === 'all' ? 'Aucun élément assigné à cet utilisateur' :
+                   filterUser === 'all' && filterClient !== 'all' ? 'Aucun élément pour ce client' :
+                   'Aucun élément assigné à cet utilisateur pour ce client')
               }
             </div>
           </div>
