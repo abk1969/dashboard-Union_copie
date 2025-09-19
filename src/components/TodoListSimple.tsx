@@ -4,14 +4,16 @@ import { User } from '../types/user';
 import TaskAssignmentModal from './TaskAssignment';
 import UnifiedClientReport from './UnifiedClientReport';
 import { createTask, fetchTasks, deleteTask, fetchUsers } from '../config/supabase-users';
-import { toggleTaskLike, getTaskLikesCount, hasUserLikedTask } from '../config/supabase-likes';
-import { markTaskAsViewed, getTaskViewsCount, hasUserViewedTask } from '../config/supabase-views';
+import { toggleTaskLike, getTaskLikesCount, hasUserLikedTask, getTaskLikers } from '../config/supabase-likes';
+import { markTaskAsViewed, getTaskViewsCount, hasUserViewedTask, getTaskViewers } from '../config/supabase-views';
+import { useUser } from '../contexts/UserContext';
 
 interface TodoListSimpleProps {
   adherentData: AdherentData[];
 }
 
 const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
+  const { currentUser } = useUser();
   const [activeTab, setActiveTab] = useState<'tasks' | 'reports'>('tasks');
   const [tasks, setTasks] = useState<TodoTask[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -24,11 +26,15 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
   const [selectedTask, setSelectedTask] = useState<TodoTask | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
   const [selectedTaskDetails, setSelectedTaskDetails] = useState<TodoTask | null>(null);
-  const [currentUser, setCurrentUser] = useState<string>('Commercial'); // À remplacer par l'utilisateur connecté
   const [likedTasks, setLikedTasks] = useState<Set<string>>(new Set());
   const [taskLikes, setTaskLikes] = useState<{[key: string]: number}>({});
   const [viewedTasks, setViewedTasks] = useState<Set<string>>(new Set());
   const [taskViews, setTaskViews] = useState<{[key: string]: number}>({});
+  const [taskViewers, setTaskViewers] = useState<{[key: string]: string[]}>({});
+  const [taskLikers, setTaskLikers] = useState<{[key: string]: string[]}>({});
+  const [showAllTasks, setShowAllTasks] = useState<boolean>(false);
+  const [recentTasksCount, setRecentTasksCount] = useState<number>(0);
+  const [keywordSearch, setKeywordSearch] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
@@ -67,7 +73,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
       // Charger les likes et vues en parallèle (plus rapide)
       const likesPromises = tasksData.map(async (task) => {
         const [isLiked, likesCount] = await Promise.all([
-          hasUserLikedTask(task.id, currentUser),
+          hasUserLikedTask(task.id, currentUser?.email || ''),
           getTaskLikesCount(task.id)
         ]);
         return { taskId: task.id, isLiked, likesCount };
@@ -77,7 +83,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         .filter(task => task.typeNote === 'NOTE SIMPLE')
         .map(async (task) => {
           const [isViewed, viewsCount] = await Promise.all([
-            hasUserViewedTask(task.id, currentUser),
+            hasUserViewedTask(task.id, currentUser?.email || ''),
             getTaskViewsCount(task.id)
           ]);
           return { taskId: task.id, isViewed, viewsCount };
@@ -113,6 +119,39 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
       setTaskLikes(likesCount);
       setViewedTasks(viewedTasksSet);
       setTaskViews(viewsCount);
+
+      // Charger les listes des utilisateurs qui ont vu/liké
+      const viewersPromises = tasksData
+        .filter(task => task.typeNote === 'NOTE SIMPLE')
+        .map(async (task) => {
+          const viewers = await getTaskViewers(task.id);
+          return { taskId: task.id, viewers: viewers.map(v => v.userEmail) };
+        });
+
+      const likersPromises = tasksData.map(async (task) => {
+        const likers = await getTaskLikers(task.id);
+        return { taskId: task.id, likers: likers.map((l: {userEmail: string, likedAt: string}) => l.userEmail) };
+      });
+
+      const [viewersResults, likersResults] = await Promise.all([
+        Promise.all(viewersPromises),
+        Promise.all(likersPromises)
+      ]);
+
+      // Traiter les résultats des viewers
+      const viewersData: {[key: string]: string[]} = {};
+      viewersResults.forEach(({ taskId, viewers }) => {
+        viewersData[taskId] = viewers;
+      });
+
+      // Traiter les résultats des likers
+      const likersData: {[key: string]: string[]} = {};
+      likersResults.forEach(({ taskId, likers }) => {
+        likersData[taskId] = likers;
+      });
+
+      setTaskViewers(viewersData);
+      setTaskLikers(likersData);
       
       console.log('✅ Tâches, likes et vues chargés:', { 
         tasks: tasksData.length,
@@ -139,8 +178,12 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     }
   };
 
-  // Filtrer les tâches par utilisateur, type et client
-  const filteredTasks = tasks.filter(task => {
+  // Calculer la date de 7 jours en arrière
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  // Filtrer les tâches par utilisateur, type, client et mots-clés
+  const allFilteredTasks = tasks.filter(task => {
     // Debug: afficher les types de tâches
     if (filterType === 'tasks') {
       console.log('🔍 Filtre TÂCHES - Task typeNote:', task.typeNote, 'Title:', task.title);
@@ -161,8 +204,35 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     // Filtre par client
     const clientMatch = filterClient === 'all' || task.clientCode === filterClient;
     
-    return typeMatch && userMatch && clientMatch;
+    // Filtre par mots-clés (recherche dans titre, description, et contenu)
+    const keywordMatch = !keywordSearch || 
+      (task.title?.toLowerCase().includes(keywordSearch.toLowerCase()) ||
+       task.description?.toLowerCase().includes(keywordSearch.toLowerCase()) ||
+       task.noteSimple?.toLowerCase().includes(keywordSearch.toLowerCase()) ||
+       task.noteIa?.toLowerCase().includes(keywordSearch.toLowerCase()) ||
+       task.notes?.toLowerCase().includes(keywordSearch.toLowerCase()));
+    
+    return typeMatch && userMatch && clientMatch && keywordMatch;
   });
+
+  // Séparer les tâches récentes (7 derniers jours) des anciennes
+  const recentTasks = allFilteredTasks.filter(task => {
+    const taskDate = new Date(task.createdAt);
+    return taskDate >= sevenDaysAgo;
+  });
+
+  const olderTasks = allFilteredTasks.filter(task => {
+    const taskDate = new Date(task.createdAt);
+    return taskDate < sevenDaysAgo;
+  });
+
+  // Afficher les tâches récentes en priorité, puis les anciennes si demandé
+  const filteredTasks = showAllTasks ? allFilteredTasks : recentTasks;
+
+  // Calculer le nombre de tâches récentes pour l'affichage
+  useEffect(() => {
+    setRecentTasksCount(recentTasks.length);
+  }, [recentTasks.length]);
   
   // Dédupliquer les clients et filtrer par recherche
   const uniqueClients = adherentData.reduce((acc, client) => {
@@ -185,6 +255,18 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
 
   // Fonction utilitaire pour récupérer le nom d'un utilisateur par email
   const getUserNameByEmail = (email: string) => {
+    console.log('🔍 getUserNameByEmail - email:', email, 'currentUser:', currentUser);
+    
+    // Cas spécial pour "Commercial" - utiliser le prénom de l'utilisateur connecté
+    if (email === 'Commercial') {
+      // Essayer plusieurs sources pour le prénom
+      const prenom = currentUser?.prenom || 
+                    currentUser?.nom?.split(' ')[0] || 
+                    'Utilisateur connecté';
+      console.log('🔍 Commercial détecté dans getUserNameByEmail, prénom utilisé:', prenom);
+      return prenom;
+    }
+    
     const user = users.find(u => u.email === email);
     return user ? `${user.prenom} ${user.nom}` : email;
   };
@@ -193,6 +275,29 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
   const getClientNameByCode = (clientCode: string) => {
     const client = adherentData.find(c => c.codeUnion === clientCode);
     return client ? client.raisonSociale : clientCode;
+  };
+
+  // Fonction pour convertir les emails en prénoms
+  const getPrenomsFromEmails = (emails: string[]): string[] => {
+    console.log('🔍 getPrenomsFromEmails - currentUser:', currentUser);
+    console.log('🔍 getPrenomsFromEmails - emails:', emails);
+    
+    return emails
+      .filter(email => email && typeof email === 'string') // Filtrer les valeurs undefined/null
+      .map(email => {
+        // Cas spécial pour "Commercial" - utiliser le prénom de l'utilisateur connecté
+        if (email === 'Commercial') {
+          // Essayer plusieurs sources pour le prénom
+          const prenom = currentUser?.prenom || 
+                        currentUser?.nom?.split(' ')[0] || 
+                        'Utilisateur connecté';
+          console.log('🔍 Commercial détecté, prénom utilisé:', prenom);
+          return prenom;
+        }
+        
+        const user = users.find(u => u.email === email);
+        return user ? user.prenom : email.split('@')[0]; // Fallback sur la partie avant @
+      });
   };
 
   // Fonction pour obtenir la couleur selon le type et le statut
@@ -238,7 +343,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     
     try {
       // Toggle le like dans Supabase
-      const result = await toggleTaskLike(taskId, currentUser);
+      const result = await toggleTaskLike(taskId, currentUser?.email || '');
       
       // Mettre à jour l'état local
       setLikedTasks(prev => {
@@ -256,6 +361,25 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         ...prevLikes,
         [taskId]: result.count
       }));
+
+      // Mettre à jour la liste des likers
+      setTaskLikers(prev => {
+        const newLikers = { ...prev };
+        if (result.liked) {
+          // Ajouter l'utilisateur à la liste
+          const currentLikers = newLikers[taskId] || [];
+          const userEmail = currentUser?.email || 'Commercial';
+          if (!currentLikers.includes(userEmail)) {
+            newLikers[taskId] = [...currentLikers, userEmail];
+          }
+        } else {
+          // Retirer l'utilisateur de la liste
+          const currentLikers = newLikers[taskId] || [];
+          const userEmail = currentUser?.email || 'Commercial';
+          newLikers[taskId] = currentLikers.filter(email => email !== userEmail);
+        }
+        return newLikers;
+      });
       
       console.log('✅ Like mis à jour:', { taskId, liked: result.liked, count: result.count });
     } catch (error) {
@@ -269,7 +393,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     
     try {
       // Marquer comme vue dans Supabase
-      const result = await markTaskAsViewed(taskId, currentUser);
+      const result = await markTaskAsViewed(taskId, currentUser?.email || '');
       
       // Mettre à jour l'état local
       setViewedTasks(prev => {
@@ -285,6 +409,20 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         ...prevViews,
         [taskId]: result.count
       }));
+
+      // Mettre à jour la liste des viewers
+      setTaskViewers(prev => {
+        const newViewers = { ...prev };
+        if (result.viewed) {
+          // Ajouter l'utilisateur à la liste
+          const currentViewers = newViewers[taskId] || [];
+          const userEmail = currentUser?.email || 'Commercial';
+          if (!currentViewers.includes(userEmail)) {
+            newViewers[taskId] = [...currentViewers, userEmail];
+          }
+        }
+        return newViewers;
+      });
       
       console.log('✅ Note marquée comme vue:', { taskId, viewed: result.viewed, count: result.count });
     } catch (error) {
@@ -317,7 +455,8 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         status: 'pending',
         priority: formData.priority,
         category: formData.category,
-        dueDate: formData.dueDate || undefined
+        dueDate: formData.dueDate || undefined,
+        auteur: currentUser?.email || 'Commercial' // Utiliser l'email de l'utilisateur connecté
       });
 
       console.log('✅ Tâche créée dans Supabase:', newTask);
@@ -561,22 +700,68 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               </div>
             )}
           </div>
-          {(filterUser !== 'all' || filterClient !== 'all' || filterType !== 'all') && (
-            <div className="flex items-center gap-2">
+          
+          {/* Champ de recherche par mots-clés */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="🔍 Rechercher par mots-clés (titre, description, notes)..."
+                value={keywordSearch}
+                onChange={(e) => setKeywordSearch(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {keywordSearch && (
+                <button
+                  onClick={() => setKeywordSearch('')}
+                  className="absolute right-2 top-2 px-1 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-sm"
+                  title="Effacer la recherche"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Bouton Charger plus / Moins */}
+            {!showAllTasks && olderTasks.length > 0 && (
+              <button
+                onClick={() => setShowAllTasks(true)}
+                className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 text-sm font-medium"
+                title={`Charger ${olderTasks.length} tâches plus anciennes`}
+              >
+                📅 Charger plus ({olderTasks.length} anciennes)
+              </button>
+            )}
+            
+            {showAllTasks && (
+              <button
+                onClick={() => setShowAllTasks(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                title="Afficher seulement les 7 derniers jours"
+              >
+                📅 7 derniers jours seulement
+              </button>
+            )}
+
+            {/* Bouton Effacer filtres */}
+            {(filterUser !== 'all' || filterClient !== 'all' || filterType !== 'all' || keywordSearch) && (
               <button
                 onClick={() => {
                   setFilterUser('all');
                   setFilterClient('all');
                   setFilterType('all');
                   setClientSearch('');
+                  setKeywordSearch('');
                 }}
                 className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-sm font-medium"
                 title="Effacer tous les filtres"
               >
                 🗑️ Effacer filtres
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -728,22 +913,59 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               - Client: <span className="font-medium text-green-600">{getClientNameByCode(filterClient)}</span>
             </span>
           )}
+          {keywordSearch && (
+            <span className="text-sm text-gray-600 ml-2">
+              - Mots-clés: <span className="font-medium text-purple-600">"{keywordSearch}"</span>
+            </span>
+          )}
         </h3>
+        
+        {/* Indicateur de comptage */}
+        {filteredTasks.length > 0 && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center space-x-4">
+                <span className="text-blue-700 font-medium">
+                  📊 {filteredTasks.length} {filteredTasks.length === 1 ? 'élément' : 'éléments'} affiché{filteredTasks.length === 1 ? '' : 's'}
+                </span>
+                {!showAllTasks && recentTasksCount > 0 && (
+                  <span className="text-blue-600">
+                    (7 derniers jours)
+                  </span>
+                )}
+                {showAllTasks && olderTasks.length > 0 && (
+                  <span className="text-gray-600">
+                    (toutes les tâches)
+                  </span>
+                )}
+              </div>
+              {!showAllTasks && olderTasks.length > 0 && (
+                <span className="text-orange-600 font-medium">
+                  +{olderTasks.length} plus anciennes disponibles
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        
         {filteredTasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <div className="text-4xl mb-2">📝</div>
             <div>
               {filterType === 'notes' 
-                ? (filterUser === 'all' && filterClient === 'all' ? 'Aucune note créée' : 
+                ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune note créée' : 
+                   keywordSearch ? `Aucune note trouvée pour "${keywordSearch}"` :
                    filterUser !== 'all' && filterClient === 'all' ? 'Aucune note assignée à cet utilisateur' :
                    filterUser === 'all' && filterClient !== 'all' ? 'Aucune note pour ce client' :
                    'Aucune note assignée à cet utilisateur pour ce client')
                 : filterType === 'tasks'
-                ? (filterUser === 'all' && filterClient === 'all' ? 'Aucune tâche créée' : 
+                ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune tâche créée' : 
+                   keywordSearch ? `Aucune tâche trouvée pour "${keywordSearch}"` :
                    filterUser !== 'all' && filterClient === 'all' ? 'Aucune tâche assignée à cet utilisateur' :
                    filterUser === 'all' && filterClient !== 'all' ? 'Aucune tâche pour ce client' :
                    'Aucune tâche assignée à cet utilisateur pour ce client')
-                : (filterUser === 'all' && filterClient === 'all' ? 'Aucun élément créé' : 
+                : (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucun élément créé' : 
+                   keywordSearch ? `Aucun élément trouvé pour "${keywordSearch}"` :
                    filterUser !== 'all' && filterClient === 'all' ? 'Aucun élément assigné à cet utilisateur' :
                    filterUser === 'all' && filterClient !== 'all' ? 'Aucun élément pour ce client' :
                    'Aucun élément assigné à cet utilisateur pour ce client')
@@ -814,7 +1036,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                     {/* Afficher l'auteur pour les notes */}
                     {task.typeNote === 'NOTE SIMPLE' && task.auteur && (
                       <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
-                        ✍️ {task.auteur}
+                        ✍️ {getUserNameByEmail(task.auteur)}
                       </span>
                     )}
                     {/* Afficher le statut seulement pour les tâches, pas pour les notes */}
@@ -1040,7 +1262,9 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               {selectedTaskDetails.typeNote === 'NOTE SIMPLE' && selectedTaskDetails.auteur && (
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Auteur</h4>
-                  <p className="text-gray-600">✍️ {selectedTaskDetails.auteur}</p>
+                  <p className="text-gray-600">
+                    ✍️ {getUserNameByEmail(selectedTaskDetails.auteur)}
+                  </p>
                 </div>
               )}
 
@@ -1048,14 +1272,46 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Statut de lecture</h4>
                   <p className="text-gray-600">
-                    {currentUser === selectedTaskDetails.auteur ? (
+                    {currentUser?.email === selectedTaskDetails.auteur || selectedTaskDetails.auteur === 'Commercial' ? (
                       <span className="text-green-600">👁️ Vu par vous (auteur)</span>
+                    ) : viewedTasks.has(selectedTaskDetails.id) ? (
+                      <span className="text-green-600">👁️✅ Vu par vous</span>
                     ) : (
                       <span className="text-blue-600">👁️ À lire</span>
                     )}
                   </p>
                 </div>
               )}
+
+              {/* Afficher qui a vu la note */}
+              {selectedTaskDetails.typeNote === 'NOTE SIMPLE' && (
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Vu par</h4>
+                  <p className="text-gray-600">
+                    {taskViewers[selectedTaskDetails.id] && taskViewers[selectedTaskDetails.id].length > 0 ? (
+                      <span className="text-blue-600">
+                        👁️ {getPrenomsFromEmails(taskViewers[selectedTaskDetails.id] || []).join(', ')}
+                      </span>
+                    ) : (
+                      <span className="text-gray-500">Personne n'a encore vu cette note</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Afficher qui a liké la note */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-2">Likes</h4>
+                <p className="text-gray-600">
+                  {taskLikers[selectedTaskDetails.id] && taskLikers[selectedTaskDetails.id].length > 0 ? (
+                    <span className="text-red-600">
+                      ❤️ {getPrenomsFromEmails(taskLikers[selectedTaskDetails.id] || []).join(', ')}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">Personne n'a encore aimé cette note</span>
+                  )}
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
