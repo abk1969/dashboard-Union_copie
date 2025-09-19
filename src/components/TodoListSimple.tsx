@@ -522,22 +522,43 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                 ))}
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Rechercher un client..."
-              value={clientSearch}
-              onChange={(e) => setClientSearch(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48"
-            />
-            {clientSearch && (
-              <button
-                onClick={() => setClientSearch('')}
-                className="px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-sm"
-                title="Effacer la recherche"
-              >
-                ✕
-              </button>
+          <div className="flex items-center gap-2 relative">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Rechercher un client..."
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {clientSearch && (
+                <button
+                  onClick={() => setClientSearch('')}
+                  className="absolute right-2 top-2 px-1 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 text-sm"
+                  title="Effacer la recherche"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            {clientSearch && filteredClients.length > 0 && (
+              <div className="absolute z-20 top-full left-0 w-48 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                {filteredClients.map((client, index) => (
+                  <div
+                    key={`${client.codeUnion}-${index}`}
+                    onClick={() => {
+                      setFilterClient(client.codeUnion);
+                      setClientSearch(`${client.codeUnion} - ${client.raisonSociale}`);
+                    }}
+                    className="p-2 hover:bg-gray-100 cursor-pointer text-sm border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="font-medium text-gray-900">{client.codeUnion} - {client.raisonSociale}</div>
+                    {client.groupeClient && (
+                      <div className="text-gray-500 text-xs">{client.groupeClient}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           {(filterUser !== 'all' || filterClient !== 'all' || filterType !== 'all') && (
@@ -790,15 +811,24 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                         👤 {getUserNameByEmail(task.assignedTo)}
                       </span>
                     )}
-                    <span className={`px-2 py-1 rounded text-xs ${
-                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {task.status === 'completed' ? '✅ Terminée' :
-                       task.status === 'in_progress' ? '🔄 En cours' :
-                       '⏳ En attente'}
-                    </span>
+                    {/* Afficher l'auteur pour les notes */}
+                    {task.typeNote === 'NOTE SIMPLE' && task.auteur && (
+                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
+                        ✍️ {task.auteur}
+                      </span>
+                    )}
+                    {/* Afficher le statut seulement pour les tâches, pas pour les notes */}
+                    {task.typeNote !== 'NOTE SIMPLE' && (
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        task.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {task.status === 'completed' ? '✅ Terminée' :
+                         task.status === 'in_progress' ? '🔄 En cours' :
+                         '⏳ En attente'}
+                      </span>
+                    )}
                   </div>
                 </div>
                 
@@ -959,15 +989,18 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
 
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Statut</h4>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedTaskDetails.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    selectedTaskDetails.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {selectedTaskDetails.status === 'completed' ? '✅ Terminée' :
-                     selectedTaskDetails.status === 'in_progress' ? '🔄 En cours' :
-                     '⏳ En attente'}
-                  </span>
+                  {/* Afficher le statut seulement pour les tâches, pas pour les notes */}
+                  {selectedTaskDetails.typeNote !== 'NOTE SIMPLE' && (
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      selectedTaskDetails.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      selectedTaskDetails.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedTaskDetails.status === 'completed' ? '✅ Terminée' :
+                       selectedTaskDetails.status === 'in_progress' ? '🔄 En cours' :
+                       '⏳ En attente'}
+                    </span>
+                  )}
                 </div>
 
                 <div>

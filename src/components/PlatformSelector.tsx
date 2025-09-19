@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePlatform } from '../contexts/PlatformContext';
+import { useUser } from '../contexts/UserContext';
 import { PLATFORM_FILTER_OPTIONS, PLATFORMS } from '../config/platforms';
 
 interface PlatformSelectorProps {
@@ -8,10 +9,23 @@ interface PlatformSelectorProps {
 
 export const PlatformSelector: React.FC<PlatformSelectorProps> = ({ className = '' }) => {
   const { filterMode, setFilterMode, activePlatforms, setActivePlatforms, isFiltered } = usePlatform();
+  const { currentUser, isAdmin } = useUser();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCustomSelector, setShowCustomSelector] = useState(false);
 
+
   const currentFilter = PLATFORM_FILTER_OPTIONS.find(option => option.id === filterMode);
+
+  // Fonction pour vérifier si l'utilisateur est autorisé à accéder à une plateforme
+  const isPlatformAuthorized = (platformId: string): boolean => {
+    if (isAdmin) return true;
+    if (!currentUser?.plateformesAutorisees) return false;
+
+    // Si l'utilisateur a 'Toutes', il peut accéder à toutes les plateformes
+    if (currentUser.plateformesAutorisees.includes('Toutes')) return true;
+
+    return currentUser.plateformesAutorisees.includes(platformId);
+  };
 
   const handleQuickSelect = (mode: string) => {
     setFilterMode(mode);
@@ -20,6 +34,12 @@ export const PlatformSelector: React.FC<PlatformSelectorProps> = ({ className = 
   };
 
   const handleCustomPlatformToggle = (platformId: string) => {
+    // Vérifier les permissions avant de permettre le changement
+    if (!isPlatformAuthorized(platformId)) {
+      console.warn('⚠️ Utilisateur non autorisé pour la plateforme:', platformId);
+      return;
+    }
+
     const newPlatforms = activePlatforms.includes(platformId)
       ? activePlatforms.filter(p => p !== platformId)
       : [...activePlatforms, platformId];

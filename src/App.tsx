@@ -19,7 +19,6 @@ import DataBackup from './components/DataBackup';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PlatformSelector } from './components/PlatformSelector';
-import RegionFilter from './components/RegionFilter';
 import PeriodIndicator from './components/PeriodIndicator';
 import PeriodAlert from './components/PeriodAlert';
 import TodoListSimple from './components/TodoListSimple';
@@ -47,10 +46,23 @@ function MainApp() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
+  // Initialiser les plateformes autorisées au premier chargement de l'utilisateur
   useEffect(() => {
-    if (currentUser && !isAdmin) {
-      // Pour les utilisateurs non-admin, filtrer selon leurs plateformes autorisées
-      setActivePlatforms(currentUser.plateformesAutorisees || ['Toutes']);
+    if (currentUser && !isAdmin && currentUser.plateformesAutorisees) {
+      // Pour les utilisateurs non-admin, initialiser avec leurs plateformes autorisées
+      // Seulement si les plateformes ne sont pas déjà définies
+      const currentPlatforms = activePlatforms;
+      const hasValidPlatforms = currentPlatforms.some(p =>
+        ['acr', 'dca', 'exadis', 'alliance'].includes(p)
+      );
+
+      if (!hasValidPlatforms) {
+        // Convertir 'Toutes' en toutes les plateformes si nécessaire
+        const userPlatforms = currentUser.plateformesAutorisees.includes('Toutes')
+          ? ['acr', 'dca', 'exadis', 'alliance']
+          : currentUser.plateformesAutorisees;
+        setActivePlatforms(userPlatforms);
+      }
     }
   }, [currentUser, isAdmin, setActivePlatforms]);
 
@@ -422,30 +434,25 @@ function MainApp() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Informations utilisateur */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-semibold text-lg">
+                {/* Informations utilisateur - Version améliorée */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg border border-blue-200 p-4 mb-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xl">
                         {currentUser?.prenom?.charAt(0) || 'U'}
                       </span>
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">
+                      <h3 className="font-bold text-white text-lg">
                         {currentUser?.prenom} {currentUser?.nom}
                       </h3>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-blue-100 font-medium">
                         {currentUser?.equipe || 'Équipe'} • {currentUser?.roles?.[0] || 'Utilisateur'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Filtres */}
-                <div className="space-y-3">
-                  <PlatformSelector />
-                  <RegionFilter />
-                </div>
               </div>
             </div>
           </div>
@@ -453,7 +460,8 @@ function MainApp() {
 
         {/* Navigation - Desktop seulement */}
         <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex space-x-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex space-x-4">
             <button
               onClick={() => setActiveTab('adherents')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
@@ -526,6 +534,8 @@ function MainApp() {
              >
                👥 Utilisateurs
              </button>
+            </div>
+            
           </div>
         </div>
 
@@ -566,6 +576,11 @@ function MainApp() {
                 </div>
                 <div className="text-sm sm:text-base text-gray-600">Progression</div>
               </div>
+            </div>
+
+            {/* Filtre des plateformes */}
+            <div className="mb-6">
+              <PlatformSelector />
             </div>
 
         {/* Onglet Adhérents */}
