@@ -221,10 +221,51 @@ MÉTRIQUES DE SUIVI :
     const ca2025 = clientLines.filter(item => item.annee === 2025).reduce((sum, item) => sum + (item.ca || 0), 0);
     const progression = ca2024 > 0 ? ((ca2025 - ca2024) / ca2024) * 100 : 0;
 
-    // Tâches et notes du client
+    // Tâches et notes du client avec analyse détaillée
     const clientTasks = tasks.filter(t => t.clientCode === clientCode);
     const clientNotes = tasks.filter(t => t.clientCode === clientCode && t.typeNote === 'NOTE SIMPLE');
     const clientReports = tasks.filter(t => t.clientCode === clientCode && t.typeNote === 'RAPPORT VISITE');
+    
+    // Analyse des notes par priorité et récence
+    const recentNotes = clientNotes
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5); // 5 notes les plus récentes
+    
+    const urgentTasks = clientTasks.filter(t => t.priority === 'urgent' && t.status !== 'completed');
+    const overdueTasks = clientTasks.filter(t => {
+      if (!t.dueDate || t.status === 'completed') return false;
+      return new Date(t.dueDate) < new Date();
+    });
+    
+    // Analyse des rapports de visite
+    const recentReports = clientReports
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 3); // 3 rapports les plus récents
+    
+    // Analyse des tendances temporelles
+    const notesByMonth = clientNotes.reduce((acc, note) => {
+      const month = new Date(note.createdAt).toISOString().substring(0, 7);
+      acc[month] = (acc[month] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    // Détection des patterns et alertes
+    const alerts = [];
+    if (overdueTasks.length > 0) alerts.push(`${overdueTasks.length} tâche(s) en retard`);
+    if (urgentTasks.length > 0) alerts.push(`${urgentTasks.length} tâche(s) urgente(s)`);
+    if (clientNotes.length === 0) alerts.push('Aucune note récente');
+    if (clientReports.length === 0) alerts.push('Aucun rapport de visite récent');
+    
+    // Analyse des fournisseurs mentionnés dans les notes
+    const fournisseursMentionnes = new Set<string>();
+    [...clientNotes, ...clientReports].forEach(item => {
+      const content = `${item.title || ''} ${item.description || ''} ${item.noteSimple || ''} ${item.noteIa || ''}`.toLowerCase();
+      fournisseursMap.forEach((_, fournisseur) => {
+        if (content.includes(fournisseur.toLowerCase())) {
+          fournisseursMentionnes.add(fournisseur);
+        }
+      });
+    });
 
     // Performance par fournisseur
     const fournisseursMap = new Map<string, { ca2024: number; ca2025: number }>();
@@ -261,6 +302,14 @@ MÉTRIQUES DE SUIVI :
       notes: clientNotes,
       reports: clientReports,
       fournisseursPerformance,
+      // Nouvelles données enrichies
+      recentNotes,
+      recentReports,
+      urgentTasks,
+      overdueTasks,
+      notesByMonth,
+      alerts,
+      fournisseursMentionnes: Array.from(fournisseursMentionnes),
       stats: {
         totalCA2024: ca2024,
         totalCA2025: ca2025,
@@ -268,7 +317,10 @@ MÉTRIQUES DE SUIVI :
         totalTasks: clientTasks.length,
         totalNotes: clientNotes.length,
         totalReports: clientReports.length,
-        fournisseursCount: fournisseursMap.size
+        fournisseursCount: fournisseursMap.size,
+        urgentTasksCount: urgentTasks.length,
+        overdueTasksCount: overdueTasks.length,
+        recentActivityScore: recentNotes.length + recentReports.length
       }
     };
   };
@@ -295,23 +347,53 @@ MÉTRIQUES DE SUIVI :
             `CA 2024: ${clientData.stats.totalCA2024.toLocaleString()}€\n` +
             `CA 2025: ${clientData.stats.totalCA2025.toLocaleString()}€\n` +
             `Progression: ${clientData.stats.progression}%\n` +
-            `Statut: ${clientData.client.statut}\n` +
-            `Tâches: ${clientData.stats.totalTasks}\n` +
-            `Notes: ${clientData.stats.totalNotes}\n` +
-            `Rapports: ${clientData.stats.totalReports}\n` +
-            `Fournisseurs: ${clientData.stats.fournisseursCount}\n\n` +
-            `Performance par fournisseur:\n` +
+            `Statut: ${clientData.client.statut}\n\n` +
+            
+            `🚨 ALERTES PRIORITAIRES:\n` +
+            (clientData.alerts.length > 0 ? clientData.alerts.map(alert => `- ${alert}`).join('\n') : '- Aucune alerte') + '\n\n' +
+            
+            `📊 ACTIVITÉ RÉCENTE:\n` +
+            `- Score d'activité: ${clientData.stats.recentActivityScore}/8\n` +
+            `- Tâches urgentes: ${clientData.stats.urgentTasksCount}\n` +
+            `- Tâches en retard: ${clientData.stats.overdueTasksCount}\n` +
+            `- Notes récentes: ${clientData.stats.totalNotes}\n` +
+            `- Rapports récents: ${clientData.stats.totalReports}\n\n` +
+            
+            `💰 PERFORMANCE PAR FOURNISSEUR:\n` +
             clientData.fournisseursPerformance.map(f => 
               `- ${f.fournisseur}: ${f.ca2024.toLocaleString()}€ → ${f.ca2025.toLocaleString()}€ (${f.progression.toFixed(1)}%)`
             ).join('\n') + '\n\n' +
-            `Tâches récentes:\n` +
-            clientData.tasks.slice(0, 5).map(t => 
-              `- ${t.title} (${t.status}) - ${t.priority}`
-            ).join('\n') + '\n\n' +
-            `Notes récentes:\n` +
-            clientData.notes.slice(0, 3).map(n => 
-              `- ${n.title} (${new Date(n.createdAt).toLocaleDateString()})`
-            ).join('\n');
+            
+            `📝 NOTES RÉCENTES DÉTAILLÉES:\n` +
+            (clientData.recentNotes.length > 0 ? 
+              clientData.recentNotes.map(n => 
+                `- ${new Date(n.createdAt).toLocaleDateString()}: ${n.title}\n  Contenu: ${n.noteSimple || n.description || 'Aucun contenu détaillé'}\n  Auteur: ${n.auteur || 'Non spécifié'}`
+              ).join('\n\n') : 
+              'Aucune note récente') + '\n\n' +
+            
+            `📋 RAPPORTS DE VISITE RÉCENTS:\n` +
+            (clientData.recentReports.length > 0 ? 
+              clientData.recentReports.map(r => 
+                `- ${new Date(r.createdAt).toLocaleDateString()}: ${r.title}\n  Contenu: ${r.noteSimple || r.description || 'Aucun contenu détaillé'}\n  Auteur: ${r.auteur || 'Non spécifié'}`
+              ).join('\n\n') : 
+              'Aucun rapport récent') + '\n\n' +
+            
+            `⚡ TÂCHES URGENTES/EN RETARD:\n` +
+            (clientData.urgentTasks.length > 0 ? 
+              clientData.urgentTasks.map(t => 
+                `- URGENT: ${t.title} (${t.status}) - Échéance: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'Non définie'}`
+              ).join('\n') : 
+              'Aucune tâche urgente') + '\n' +
+            (clientData.overdueTasks.length > 0 ? 
+              clientData.overdueTasks.map(t => 
+                `- EN RETARD: ${t.title} (${t.status}) - Échéance: ${t.dueDate ? new Date(t.dueDate).toLocaleDateString() : 'Non définie'}`
+              ).join('\n') : 
+              'Aucune tâche en retard') + '\n\n' +
+            
+            `🏷️ FOURNISSEURS MENTIONNÉS DANS LES NOTES:\n` +
+            (clientData.fournisseursMentionnes.length > 0 ? 
+              clientData.fournisseursMentionnes.join(', ') : 
+              'Aucun fournisseur mentionné dans les notes');
         }
       }
 
@@ -323,15 +405,28 @@ CONTEXTE:
 - Données consolidées par client (CA 2024/2025, progression, fournisseurs)
 - Accès aux tâches, notes et rapports de visite
 
+DONNÉES ENRICHIES DISPONIBLES:
+- Notes récentes (5 plus récentes) avec contenu détaillé
+- Rapports de visite récents (3 plus récents) avec contexte
+- Tâches urgentes et en retard avec priorités
+- Alertes automatiques (tâches en retard, manque d'activité)
+- Fournisseurs mentionnés dans les notes
+- Tendances temporelles d'activité
+- Score d'activité récente
+
 EXPERTISE:
 - Analyse de performance commerciale
 - Consolidation de chiffres par client et fournisseur
 - Recommandations stratégiques
 - Suivi des actions et tâches
+- Analyse contextuelle des notes et rapports
 
 ${contextData}
 
-Réponds de manière professionnelle, précise et actionnable. Utilise les données exactes et sois très spécifique sur les chiffres.`;
+RÉPONDRE EN FRANÇAIS, de manière professionnelle, précise et actionnable. 
+Utilise les données exactes et sois très spécifique sur les chiffres.
+Analyse le CONTENU des notes, pas juste les titres génériques.
+Identifie les patterns, alertes et opportunités prioritaires.`;
 
       const response = await callOpenAI({
         messages: [
