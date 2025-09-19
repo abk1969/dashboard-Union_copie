@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { TodoTask } from '../types';
 import { fetchTasks, fetchUsers } from '../config/supabase-users';
+import { useUser } from '../contexts/UserContext';
+import UserPhotoUpload from './UserPhotoUpload';
 
 // Service pour générer des messages motivants avec l'IA
 const generateMotivationalMessage = async (): Promise<string> => {
@@ -246,13 +248,16 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div className="space-y-4">
-              <div className="animate-fade-in">
-                <h1 className="text-5xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                  Bonjour {userName} ✨
-                </h1>
-                <p className="text-lg text-gray-600 mt-2 font-light">
-                  {currentDate} • {currentTime}
-                </p>
+              <div className="animate-fade-in flex items-center space-x-6">
+                <UserPhotoUpload size="lg" showUploadButton={true} />
+                <div>
+                  <h1 className="text-5xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                    Bonjour {userName} ✨
+                  </h1>
+                  <p className="text-lg text-gray-600 mt-2 font-light">
+                    {currentDate} • {currentTime}
+                  </p>
+                </div>
               </div>
               
               {/* Message motivant généré par IA */}

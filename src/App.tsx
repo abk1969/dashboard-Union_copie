@@ -27,6 +27,8 @@ import FloatingChatbot from './components/FloatingChatbot';
 import { UserProvider, useUser } from './contexts/UserContext';
 import RealLoginPage from './components/RealLoginPage';
 import OnboardingPage from './components/OnboardingPage';
+import UserPhotoUpload from './components/UserPhotoUpload';
+import UserProfileModal from './components/UserProfileModal';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -107,6 +109,7 @@ function MainApp() {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
   const [selectedAdherentForUpload, setSelectedAdherentForUpload] = useState<string>('');
+  const [showUserProfile, setShowUserProfile] = useState(false);
   
   // États pour le chatbot
 
@@ -434,14 +437,10 @@ function MainApp() {
                 </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Informations utilisateur - Version améliorée */}
+                {/* Informations utilisateur avec photo de profil */}
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg border border-blue-200 p-4 mb-4">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xl">
-                        {currentUser?.prenom?.charAt(0) || 'U'}
-                      </span>
-                    </div>
+                    <UserPhotoUpload size="md" showUploadButton={false} />
                     <div>
                       <h3 className="font-bold text-white text-lg">
                         {currentUser?.prenom} {currentUser?.nom}
@@ -534,6 +533,18 @@ function MainApp() {
              >
                👥 Utilisateurs
              </button>
+            </div>
+            
+            {/* Bouton de profil utilisateur */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowUserProfile(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                title="Mon profil"
+              >
+                <UserPhotoUpload size="sm" showUploadButton={false} />
+                <span className="text-sm font-medium">Mon Profil</span>
+              </button>
             </div>
             
           </div>
@@ -1098,6 +1109,12 @@ function MainApp() {
         adherentData={allAdherentData}
         tasks={tasks}
         users={users}
+      />
+
+      {/* Modal de profil utilisateur */}
+      <UserProfileModal 
+        isOpen={showUserProfile}
+        onClose={() => setShowUserProfile(false)}
       />
       </div>
     </>

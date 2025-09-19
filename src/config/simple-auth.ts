@@ -41,10 +41,13 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
     }
 
     // Connexion simple : vérifier directement dans la table users
+    // Normaliser l'email en minuscules pour éviter les problèmes de casse
+    const normalizedEmail = email.toLowerCase().trim();
+    
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .eq('mot_de_passe', password)
       .eq('actif', true)
       .single();
@@ -190,10 +193,13 @@ export const createUserWithPassword = async (userData: {
   motDePasse: string;
 }): Promise<{ success: boolean; error?: string; user?: any }> => {
   try {
+    // Normaliser l'email en minuscules pour éviter les problèmes de casse
+    const normalizedEmail = userData.email.toLowerCase().trim();
+    
     const { data, error } = await supabase
       .from('users')
       .insert([{
-        email: userData.email,
+        email: normalizedEmail,
         nom: userData.nom,
         prenom: userData.prenom,
         roles: userData.roles,

@@ -6,7 +6,10 @@ import UnifiedClientReport from './UnifiedClientReport';
 import { createTask, fetchTasks, deleteTask, fetchUsers } from '../config/supabase-users';
 import { toggleTaskLike, getTaskLikesCount, hasUserLikedTask, getTaskLikers } from '../config/supabase-likes';
 import { markTaskAsViewed, getTaskViewsCount, hasUserViewedTask, getTaskViewers } from '../config/supabase-views';
+import { getUserPhoto } from '../config/supabase-photos';
+import { supabase } from '../config/supabase';
 import { useUser } from '../contexts/UserContext';
+import UserPhotoUpload from './UserPhotoUpload';
 
 interface TodoListSimpleProps {
   adherentData: AdherentData[];
@@ -37,6 +40,9 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
   const [keywordSearch, setKeywordSearch] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userPhotos, setUserPhotos] = useState<{[key: string]: string}>({});
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [emailToUserIdMap, setEmailToUserIdMap] = useState<{[key: string]: string}>({});
   const [formData, setFormData] = useState<{
     title: string;
     client: string;
@@ -55,8 +61,13 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
 
   // Charger les tâches et utilisateurs depuis Supabase
   useEffect(() => {
-    loadTasks();
-    loadUsers();
+    const initializeData = async () => {
+      await loadTasks();
+      await loadUsers();
+      await loadAllUserPhotos(); // Charger les photos de tous les utilisateurs
+    };
+    
+    initializeData();
   }, []);
 
   const loadTasks = async () => {
@@ -69,6 +80,23 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
       const tasksData = await fetchTasks();
       setTasks(tasksData);
       console.log('✅ Tâches chargées:', tasksData.length);
+      
+      // Debug: Vérifier les auteurs des tâches
+      console.log('🔍 Auteurs des tâches:', tasksData.map(t => ({ 
+        id: t.id, 
+        title: t.title, 
+        auteur: t.auteur, 
+        typeNote: t.typeNote 
+      })));
+      
+      // Debug: Vérifier les utilisateurs chargés
+      console.log('👥 Utilisateurs chargés:', users.map(u => ({
+        id: u.id,
+        prenom: u.prenom,
+        nom: u.nom,
+        email: u.email,
+        roles: u.roles
+      })));
       
       // Charger les likes et vues en parallèle (plus rapide)
       const likesPromises = tasksData.map(async (task) => {
@@ -173,8 +201,146 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
       const fetchedUsers = await fetchUsers();
       setUsers(fetchedUsers);
       console.log('✅ Utilisateurs chargés:', fetchedUsers.length);
+      
+      // Charger les photos de profil des utilisateurs
+      await loadUserPhotos(fetchedUsers);
     } catch (error) {
       console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+    }
+  };
+
+  // Charger les photos de profil des utilisateurs
+  const loadUserPhotos = async (usersData: User[]) => {
+    try {
+      console.log('🔄 Chargement des photos pour', usersData.length, 'utilisateurs');
+      
+      const photoPromises = usersData.map(async (user) => {
+        if (user.id) {
+          console.log(`🔍 Chargement photo pour ${user.prenom} ${user.nom} (${user.email})`);
+          const result = await getUserPhoto(user.id);
+          console.log(`📸 Résultat photo pour ${user.prenom}:`, result);
+          
+          if (result.success && result.photoUrl) {
+            return { userId: user.id, photoUrl: result.photoUrl, userEmail: user.email };
+          }
+        }
+        return null;
+      });
+
+      const photoResults = await Promise.all(photoPromises);
+      const photosMap: {[key: string]: string} = {};
+      
+      photoResults.forEach(result => {
+        if (result) {
+          photosMap[result.userId] = result.photoUrl;
+          console.log(`✅ Photo chargée pour ${result.userEmail}:`, result.photoUrl);
+        }
+      });
+
+      setUserPhotos(photosMap);
+      console.log('📸 Photos de profil chargées:', Object.keys(photosMap).length);
+      console.log('📸 Détail des photos:', photosMap);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des photos:', error);
+    }
+  };
+
+  // Charger les photos de tous les utilisateurs (pas seulement l'utilisateur connecté)
+  const loadAllUserPhotos = async () => {
+    try {
+      console.log('🔄 Chargement des photos de tous les utilisateurs...');
+      
+      // Récupérer tous les utilisateurs depuis la base de données
+      const { data: allUsers, error } = await supabase
+        .from('users')
+        .select('id, prenom, nom, email');
+      
+      if (error) {
+        console.error('❌ Erreur lors du chargement des utilisateurs:', error);
+        return;
+      }
+      
+      if (!allUsers || allUsers.length === 0) {
+        console.warn('⚠️ Aucun utilisateur trouvé dans la base de données');
+        return;
+      }
+      
+      console.log('👥 Utilisateurs trouvés:', allUsers.length);
+      console.log('👥 Détail des utilisateurs:', allUsers);
+      
+      // Vérifier si Vanessa est dans la liste (insensible à la casse)
+      const vanessa = allUsers.find((u: any) => 
+        u.email && u.email.toLowerCase().includes('vanessa')
+      );
+      console.log('🔍 Vanessa trouvée:', vanessa);
+      
+      // Vérifier tous les emails contenant "vanessa"
+      const vanessaEmails = allUsers.filter((u: any) => 
+        u.email && u.email.toLowerCase().includes('vanessa')
+      );
+      console.log('🔍 Tous les emails contenant "vanessa":', vanessaEmails);
+      
+      // Stocker tous les utilisateurs
+      setAllUsers(allUsers);
+      
+      // Créer le mapping email -> userId (insensible à la casse)
+      const emailMap: {[key: string]: string} = {};
+      allUsers.forEach((user: any) => {
+        if (user.email && user.id) {
+          // Stocker l'email original et en minuscules
+          emailMap[user.email] = user.id;
+          emailMap[user.email.toLowerCase()] = user.id;
+          emailMap[user.email.toUpperCase()] = user.id;
+        }
+      });
+      setEmailToUserIdMap(emailMap);
+      console.log('📧 Mapping email -> userId:', emailMap);
+      
+      // Charger les photos de tous les utilisateurs
+      const photoPromises = allUsers.map(async (user: any) => {
+        if (user.id) {
+          console.log(`🔍 Chargement photo pour ${user.prenom} ${user.nom} (${user.email})`);
+          const result = await getUserPhoto(user.id);
+          console.log(`📸 Résultat photo pour ${user.prenom}:`, result);
+          
+          if (result.success && result.photoUrl) {
+            return { userId: user.id, photoUrl: result.photoUrl, userEmail: user.email };
+          }
+        }
+        return null;
+      });
+
+      const photoResults = await Promise.all(photoPromises);
+      const photosMap: {[key: string]: string} = {};
+      
+      photoResults.forEach((result: any) => {
+        if (result) {
+          photosMap[result.userId] = result.photoUrl;
+          console.log(`✅ Photo chargée pour ${result.userEmail}:`, result.photoUrl);
+        }
+      });
+
+      setUserPhotos(photosMap);
+      console.log('📸 Photos de tous les utilisateurs chargées:', Object.keys(photosMap).length);
+      console.log('📸 Détail des photos chargées:', photosMap);
+      
+      // Vérifier si la photo de Vanessa est chargée (tester différentes casses)
+      const vanessaUserId1 = emailMap['VANESSA@groupementunion.pro'];
+      const vanessaUserId2 = emailMap['vanessa@groupementunion.pro'];
+      const vanessaUserId3 = emailMap['Vanessa@groupementunion.pro'];
+      
+      console.log('🔍 Vanessa userId (MAJUSCULES):', vanessaUserId1);
+      console.log('🔍 Vanessa userId (minuscules):', vanessaUserId2);
+      console.log('🔍 Vanessa userId (Première lettre):', vanessaUserId3);
+      
+      const vanessaUserId = vanessaUserId1 || vanessaUserId2 || vanessaUserId3;
+      if (vanessaUserId) {
+        console.log('🔍 Photo de Vanessa chargée:', photosMap[vanessaUserId]);
+      } else {
+        console.log('⚠️ Vanessa pas dans le mapping email -> userId');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des photos:', error);
     }
   };
 
@@ -267,8 +433,130 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
       return prenom;
     }
     
-    const user = users.find(u => u.email === email);
+    const user = allUsers.find(u => u.email === email);
     return user ? `${user.prenom} ${user.nom}` : email;
+  };
+
+  // Composant pour afficher l'avatar de l'auteur
+  const AuthorAvatar = ({ authorEmail, size = 'sm' }: { authorEmail: string, size?: 'xs' | 'sm' | 'md' }) => {
+    const sizeClasses = {
+      xs: 'w-6 h-6 text-xs',
+      sm: 'w-8 h-8 text-sm',
+      md: 'w-10 h-10 text-base'
+    };
+
+    // Vérifier que authorEmail est valide
+    if (!authorEmail || typeof authorEmail !== 'string') {
+      return (
+        <div className={`${sizeClasses[size]} rounded-full overflow-hidden bg-gray-400 flex items-center justify-center text-white font-bold shadow-sm`}>
+          <span>?</span>
+        </div>
+      );
+    }
+
+    // Trouver l'utilisateur par email (utiliser allUsers pour avoir tous les utilisateurs)
+    const user = allUsers.find(u => u.email === authorEmail);
+    const photoUrl = user?.id ? userPhotos[user.id] : null;
+    
+    // Debug pour voir l'état de allUsers
+    if (authorEmail === 'Commercial') {
+      console.log('🔍 allUsers état:', allUsers.length, allUsers);
+    }
+    
+    // Pour les autres utilisateurs, chercher dans userPhotos par email (fallback)
+    if (!photoUrl && authorEmail !== 'Commercial') {
+      // Chercher dans userPhotos par email (fallback)
+      const userId = Object.keys(userPhotos).find(id => {
+        const user = allUsers.find(u => u.id === id);
+        return user && user.email === authorEmail;
+      });
+      if (userId) {
+        const fallbackPhoto = userPhotos[userId];
+        console.log('🔍 Photo trouvée par fallback pour', authorEmail, ':', fallbackPhoto);
+      }
+    }
+    
+    // Debug pour Martial
+    if (authorEmail === 'Commercial' || (user && user.prenom === 'Martial')) {
+      console.log('🔍 AuthorAvatar Debug pour Martial:');
+      console.log('  - authorEmail:', authorEmail);
+      console.log('  - user trouvé:', user);
+      console.log('  - user.id:', user?.id);
+      console.log('  - userPhotos disponibles:', Object.keys(userPhotos));
+      console.log('  - photoUrl pour cet utilisateur:', photoUrl);
+    }
+
+    const getInitials = () => {
+      if (authorEmail === 'Commercial') {
+        return currentUser?.prenom?.charAt(0) || 'C';
+      }
+      if (user) {
+        return `${user.prenom?.charAt(0) || ''}${user.nom?.charAt(0) || ''}`.toUpperCase();
+      }
+      return authorEmail?.charAt(0)?.toUpperCase() || '?';
+    };
+
+    // Pour "Commercial", utiliser la photo de l'utilisateur connecté
+    let finalPhotoUrl = photoUrl;
+    
+    // Pour "Commercial", utiliser la photo de l'utilisateur connecté
+    if (authorEmail === 'Commercial' && currentUser?.id) {
+      finalPhotoUrl = userPhotos[currentUser.id] || null;
+      console.log('🔍 Photo Commercial:', {
+        currentUser: currentUser?.prenom,
+        currentUserId: currentUser?.id,
+        commercialPhoto: finalPhotoUrl,
+        allPhotos: userPhotos
+      });
+    }
+    
+    // Pour les autres utilisateurs, utiliser le mapping email -> userId
+    if (!finalPhotoUrl && authorEmail !== 'Commercial') {
+      // Essayer différentes variantes de l'email
+      const emailVariants = [
+        authorEmail,
+        authorEmail.toLowerCase(),
+        authorEmail.toUpperCase(),
+        authorEmail.replace('@', '@').toLowerCase(),
+        authorEmail.replace('@', '@').toUpperCase()
+      ];
+      
+      let userId = null;
+      for (const variant of emailVariants) {
+        if (emailToUserIdMap[variant]) {
+          userId = emailToUserIdMap[variant];
+          console.log('🔍 Email variant trouvé:', variant, '-> userId:', userId);
+          break;
+        }
+      }
+      
+      if (userId && userPhotos[userId]) {
+        finalPhotoUrl = userPhotos[userId];
+        console.log('🔍 Photo trouvée par mapping pour', authorEmail, ':', finalPhotoUrl);
+      } else {
+        console.log('⚠️ Pas de photo trouvée pour', authorEmail, 'userId:', userId, 'userPhotos:', Object.keys(userPhotos));
+        console.log('⚠️ Email variants testés:', emailVariants);
+        console.log('⚠️ Mapping disponible:', emailToUserIdMap);
+      }
+    }
+    
+    return (
+      <div className={`${sizeClasses[size]} rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-sm`}>
+        {finalPhotoUrl ? (
+          <img
+            src={finalPhotoUrl}
+            alt={`Photo de ${getUserNameByEmail(authorEmail)}`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback vers les initiales si l'image ne charge pas
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <span className={finalPhotoUrl ? 'hidden' : ''}>{getInitials()}</span>
+      </div>
+    );
   };
 
   // Fonction pour obtenir le nom du client par code Union
@@ -295,9 +583,48 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
           return prenom;
         }
         
-        const user = users.find(u => u.email === email);
+        const user = allUsers.find(u => u.email === email);
         return user ? user.prenom : email.split('@')[0]; // Fallback sur la partie avant @
       });
+  };
+
+  // Composant pour afficher les avatars des utilisateurs (Vu par, Likes)
+  const UserAvatarsList = ({ emails, icon, emptyMessage }: { 
+    emails: string[], 
+    icon: string, 
+    emptyMessage: string 
+  }) => {
+    if (!emails || emails.length === 0) {
+      return <span className="text-gray-500">{emptyMessage}</span>;
+    }
+
+    // Filtrer les emails valides
+    const validEmails = emails.filter(email => email && typeof email === 'string');
+
+    if (validEmails.length === 0) {
+      return <span className="text-gray-500">{emptyMessage}</span>;
+    }
+
+    return (
+      <div className="flex items-center space-x-2">
+        <span className="text-gray-600">{icon}</span>
+        <div className="flex -space-x-1">
+          {validEmails.slice(0, 5).map((email, index) => (
+            <div key={`${email}-${index}`} className="relative" title={getUserNameByEmail(email)}>
+              <AuthorAvatar authorEmail={email} size="xs" />
+            </div>
+          ))}
+          {validEmails.length > 5 && (
+            <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-gray-600 font-medium">
+              +{validEmails.length - 5}
+            </div>
+          )}
+        </div>
+        <span className="text-sm text-gray-600">
+          {getPrenomsFromEmails(validEmails).join(', ')}
+        </span>
+      </div>
+    );
   };
 
   // Fonction pour obtenir la couleur selon le type et le statut
@@ -1033,12 +1360,22 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                         👤 {getUserNameByEmail(task.assignedTo)}
                       </span>
                     )}
-                    {/* Afficher l'auteur pour les notes */}
-                    {task.typeNote === 'NOTE SIMPLE' && task.auteur && (
-                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
-                        ✍️ {getUserNameByEmail(task.auteur)}
-                      </span>
-                    )}
+                    {/* Afficher l'auteur pour les notes avec photo */}
+                    {task.typeNote === 'NOTE SIMPLE' && (() => {
+                      console.log('🔍 Note auteur:', task.auteur, 'type:', typeof task.auteur, 'hasAuteur:', !!task.auteur);
+                      return (
+                        <div className="flex items-center space-x-2 bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
+                          {task.auteur ? (
+                            <>
+                              <AuthorAvatar authorEmail={task.auteur} size="xs" />
+                              <span>✍️ {getUserNameByEmail(task.auteur)}</span>
+                            </>
+                          ) : (
+                            <span>✍️ Auteur non défini</span>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {/* Afficher le statut seulement pour les tâches, pas pour les notes */}
                     {task.typeNote !== 'NOTE SIMPLE' && (
                       <span className={`px-2 py-1 rounded text-xs ${
@@ -1262,9 +1599,17 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               {selectedTaskDetails.typeNote === 'NOTE SIMPLE' && selectedTaskDetails.auteur && (
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Auteur</h4>
-                  <p className="text-gray-600">
-                    ✍️ {getUserNameByEmail(selectedTaskDetails.auteur)}
-                  </p>
+                  <div className="flex items-center space-x-3">
+                    <AuthorAvatar authorEmail={selectedTaskDetails.auteur} size="md" />
+                    <div>
+                      <p className="text-gray-900 font-medium">
+                        {getUserNameByEmail(selectedTaskDetails.auteur)}
+                      </p>
+                      <p className="text-gray-500 text-sm">
+                        {selectedTaskDetails.auteur}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1287,30 +1632,22 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
               {selectedTaskDetails.typeNote === 'NOTE SIMPLE' && (
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">Vu par</h4>
-                  <p className="text-gray-600">
-                    {taskViewers[selectedTaskDetails.id] && taskViewers[selectedTaskDetails.id].length > 0 ? (
-                      <span className="text-blue-600">
-                        👁️ {getPrenomsFromEmails(taskViewers[selectedTaskDetails.id] || []).join(', ')}
-                      </span>
-                    ) : (
-                      <span className="text-gray-500">Personne n'a encore vu cette note</span>
-                    )}
-                  </p>
+                  <UserAvatarsList 
+                    emails={taskViewers[selectedTaskDetails.id] || []}
+                    icon="👁️"
+                    emptyMessage="Personne n'a encore vu cette note"
+                  />
                 </div>
               )}
 
               {/* Afficher qui a liké la note */}
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Likes</h4>
-                <p className="text-gray-600">
-                  {taskLikers[selectedTaskDetails.id] && taskLikers[selectedTaskDetails.id].length > 0 ? (
-                    <span className="text-red-600">
-                      ❤️ {getPrenomsFromEmails(taskLikers[selectedTaskDetails.id] || []).join(', ')}
-                    </span>
-                  ) : (
-                    <span className="text-gray-500">Personne n'a encore aimé cette note</span>
-                  )}
-                </p>
+                <UserAvatarsList 
+                  emails={taskLikers[selectedTaskDetails.id] || []}
+                  icon="❤️"
+                  emptyMessage="Personne n'a encore aimé cette note"
+                />
               </div>
             </div>
 
