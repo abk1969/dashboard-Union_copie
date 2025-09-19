@@ -423,10 +423,17 @@ EXPERTISE:
 
 ${contextData}
 
+STRUCTURE DE RÉPONSE OBLIGATOIRE:
+1. 🎯 SYNTHÈSE EXÉCUTIVE (en premier)
+2. 📊 ANALYSE DÉTAILLÉE
+3. 🚨 ALERTES & ACTIONS PRIORITAIRES
+4. 📝 NOTES & RAPPORTS DÉTAILLÉS
+
 RÉPONDRE EN FRANÇAIS, de manière professionnelle, précise et actionnable. 
 Utilise les données exactes et sois très spécifique sur les chiffres.
 Analyse le CONTENU des notes, pas juste les titres génériques.
-Identifie les patterns, alertes et opportunités prioritaires.`;
+Identifie les patterns, alertes et opportunités prioritaires.
+COMMENCE TOUJOURS PAR LA SYNTHÈSE EXÉCUTIVE.`;
 
       const response = await callOpenAI({
         messages: [
