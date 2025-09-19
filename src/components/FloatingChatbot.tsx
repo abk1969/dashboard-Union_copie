@@ -256,17 +256,6 @@ MÉTRIQUES DE SUIVI :
     if (clientNotes.length === 0) alerts.push('Aucune note récente');
     if (clientReports.length === 0) alerts.push('Aucun rapport de visite récent');
     
-    // Analyse des fournisseurs mentionnés dans les notes
-    const fournisseursMentionnes = new Set<string>();
-    [...clientNotes, ...clientReports].forEach(item => {
-      const content = `${item.title || ''} ${item.description || ''} ${item.noteSimple || ''} ${item.noteIa || ''}`.toLowerCase();
-      fournisseursMap.forEach((_, fournisseur) => {
-        if (content.includes(fournisseur.toLowerCase())) {
-          fournisseursMentionnes.add(fournisseur);
-        }
-      });
-    });
-
     // Performance par fournisseur
     const fournisseursMap = new Map<string, { ca2024: number; ca2025: number }>();
     clientLines.forEach(item => {
@@ -276,6 +265,17 @@ MÉTRIQUES DE SUIVI :
       const fournisseur = fournisseursMap.get(item.fournisseur)!;
       if (item.annee === 2024) fournisseur.ca2024 += item.ca || 0;
       if (item.annee === 2025) fournisseur.ca2025 += item.ca || 0;
+    });
+
+    // Analyse des fournisseurs mentionnés dans les notes
+    const fournisseursMentionnes = new Set<string>();
+    [...clientNotes, ...clientReports].forEach(item => {
+      const content = `${item.title || ''} ${item.description || ''} ${item.noteSimple || ''} ${item.noteIa || ''}`.toLowerCase();
+      fournisseursMap.forEach((_, fournisseur) => {
+        if (content.includes(fournisseur.toLowerCase())) {
+          fournisseursMentionnes.add(fournisseur);
+        }
+      });
     });
 
     const fournisseursPerformance = Array.from(fournisseursMap.entries())
