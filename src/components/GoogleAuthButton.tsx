@@ -44,21 +44,37 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     }
   };
 
+  const handleLogout = () => {
+    // Nettoyer complètement le localStorage
+    localStorage.clear();
+    
+    // Recharger la page pour forcer une nouvelle authentification
+    window.location.reload();
+  };
+
   if (isAuthenticated) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3">
-            ✅
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3">
+              ✅
+            </div>
+            <div>
+              <p className="text-green-800 font-medium">
+                Connecté à Google
+              </p>
+              <p className="text-green-600 text-sm">
+                Maurice peut analyser vos données
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-green-800 font-medium">
-              Connecté à Google
-            </p>
-            <p className="text-green-600 text-sm">
-              Maurice peut analyser vos données
-            </p>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="ml-4 px-3 py-1 text-xs font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+          >
+            Se déconnecter
+          </button>
         </div>
       </div>
     );
