@@ -231,6 +231,14 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
     setGoogleAuthenticated(false);
   };
 
+  const handleLogout = () => {
+    // Nettoyer complètement le localStorage
+    localStorage.clear();
+    
+    // Recharger la page pour forcer une nouvelle authentification
+    window.location.reload();
+  };
+
   // Charger les messages inspirants
   useEffect(() => {
     const loadInspirationalContent = async () => {
@@ -337,16 +345,29 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div className="space-y-4">
-              <div className="animate-fade-in flex items-center space-x-6">
-                <UserPhotoUpload size="lg" showUploadButton={true} />
-                <div>
-                  <h1 className="text-5xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                    Bonjour {userName} ✨
-                  </h1>
-                  <p className="text-lg text-gray-600 mt-2 font-light">
-                    {currentDate} • {currentTime}
-                  </p>
+              <div className="animate-fade-in flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                  <UserPhotoUpload size="lg" showUploadButton={true} />
+                  <div>
+                    <h1 className="text-5xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                      Bonjour {userName} ✨
+                    </h1>
+                    <p className="text-lg text-gray-600 mt-2 font-light">
+                      {currentDate} • {currentTime}
+                    </p>
+                  </div>
                 </div>
+                
+                {/* Bouton de déconnexion */}
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-sm font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded-lg transition-colors flex items-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Se déconnecter</span>
+                </button>
               </div>
               
               {/* Message motivant généré par IA */}
