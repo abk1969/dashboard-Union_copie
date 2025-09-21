@@ -350,6 +350,18 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
 
   // Filtrer les tâches par utilisateur, type, client et mots-clés
   const allFilteredTasks = tasks.filter(task => {
+    // Exclure les tâches de démonstration (ID commençant par 'demo-')
+    const isDemoTask = task.id.startsWith('demo-');
+    console.log('🔍 Vérification tâche:', { 
+      id: task.id, 
+      title: task.title, 
+      isDemo: isDemoTask 
+    });
+    if (isDemoTask) {
+      console.log('🚫 Tâche de démonstration exclue:', task.title);
+      return false;
+    }
+    
     // Debug: afficher les types de tâches
     if (filterType === 'tasks') {
       console.log('🔍 Filtre TÂCHES - Task typeNote:', task.typeNote, 'Title:', task.title);
@@ -1276,28 +1288,57 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         )}
         
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <div className="text-4xl mb-2">📝</div>
-            <div>
-              {filterType === 'notes' 
-                ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune note créée' : 
-                   keywordSearch ? `Aucune note trouvée pour "${keywordSearch}"` :
-                   filterUser !== 'all' && filterClient === 'all' ? 'Aucune note assignée à cet utilisateur' :
-                   filterUser === 'all' && filterClient !== 'all' ? 'Aucune note pour ce client' :
-                   'Aucune note assignée à cet utilisateur pour ce client')
-                : filterType === 'tasks'
-                ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune tâche créée' : 
-                   keywordSearch ? `Aucune tâche trouvée pour "${keywordSearch}"` :
-                   filterUser !== 'all' && filterClient === 'all' ? 'Aucune tâche assignée à cet utilisateur' :
-                   filterUser === 'all' && filterClient !== 'all' ? 'Aucune tâche pour ce client' :
-                   'Aucune tâche assignée à cet utilisateur pour ce client')
-                : (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucun élément créé' : 
-                   keywordSearch ? `Aucun élément trouvé pour "${keywordSearch}"` :
-                   filterUser !== 'all' && filterClient === 'all' ? 'Aucun élément assigné à cet utilisateur' :
-                   filterUser === 'all' && filterClient !== 'all' ? 'Aucun élément pour ce client' :
-                   'Aucun élément assigné à cet utilisateur pour ce client')
-              }
-            </div>
+          <div className="text-center py-8">
+            {/* Message spécial pour les nouveaux utilisateurs sans tâches */}
+            {filterUser === 'all' && filterClient === 'all' && !keywordSearch && allFilteredTasks.length === 0 ? (
+              <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 border-2 border-green-200 shadow-lg">
+                <div className="text-6xl mb-4">🎉</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                  Félicitations {currentUser?.prenom || 'Utilisateur'} !
+                </h3>
+                <p className="text-lg text-gray-600 mb-4">
+                  Vous êtes à jour ! Aucune tâche en attente pour le moment.
+                </p>
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-green-100">
+                  <p className="text-gray-700 font-medium mb-2">
+                    💡 <strong>Concentrez-vous sur :</strong>
+                  </p>
+                  <ul className="text-left text-gray-600 space-y-1">
+                    <li>• Analyser les performances clients</li>
+                    <li>• Préparer vos prochaines visites</li>
+                    <li>• Mettre à jour les informations clients</li>
+                    <li>• Explorer les données avec Maurice</li>
+                  </ul>
+                </div>
+                <div className="mt-4 text-sm text-gray-500">
+                  Les nouvelles tâches apparaîtront ici automatiquement
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-500">
+                <div className="text-4xl mb-2">📝</div>
+                <div>
+                  {filterType === 'notes' 
+                    ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune note créée' : 
+                       keywordSearch ? `Aucune note trouvée pour "${keywordSearch}"` :
+                       filterUser !== 'all' && filterClient === 'all' ? 'Aucune note assignée à cet utilisateur' :
+                       filterUser === 'all' && filterClient !== 'all' ? 'Aucune note pour ce client' :
+                       'Aucune note assignée à cet utilisateur pour ce client')
+                    : filterType === 'tasks'
+                    ? (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucune tâche créée' : 
+                       keywordSearch ? `Aucune tâche trouvée pour "${keywordSearch}"` :
+                       filterUser !== 'all' && filterClient === 'all' ? 'Aucune tâche assignée à cet utilisateur' :
+                       filterUser === 'all' && filterClient !== 'all' ? 'Aucune tâche pour ce client' :
+                       'Aucune tâche assignée à cet utilisateur pour ce client')
+                    : (filterUser === 'all' && filterClient === 'all' && !keywordSearch ? 'Aucun élément créé' : 
+                       keywordSearch ? `Aucun élément trouvé pour "${keywordSearch}"` :
+                       filterUser !== 'all' && filterClient === 'all' ? 'Aucun élément assigné à cet utilisateur' :
+                       filterUser === 'all' && filterClient !== 'all' ? 'Aucun élément pour ce client' :
+                       'Aucun élément assigné à cet utilisateur pour ce client')
+                  }
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           filteredTasks.map(task => (

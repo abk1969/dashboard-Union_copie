@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { TodoTask } from '../types';
-import { fetchTasks, fetchUsers } from '../config/supabase-users';
-import { useUser } from '../contexts/UserContext';
+import { fetchTasks } from '../config/supabase-users';
 import UserPhotoUpload from './UserPhotoUpload';
+import { getCurrentWeather } from '../services/weatherService';
+import { getMauriceData } from '../services/gmailService';
+import MauriceTyping from './MauriceTyping';
+import GoogleAuthButton from './GoogleAuthButton';
+import CalendarWidget from './CalendarWidget';
 
 // Service pour générer des messages motivants avec l'IA
 const generateMotivationalMessage = async (): Promise<string> => {
@@ -59,18 +63,37 @@ interface OnboardingPageProps {
   userName: string;
   userEmail: string;
   onSkip?: () => void;
+  onNavigateToNotes?: () => void;
+  onNavigateToReports?: () => void;
+  onNavigateToDashboard?: () => void;
 }
 
-const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, onSkip }) => {
+const OnboardingPage: React.FC<OnboardingPageProps> = ({ 
+  userName, 
+  userEmail, 
+  onSkip, 
+  onNavigateToNotes, 
+  onNavigateToReports, 
+  onNavigateToDashboard 
+}) => {
   const [currentDate, setCurrentDate] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<string>('');
   const [temperature, setTemperature] = useState<number | null>(null);
   const [weatherIcon, setWeatherIcon] = useState<string>('☀️');
+  const [weatherDescription, setWeatherDescription] = useState<string>('');
+  const [weatherCity, setWeatherCity] = useState<string>('');
+  const [weatherLoading, setWeatherLoading] = useState<boolean>(true);
   const [recentTasks, setRecentTasks] = useState<TodoTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [motivationalMessage, setMotivationalMessage] = useState<string>('');
   const [teamMessage, setTeamMessage] = useState<string>('');
   const [morningRitual, setMorningRitual] = useState<string>('');
+  
+  // États pour Maurice
+  const [mauriceMessage, setMauriceMessage] = useState<string>('');
+  const [mauriceLoading, setMauriceLoading] = useState<boolean>(true);
+  const [googleAuthenticated, setGoogleAuthenticated] = useState<boolean>(false);
+  const [mauriceData, setMauriceData] = useState<any>(null);
 
   // Mise à jour de la date et heure
   useEffect(() => {
@@ -97,31 +120,116 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
     return () => clearInterval(interval);
   }, []);
 
-  // Simulation de la météo avec messages bienveillants
+  // Chargement de la météo réelle
   useEffect(() => {
-    const getWeather = () => {
-      const hour = new Date().getHours();
-      if (hour >= 6 && hour < 12) {
-        setWeatherIcon('🌅');
-        setTemperature(18 + Math.floor(Math.random() * 8));
-        setMorningRitual('☕ Prenez le temps de savourer votre boisson matinale');
-      } else if (hour >= 12 && hour < 18) {
-        setWeatherIcon('☀️');
-        setTemperature(22 + Math.floor(Math.random() * 10));
-        setMorningRitual('🌱 Un moment de respiration profonde pour recharger vos énergies');
-      } else if (hour >= 18 && hour < 22) {
-        setWeatherIcon('🌇');
-        setTemperature(16 + Math.floor(Math.random() * 6));
-        setMorningRitual('🌸 Célébrez les petites victoires de cette belle journée');
-      } else {
-        setWeatherIcon('🌙');
-        setTemperature(12 + Math.floor(Math.random() * 4));
-        setMorningRitual('🌙 Un moment de gratitude avant de vous reposer');
+    const loadWeather = async () => {
+      try {
+        setWeatherLoading(true);
+        const weatherData = await getCurrentWeather();
+        
+        if (weatherData) {
+          setTemperature(weatherData.temperature);
+          setWeatherIcon(weatherData.icon);
+          setWeatherDescription(weatherData.description);
+          setWeatherCity(weatherData.city);
+          
+          // Messages rituels selon l'heure et la météo
+          const hour = new Date().getHours();
+          if (hour >= 6 && hour < 12) {
+            setMorningRitual('☕ Prenez le temps de savourer votre boisson matinale');
+          } else if (hour >= 12 && hour < 18) {
+            setMorningRitual('🌱 Un moment de respiration profonde pour recharger vos énergies');
+          } else if (hour >= 18 && hour < 22) {
+            setMorningRitual('🌸 Célébrez les petites victoires de cette belle journée');
+          } else {
+            setMorningRitual('🌙 Un moment de gratitude avant de vous reposer');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement météo:', error);
+        // Fallback vers simulation en cas d'erreur
+        const hour = new Date().getHours();
+        if (hour >= 6 && hour < 12) {
+          setWeatherIcon('🌅');
+          setTemperature(18 + Math.floor(Math.random() * 8));
+        } else if (hour >= 12 && hour < 18) {
+          setWeatherIcon('☀️');
+          setTemperature(22 + Math.floor(Math.random() * 10));
+        } else if (hour >= 18 && hour < 22) {
+          setWeatherIcon('🌇');
+          setTemperature(16 + Math.floor(Math.random() * 6));
+        } else {
+          setWeatherIcon('🌙');
+          setTemperature(12 + Math.floor(Math.random() * 4));
+        }
+        setWeatherDescription('Données simulées');
+        setWeatherCity('Votre ville');
+      } finally {
+        setWeatherLoading(false);
       }
     };
 
-    getWeather();
+    loadWeather();
   }, []);
+
+  // Charger les données de Maurice
+  useEffect(() => {
+    const loadMauriceData = async () => {
+      try {
+        setMauriceLoading(true);
+        const mauriceData = await getMauriceData(userEmail);
+        
+        if (mauriceData) {
+          setMauriceData(mauriceData);
+          setMauriceMessage(mauriceData.personalizedMessage);
+          // Vérifier si c'est des données Google ou simulées
+          const isGoogleData = mauriceData.personalizedMessage.includes('demo') || 
+                              mauriceData.personalizedMessage.includes('simulé');
+          setGoogleAuthenticated(!isGoogleData);
+          console.log('🤖 Message Maurice généré:', mauriceData.personalizedMessage);
+          console.log('🔍 Données Google:', !isGoogleData);
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement Maurice:', error);
+        setMauriceMessage('Bonjour ! 👋\n\n🤖 Maurice est en train de se préparer...\n\nVoulez-vous que je vous aide avec vos tâches ?');
+        setGoogleAuthenticated(false);
+      } finally {
+        setMauriceLoading(false);
+      }
+    };
+
+    loadMauriceData();
+  }, [userEmail]);
+
+  // Gérer la réussite de l'authentification Google
+  const handleGoogleAuthSuccess = () => {
+    setGoogleAuthenticated(true);
+    // Recharger les données de Maurice avec les vraies données Google
+    const loadMauriceData = async () => {
+      try {
+        setMauriceLoading(true);
+        const mauriceData = await getMauriceData(userEmail);
+        
+        if (mauriceData) {
+          setMauriceData(mauriceData);
+          setMauriceMessage(mauriceData.personalizedMessage);
+          console.log('🤖 Message Maurice généré avec données Google:', mauriceData.personalizedMessage);
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement Maurice après auth Google:', error);
+      } finally {
+        setMauriceLoading(false);
+      }
+    };
+
+    loadMauriceData();
+  };
+
+  // Gérer l'erreur d'authentification Google
+  const handleGoogleAuthError = (error: string) => {
+    console.error('❌ Erreur authentification Google:', error);
+    setGoogleAuthenticated(false);
+  };
 
   // Charger les messages inspirants
   useEffect(() => {
@@ -210,25 +318,6 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
     loadRecentTasks();
   }, [userEmail]);
 
-  const getTaskPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getTaskStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return '✅';
-      case 'in_progress': return '🔄';
-      case 'pending': return '⏳';
-      case 'cancelled': return '❌';
-      default: return '📋';
-    }
-  };
 
   if (loading) {
     return (
@@ -297,11 +386,20 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
             </div>
             <div className="flex items-center gap-6">
               <div className="text-center animate-float">
-                <div className="text-7xl mb-2 filter drop-shadow-lg">{weatherIcon}</div>
+                <div className="text-7xl mb-2 filter drop-shadow-lg">
+                  {weatherLoading ? '⏳' : weatherIcon}
+                </div>
                 <p className="text-3xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-teal-600">
-                  {temperature}°C
+                  {weatherLoading ? '...' : `${temperature}°C`}
                 </p>
-                <p className="text-sm text-gray-500 font-light">Douceur du jour</p>
+                <p className="text-sm text-gray-500 font-light">
+                  {weatherLoading ? 'Chargement...' : weatherDescription}
+                </p>
+                {weatherCity && weatherCity !== 'Votre ville' && (
+                  <p className="text-xs text-gray-400 font-light mt-1">
+                    📍 {weatherCity}
+                  </p>
+                )}
               </div>
               {onSkip && (
                 <button
@@ -320,104 +418,55 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Vos dernières tâches */}
+          {/* Maurice au centre */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center mb-6">
-                <div className="text-3xl mr-3">📋</div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Vos dernières tâches
-                </h2>
+            {/* Widget Maurice - Message personnalisé */}
+            {!mauriceLoading && mauriceMessage && (
+              <MauriceTyping 
+                message={mauriceMessage}
+                onComplete={() => {}}
+                speed={30}
+              />
+            )}
+
+            {/* Bouton d'authentification Google si pas connecté */}
+            {!googleAuthenticated && (
+              <div className="mt-6">
+                <GoogleAuthButton 
+                  onAuthSuccess={handleGoogleAuthSuccess}
+                  onAuthError={handleGoogleAuthError}
+                />
               </div>
-              
-              {recentTasks.length > 0 ? (
-                <div className="space-y-4">
-                  {recentTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-2xl">
-                              {getTaskStatusIcon(task.status)}
-                            </span>
-                            <h3 className="text-lg font-semibold text-gray-900">
-                              {task.title}
-                            </h3>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getTaskPriorityColor(task.priority)}`}>
-                              {task.priority.toUpperCase()}
-                            </span>
-                          </div>
-                          
-                          {task.description && (
-                            <p className="text-gray-600 mb-2">{task.description}</p>
-                          )}
-                          
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span>🏢 {task.clientCode}</span>
-                            <span>📅 {new Date(task.createdAt).toLocaleDateString('fr-FR')}</span>
-                            {task.dueDate && (
-                              <span>⏰ Échéance: {new Date(task.dueDate).toLocaleDateString('fr-FR')}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">🎉</div>
-                  <p className="text-xl text-gray-600">
-                    Aucune tâche assignée pour le moment !
-                  </p>
-                  <p className="text-gray-500 mt-2">
-                    Profitez de votre journée libre.
-                  </p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Widgets latéraux */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             
-            {/* Widget météo détaillé */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <div className="flex items-center mb-4">
-                <div className="text-3xl mr-3">{weatherIcon}</div>
-                <h3 className="text-xl font-bold text-gray-900">Météo</h3>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600 mb-2">
-                  {temperature}°C
-                </div>
-                <p className="text-gray-600">
-                  {new Date().getHours() >= 6 && new Date().getHours() < 12 ? 'Matin ensoleillé' :
-                   new Date().getHours() >= 12 && new Date().getHours() < 18 ? 'Après-midi chaud' :
-                   new Date().getHours() >= 18 && new Date().getHours() < 22 ? 'Soirée agréable' : 'Nuit fraîche'}
-                </p>
-              </div>
-            </div>
+            {/* Widget Calendrier */}
+            {googleAuthenticated && mauriceData && (
+              <CalendarWidget 
+                meetings={mauriceData.upcomingMeetings}
+                isLoading={mauriceLoading}
+              />
+            )}
 
-            {/* Widget statistiques rapides */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">📊 Aperçu</h3>
-              <div className="space-y-3">
+            {/* Widget statistiques rapides - plus compact */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">📊 Aperçu</h3>
+              <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Tâches totales</span>
+                  <span className="text-gray-600 text-sm">Tâches</span>
                   <span className="font-semibold text-blue-600">{recentTasks.length}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">En cours</span>
+                  <span className="text-gray-600 text-sm">En cours</span>
                   <span className="font-semibold text-orange-600">
                     {recentTasks.filter(t => t.status === 'in_progress').length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Terminées</span>
+                  <span className="text-gray-600 text-sm">Terminées</span>
                   <span className="font-semibold text-green-600">
                     {recentTasks.filter(t => t.status === 'completed').length}
                   </span>
@@ -425,18 +474,45 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({ userName, userEmail, on
               </div>
             </div>
 
-            {/* Widget actions rapides */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">⚡ Actions rapides</h3>
-              <div className="space-y-3">
-                <button className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
-                  📝 Nouvelle tâche
+            {/* Widget actions rapides - plus compact */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h3 className="text-lg font-bold text-gray-900 mb-3">⚡ Actions</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={onNavigateToNotes}
+                  className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                >
+                  📝 Notes
                 </button>
-                <button className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors">
-                  📊 Voir le tableau de bord
+                <button 
+                  onClick={onNavigateToDashboard}
+                  className="w-full bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                >
+                  📊 Tableau de bord
                 </button>
-                <button className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors">
-                  👥 Gérer les utilisateurs
+                <button 
+                  onClick={onNavigateToReports}
+                  className="w-full bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                >
+                  📋 Rapports
+                </button>
+              </div>
+            </div>
+
+            {/* Debug : Forcer l'affichage du bouton Google */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-yellow-800 mb-2">
+                  🔧 Debug Google Auth
+                </h3>
+                <p className="text-yellow-700 text-xs mb-2">
+                  État: {googleAuthenticated ? 'Connecté' : 'Non connecté'}
+                </p>
+                <button
+                  onClick={() => setGoogleAuthenticated(false)}
+                  className="px-3 py-1 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-xs"
+                >
+                  Forcer l'affichage
                 </button>
               </div>
             </div>

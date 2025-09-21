@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
 import { RegionProvider, useRegion, extractUniqueRegions, filterDataByRegion } from './contexts/RegionContext';
 import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUtils';
@@ -29,6 +29,8 @@ import RealLoginPage from './components/RealLoginPage';
 import OnboardingPage from './components/OnboardingPage';
 import UserPhotoUpload from './components/UserPhotoUpload';
 import UserProfileModal from './components/UserProfileModal';
+import GoogleCallback from './pages/GoogleCallback';
+import { handleGoogleCallback } from './services/googleAuthService';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -299,6 +301,45 @@ function MainApp() {
 
 
 
+  // L'onboarding se ferme seulement quand l'utilisateur clique sur "Continuer" ou "Passer"
+  // Pas de fermeture automatique après connexion
+
+  // Effet pour s'assurer que l'onboarding s'affiche à chaque rafraîchissement
+  useEffect(() => {
+    // Réinitialiser l'onboarding à chaque chargement de page
+    setShowStartup(true);
+  }, []);
+
+  // Effet pour gérer la navigation depuis l'onboarding
+  useEffect(() => {
+    const handleNavigateToNotes = () => {
+      setActiveTab('todo');
+      setShowStartup(false);
+    };
+
+    const handleNavigateToReports = () => {
+      setActiveTab('groupeClients');
+      setShowStartup(false);
+    };
+
+    const handleNavigateToDashboard = () => {
+      setActiveTab('adherents');
+      setShowStartup(false);
+    };
+
+    // Écouter les événements de navigation
+    window.addEventListener('navigateToNotes', handleNavigateToNotes);
+    window.addEventListener('navigateToReports', handleNavigateToReports);
+    window.addEventListener('navigateToDashboard', handleNavigateToDashboard);
+
+    // Nettoyer les écouteurs
+    return () => {
+      window.removeEventListener('navigateToNotes', handleNavigateToNotes);
+      window.removeEventListener('navigateToReports', handleNavigateToReports);
+      window.removeEventListener('navigateToDashboard', handleNavigateToDashboard);
+    };
+  }, []);
+
   // Effet pour gérer le chargement de la page
   useEffect(() => {
     if (!showStartup) {
@@ -457,93 +498,98 @@ function MainApp() {
           </div>
         </header>
 
-        {/* Navigation - Desktop seulement */}
-        <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex space-x-4">
-            <button
-              onClick={() => setActiveTab('adherents')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                activeTab === 'adherents'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-blue-50 border border-gray-200 hover:border-blue-300'
-              }`}
-            >
-              👥 Adhérents
-            </button>
-            <button
-              onClick={() => setActiveTab('fournisseurs')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                activeTab === 'fournisseurs'
-                  ? 'bg-green-600 text-white shadow-lg'
-                  : 'bg-white text-gray-700 hover:bg-green-50 border border-gray-200 hover:border-green-300'
-              }`}
-            >
-              🏢 Fournisseurs
-            </button>
-                         <button
-               onClick={() => setActiveTab('marques')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'marques'
-                   ? 'bg-orange-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-orange-50 border border-gray-200 hover:border-orange-300'
-               }`}
-             >
-               🏷️ Marques
-             </button>
-             <button
-               onClick={() => setActiveTab('groupeClients')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'groupeClients'
-                   ? 'bg-indigo-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300'
-               }`}
-             >
-               👥 Groupe Clients
-             </button>
-                         <button
-               onClick={() => setActiveTab('import')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'import'
-                   ? 'bg-red-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-red-50 border border-gray-200 hover:border-red-300'
-               }`}
-             >
-               📥 Import
-             </button>
-             
-             <button
-               onClick={() => setActiveTab('todo')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'todo'
-                   ? 'bg-purple-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-purple-50 border border-gray-200 hover:border-purple-300'
-               }`}
-             >
-               📋 To-Do List
-             </button>
-             
-             <button
-               onClick={() => setActiveTab('users')}
-               className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                 activeTab === 'users'
-                   ? 'bg-indigo-600 text-white shadow-lg'
-                   : 'bg-white text-gray-700 hover:bg-indigo-50 border border-gray-200 hover:border-indigo-300'
-               }`}
-             >
-               👥 Utilisateurs
-             </button>
+        {/* Navigation - Desktop seulement - Style compact et coloré */}
+        <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex justify-between items-center mb-3">
+            {/* Onglets principaux - Style compact */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActiveTab('adherents')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'adherents'
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl shadow-blue-200'
+                    : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200 hover:from-blue-100 hover:to-blue-200 hover:border-blue-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">👥</span>Adhérents
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('fournisseurs')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'fournisseurs'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl shadow-green-200'
+                    : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200 hover:from-green-100 hover:to-green-200 hover:border-green-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">🏢</span>Fournisseurs
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('marques')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'marques'
+                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-200'
+                    : 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border border-orange-200 hover:from-orange-100 hover:to-orange-200 hover:border-orange-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">🏷️</span>Marques
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('groupeClients')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'groupeClients'
+                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-xl shadow-indigo-200'
+                    : 'bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border border-indigo-200 hover:from-indigo-100 hover:to-indigo-200 hover:border-indigo-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">👥</span>Clients
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('import')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'import'
+                    ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-xl shadow-red-200'
+                    : 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 hover:from-red-100 hover:to-red-200 hover:border-red-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">📥</span>Import
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('todo')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'todo'
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl shadow-purple-200'
+                    : 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border border-purple-200 hover:from-purple-100 hover:to-purple-200 hover:border-purple-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">📋</span>To-Do
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'users'
+                    ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-xl shadow-teal-200'
+                    : 'bg-gradient-to-r from-teal-50 to-teal-100 text-teal-700 border border-teal-200 hover:from-teal-100 hover:to-teal-200 hover:border-teal-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">👥</span>Utilisateurs
+              </button>
             </div>
             
-            {/* Bouton de profil utilisateur */}
-            <div className="flex items-center space-x-3">
+            {/* Bouton de profil utilisateur intégré */}
+            <div className="ml-2">
               <button
                 onClick={() => setShowUserProfile(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg"
                 title="Mon profil"
               >
                 <UserPhotoUpload size="sm" showUploadButton={false} />
-                <span className="text-sm font-medium">Mon Profil</span>
+                <span className="text-sm font-semibold">Profil</span>
               </button>
             </div>
             
@@ -1123,9 +1169,34 @@ function MainApp() {
 
 // Composant App wrapper avec UserProvider et PlatformProvider
 function App() {
+  // Fonctions de navigation pour l'onboarding
+  const handleNavigateToNotes = useCallback(() => {
+    // Ces fonctions seront passées à MainApp via un contexte ou des props
+    window.dispatchEvent(new CustomEvent('navigateToNotes'));
+  }, []);
+
+  const handleNavigateToReports = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('navigateToReports'));
+  }, []);
+
+  const handleNavigateToDashboard = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('navigateToDashboard'));
+  }, []);
+
+  // Vérifier si nous sommes sur la page de callback Google
+  const isGoogleCallback = window.location.pathname === '/auth/callback';
+
+  if (isGoogleCallback) {
+    return <GoogleCallback />;
+  }
+
   return (
     <UserProvider>
-      <ProtectedRoute>
+      <ProtectedRoute 
+        onNavigateToNotes={handleNavigateToNotes}
+        onNavigateToReports={handleNavigateToReports}
+        onNavigateToDashboard={handleNavigateToDashboard}
+      >
         <PlatformProvider>
           <RegionProvider>
             <MainApp />

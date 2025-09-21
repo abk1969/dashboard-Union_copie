@@ -12,6 +12,7 @@ export interface User {
   derniereConnexion?: string;
   plateformesAutorisees: string[]; // ['acr', 'dca', 'exadis', 'alliance']
   regionCommerciale?: string;
+  isGoogleAuthenticated?: boolean; // Indique si l'utilisateur s'est connecté via Google
 }
 
 export interface UserTask {

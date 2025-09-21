@@ -309,3 +309,37 @@ export interface TaskAssignment {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   category: string;
 }
+
+// Google Calendar and Gmail Interfaces
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime?: string;
+  location?: string;
+  description?: string;
+  attendees?: string[];
+  isAllDay?: boolean;
+}
+
+export interface GmailMessage {
+  id: string;
+  subject: string;
+  from: string;
+  to: string;
+  date: string;
+  snippet: string;
+  priority: 'low' | 'medium' | 'high';
+  isRead: boolean;
+  labels?: string[];
+}
+
+export interface MauriceData {
+  upcomingMeetings: CalendarEvent[];
+  importantEmails: GmailMessage[];
+  clientAnalysis: any[];
+  personalizedMessage: string;
+  recommendations: string[];
+  alerts: string[];
+  priorities: string[];
+}

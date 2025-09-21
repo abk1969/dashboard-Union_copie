@@ -23,7 +23,16 @@ const UserPhotoUpload: React.FC<UserPhotoUploadProps> = ({
   useEffect(() => {
     const loadUserPhoto = async () => {
       if (currentUser?.id) {
-        const result = await getUserPhoto(currentUser.id);
+        console.log('🔍 UserPhotoUpload - ID utilisateur:', currentUser.id);
+        
+        // Vérifier si l'ID est un UUID valide
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(currentUser.id)) {
+          console.warn('⚠️ ID utilisateur invalide pour Supabase:', currentUser.id);
+          return;
+        }
+        
+        const result = await getUserPhoto(currentUser.id, currentUser.email);
         if (result.success && result.photoUrl) {
           setPhotoUrl(result.photoUrl);
         }
@@ -41,6 +50,14 @@ const UserPhotoUpload: React.FC<UserPhotoUploadProps> = ({
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !currentUser?.id) return;
+
+    // Vérifier si l'ID est un UUID valide
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(currentUser.id)) {
+      console.warn('⚠️ ID utilisateur invalide pour Supabase:', currentUser.id);
+      alert('Erreur: ID utilisateur invalide. Veuillez vous reconnecter.');
+      return;
+    }
 
     // Vérifier le type de fichier
     if (!file.type.startsWith('image/')) {
@@ -65,7 +82,7 @@ const UserPhotoUpload: React.FC<UserPhotoUploadProps> = ({
     // Upload vers Supabase
     setIsUploading(true);
     try {
-      const result = await uploadUserPhoto(currentUser.id, file);
+      const result = await uploadUserPhoto(currentUser.id, file, currentUser);
       
       if (result.success && result.photoUrl) {
         setPhotoUrl(result.photoUrl);

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/user';
 import { simpleLogin, validateSession, simpleLogout } from '../config/simple-auth';
+import { UserService } from '../services/userService';
 
 interface UserContextType {
   currentUser: User | null;
@@ -70,6 +71,34 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
+  // Fonction pour normaliser l'utilisateur avec le service centralisé
+  const normalizeUser = async (user: User): Promise<User> => {
+    try {
+      // Utiliser le service centralisé pour s'assurer de la cohérence
+      const result = await UserService.getOrCreateUser({
+        email: user.email,
+        nom: user.nom,
+        prenom: user.prenom,
+        roles: user.roles,
+        isGoogleAuthenticated: user.isGoogleAuthenticated,
+        googleId: (user as any).googleId,
+        avatarUrl: user.avatarUrl
+      });
+
+      if (result.success && result.user) {
+        console.log('✅ Utilisateur normalisé:', result.user.email);
+        return result.user;
+      }
+
+      // En cas d'erreur, retourner l'utilisateur original
+      console.warn('⚠️ Erreur normalisation utilisateur, utilisation des données originales');
+      return user;
+    } catch (error) {
+      console.error('❌ Erreur normalisation utilisateur:', error);
+      return user;
+    }
+  };
+
   // Charger l'utilisateur depuis la session au démarrage
   useEffect(() => {
     const loadUser = async () => {
@@ -81,8 +110,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           console.log('Aucune session valide:', error);
           localStorage.removeItem('currentUser');
         } else if (user) {
-          setCurrentUser(user);
-          localStorage.setItem('currentUser', JSON.stringify(user));
+          // Normaliser l'utilisateur avec le service centralisé
+          const normalizedUser = await normalizeUser(user);
+          setCurrentUser(normalizedUser);
+          localStorage.setItem('currentUser', JSON.stringify(normalizedUser));
         }
       } catch (error) {
         console.error('Erreur lors du chargement de l\'utilisateur:', error);

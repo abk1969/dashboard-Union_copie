@@ -1,6 +1,7 @@
 // Système d'authentification simple avec email/mot de passe
 import { supabase } from './supabase';
 import { User } from '../types/user';
+import { generateUUIDFromEmail } from '../utils/uuidGenerator';
 
 export interface LoginResponse {
   success: boolean;
@@ -67,7 +68,7 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
       
       // Convertir les données Supabase vers notre interface User
       const user: User = {
-        id: data.id,
+        id: generateUUIDFromEmail(data.email), // Utiliser l'UUID généré au lieu de l'ID Supabase
         email: data.email,
         nom: data.nom,
         prenom: data.prenom,
@@ -78,7 +79,8 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
         dateCreation: data.date_creation,
         derniereConnexion: data.derniere_connexion,
         plateformesAutorisees: data.plateformes_autorisees || [],
-        regionCommerciale: data.region_commerciale || ''
+        regionCommerciale: data.region_commerciale || '',
+        isGoogleAuthenticated: false // Marquer comme non-Google pour éviter la confusion
       };
 
       // Mettre à jour la dernière connexion
