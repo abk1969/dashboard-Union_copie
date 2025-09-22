@@ -611,7 +611,15 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
             
 
             {/* Widget Calendrier */}
-            {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
+            {(() => {
+              console.log('🔍 Debug Agenda:', {
+                googleAuthenticated,
+                hasMauriceData: !!mauriceData,
+                hasUpcomingMeetings: !!(mauriceData && mauriceData.upcomingMeetings),
+                upcomingMeetingsLength: mauriceData?.upcomingMeetings?.length || 0
+              });
+              return googleAuthenticated && mauriceData && mauriceData.upcomingMeetings;
+            })() && (
               <div className="bg-white rounded-lg shadow-md p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -736,6 +744,36 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   className="px-3 py-1 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-xs"
                 >
                   Forcer l'affichage
+                </button>
+              </div>
+            </div>
+
+            {/* Debug : État de l'agenda */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-blue-800 mb-2">
+                  📅 Debug Agenda
+                </h3>
+                <p className="text-blue-700 text-xs mb-1">
+                  Google: {googleAuthenticated ? '✅' : '❌'}
+                </p>
+                <p className="text-blue-700 text-xs mb-1">
+                  Maurice: {mauriceData ? '✅' : '❌'}
+                </p>
+                <p className="text-blue-700 text-xs mb-1">
+                  Rendez-vous: {mauriceData?.upcomingMeetings?.length || 0}
+                </p>
+                <button
+                  onClick={() => {
+                    console.log('🔍 Debug complet:', {
+                      googleAuthenticated,
+                      mauriceData,
+                      upcomingMeetings: mauriceData?.upcomingMeetings
+                    });
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                >
+                  Log Debug
                 </button>
               </div>
             </div>
