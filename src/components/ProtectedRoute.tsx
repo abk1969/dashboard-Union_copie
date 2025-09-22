@@ -30,17 +30,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     });
     
     if (isAuthenticated && currentUser) {
-      // Nettoyer les anciennes clés de localStorage (migration)
-      const userOnboardingKey = `lastLogin_${currentUser.email}`;
-      localStorage.removeItem(userOnboardingKey);
-      localStorage.removeItem('lastLogin'); // Ancienne clé globale
-      
-      // Reset onboardingSkipped pour forcer l'affichage
-      setOnboardingSkipped(false);
-      
       // Afficher l'onboarding à chaque connexion
-      console.log('✅ Affichage de l\'onboarding');
+      console.log('✅ Utilisateur connecté - Affichage de l\'onboarding');
       setShowOnboarding(true);
+      
+      // Mettre à jour la date de dernière connexion
+      const today = new Date().toDateString();
+      localStorage.setItem('lastLogin', today);
     }
   }, [isAuthenticated, currentUser]);
 

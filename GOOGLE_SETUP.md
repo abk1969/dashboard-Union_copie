@@ -57,3 +57,4 @@ REACT_APP_OPENWEATHER_API_KEY=59669f7beccc7682c93733bb0e92754c
 - Recommandations personnalisées
 - Alertes intelligentes
 - Priorités du jour
+

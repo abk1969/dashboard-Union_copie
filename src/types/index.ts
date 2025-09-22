@@ -343,3 +343,86 @@ export interface MauriceData {
   alerts: string[];
   priorities: string[];
 }
+
+// Interfaces pour les données clients étendues (Import Excel)
+export interface ClientInfo {
+  codeUnion: string;
+  nomClient: string;
+  groupe: string;
+  contactMagasin: string;
+  adresse: string;
+  codePostal: string;
+  ville: string;
+  telephone: string;
+  contactResponsablePDV?: string;
+  mail: string;
+  sirenSiret: string;
+  agentUnion: string;
+  mailAgent: string;
+  // Coordonnées géographiques (calculées)
+  latitude?: number;
+  longitude?: number;
+  // Métadonnées
+  dateImport?: Date;
+  statut?: 'actif' | 'inactif' | 'suspendu';
+  notes?: string;
+}
+
+export interface CommercialUnion {
+  nom: string;
+  email: string;
+  region: string;
+  clients: string[]; // codes Union des clients
+  caTotal: number;
+  ca2024: number;
+  ca2025: number;
+  progression: number;
+  nombreClients: number;
+  statut: 'actif' | 'inactif';
+  dateCreation: Date;
+  derniereActivite?: Date;
+}
+
+export interface ClientLocation {
+  codeUnion: string;
+  nomClient: string;
+  adresse: string;
+  ville: string;
+  codePostal: string;
+  latitude: number;
+  longitude: number;
+  commercial: string;
+  ca2025: number;
+  groupe: string;
+}
+
+export interface CommercialStats {
+  commercial: string;
+  region: string;
+  nombreClients: number;
+  caTotal: number;
+  ca2024: number;
+  ca2025: number;
+  progression: number;
+  clients: {
+    codeUnion: string;
+    nomClient: string;
+    ca2025: number;
+    ville: string;
+  }[];
+  topClients: {
+    codeUnion: string;
+    nomClient: string;
+    ca2025: number;
+  }[];
+}
+
+export interface ExcelImportResult {
+  success: boolean;
+  clientsImported: number;
+  clientsUpdated: number;
+  errors: string[];
+  warnings: string[];
+  data: ClientInfo[];
+  commercials: CommercialUnion[];
+}

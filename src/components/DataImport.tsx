@@ -26,6 +26,25 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     ca: 12                   // Colonne 12 : CA (€) - CORRECT !
   });
   const [pushToSupabase, setPushToSupabase] = useState(false);
+  const [showExcelImport, setShowExcelImport] = useState(false);
+  const [showImportedClients, setShowImportedClients] = useState(false);
+  const [ExcelClientImport, setExcelClientImport] = useState<React.ComponentType<any> | null>(null);
+  const [ImportedClientsList, setImportedClientsList] = useState<React.ComponentType<any> | null>(null);
+
+  // Charger les composants dynamiquement
+  React.useEffect(() => {
+    const loadComponents = async () => {
+      try {
+        const { ExcelClientImport: ExcelImport } = await import('./ExcelClientImport');
+        const { ImportedClientsList: ClientsList } = await import('./ImportedClientsList');
+        setExcelClientImport(() => ExcelImport);
+        setImportedClientsList(() => ClientsList);
+      } catch (error) {
+        console.error('Erreur lors du chargement des composants:', error);
+      }
+    };
+    loadComponents();
+  }, []);
 
   // Fonction pour pousser les données vers Supabase
   const pushDataToSupabase = async (data: AdherentData[]) => {
@@ -406,6 +425,35 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
         </div>
       </div>
 
+      {/* Boutons d'import spécialisés */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-4">
+          {ExcelClientImport && (
+            <button
+              onClick={() => setShowExcelImport(true)}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-colors font-medium shadow-md"
+            >
+              <span className="text-xl mr-2">👤</span>
+              Import Données Clients (Excel)
+            </button>
+          )}
+          
+          {ImportedClientsList && (
+            <button
+              onClick={() => setShowImportedClients(true)}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-colors font-medium shadow-md"
+            >
+              <span className="text-xl mr-2">📋</span>
+              Voir Clients Importés
+            </button>
+          )}
+          <div className="text-sm text-gray-600 flex items-center">
+            <span className="mr-2">📋</span>
+            Import standard CA/Adhérents ci-dessous
+          </div>
+        </div>
+      </div>
+
       {/* Zone de drop */}
       <div
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
@@ -568,6 +616,38 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             : 'bg-blue-100 text-blue-800'
         }`}>
           {importStatus}
+        </div>
+      )}
+
+      {/* Modal d'import Excel Clients */}
+      {showExcelImport && ExcelClientImport && (
+        <ExcelClientImport
+          onImportComplete={(result: any) => {
+            console.log('Import Excel Clients terminé:', result);
+            setShowExcelImport(false);
+            // TODO: Traiter les données clients importées
+          }}
+          onClose={() => setShowExcelImport(false)}
+        />
+      )}
+
+      {/* Modal Clients Importés */}
+      {showImportedClients && ImportedClientsList && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-gray-900">Clients Importés</h2>
+              <button
+                onClick={() => setShowImportedClients(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <ImportedClientsList />
+            </div>
+          </div>
         </div>
       )}
     </div>

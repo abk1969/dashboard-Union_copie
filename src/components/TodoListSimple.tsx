@@ -6,6 +6,7 @@ import UnifiedClientReport from './UnifiedClientReport';
 import { createTask, fetchTasks, deleteTask, fetchUsers } from '../config/supabase-users';
 import { toggleTaskLike, getTaskLikesCount, hasUserLikedTask, getTaskLikers } from '../config/supabase-likes';
 import { markTaskAsViewed, getTaskViewsCount, hasUserViewedTask, getTaskViewers } from '../config/supabase-views';
+import SimpleNoteForm from './SimpleNoteForm';
 import { getUserPhoto } from '../config/supabase-photos';
 import { supabase } from '../config/supabase';
 import { useUser } from '../contexts/UserContext';
@@ -13,9 +14,10 @@ import UserPhotoUpload from './UserPhotoUpload';
 
 interface TodoListSimpleProps {
   adherentData: AdherentData[];
+  autoOpenReportsForm?: boolean;
 }
 
-const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
+const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData, autoOpenReportsForm = false }) => {
   const { currentUser } = useUser();
   const [activeTab, setActiveTab] = useState<'tasks' | 'reports'>('tasks');
   const [tasks, setTasks] = useState<TodoTask[]>([]);
@@ -40,23 +42,32 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
   const [keywordSearch, setKeywordSearch] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Basculer vers l'onglet reports si autoOpenReportsForm est true
+  useEffect(() => {
+    console.log('🔍 TodoListSimple - autoOpenReportsForm:', autoOpenReportsForm);
+    if (autoOpenReportsForm) {
+      console.log('🔄 TodoListSimple - Basculement vers l\'onglet reports');
+      setActiveTab('reports');
+    }
+  }, [autoOpenReportsForm]);
   const [userPhotos, setUserPhotos] = useState<{[key: string]: string}>({});
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [emailToUserIdMap, setEmailToUserIdMap] = useState<{[key: string]: string}>({});
   const [formData, setFormData] = useState<{
     title: string;
     client: string;
-    priority: 'low' | 'medium' | 'high' | 'urgent';
     description: string;
-    category: 'prospection' | 'suivi' | 'relance' | 'commercial' | 'admin' | 'other';
     dueDate: string;
+    urgency: 'normal' | 'urgent';
+    assignedTo: string;
   }>({
     title: '',
     client: '',
-    priority: 'medium',
     description: '',
-    category: 'commercial',
-    dueDate: ''
+    dueDate: '',
+    urgency: 'normal',
+    assignedTo: ''
   });
 
   // Charger les tâches et utilisateurs depuis Supabase
@@ -778,13 +789,17 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
     e.preventDefault();
     console.log('🔍 Formulaire soumis:', formData);
     
-    if (!formData.title.trim() || !formData.client) {
+    if (!formData.title.trim() || !formData.client || !formData.assignedTo) {
       console.log('❌ Champs manquants');
+      alert('⚠️ Veuillez remplir tous les champs obligatoires (titre, client, assigné à)');
       return;
     }
 
     try {
       setLoading(true);
+      
+      // Déterminer la priorité selon l'urgence
+      const priority = formData.urgency === 'urgent' ? 'high' : 'medium';
       
       // Création réelle dans Supabase
       const newTask = await createTask({
@@ -792,19 +807,31 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         title: formData.title,
         description: formData.description,
         status: 'pending',
-        priority: formData.priority,
-        category: formData.category,
+        priority: priority,
+        category: 'other', // Catégorie pour les tâches manuelles
+        typeNote: 'TASK', // IMPORTANT: Définir le type pour le filtrage
         dueDate: formData.dueDate || undefined,
+        assignedTo: formData.assignedTo,
         auteur: currentUser?.email || 'Commercial' // Utiliser l'email de l'utilisateur connecté
       });
 
       console.log('✅ Tâche créée dans Supabase:', newTask);
-      setTasks(prev => [newTask, ...prev]);
       
-      setFormData({ title: '', client: '', priority: 'medium', description: '', category: 'commercial', dueDate: '' });
+      // Rechargement complet des tâches pour être sûr
+      await loadTasks();
+      
+      // Reset du formulaire avec valeurs par défaut
+      setFormData({ 
+        title: '', 
+        client: '', 
+        description: '', 
+        dueDate: '', 
+        urgency: 'normal',
+        assignedTo: ''
+      });
       setShowForm(false);
       
-      alert('✅ Tâche créée avec succès dans Supabase !');
+      alert('✅ Tâche créée et assignée avec succès !');
     } catch (error) {
       console.error('❌ Erreur lors de la création de la tâche:', error);
       alert(`❌ Erreur lors de la création de la tâche: ${error}`);
@@ -903,11 +930,11 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header avec onglets */}
+      {/* Header simplifié */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">📋 Gestion Client</h2>
-          <p className="text-gray-600">Gérez vos tâches, rapports de visite et projets clients</p>
+          <h2 className="text-2xl font-bold text-gray-900">📋 Tâches & Notes</h2>
+          <p className="text-gray-600">Gérez vos tâches quotidiennes et créez des rapports de visite</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -918,7 +945,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            📋 Tâches
+            📋 Mes Tâches
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -928,7 +955,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            📝 Rapports
+            📝 Créer Rapport
           </button>
         </div>
       </div>
@@ -947,7 +974,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
           disabled={loading}
         >
-          {showForm ? '❌ Annuler' : '➕ Ajouter une tâche'}
+          {showForm ? '❌ Annuler' : filterType === 'notes' ? '📝 Ajouter une note' : '➕ Ajouter une tâche'}
         </button>
         
         {/* Filtres */}
@@ -1104,7 +1131,19 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
         </div>
       </div>
 
-      {showForm && (
+      {showForm && filterType === 'notes' && (
+        <SimpleNoteForm
+          users={users}
+          adherentData={adherentData}
+          onSuccess={() => {
+            setShowForm(false);
+            loadTasks(); // Recharger les tâches
+          }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {showForm && filterType !== 'notes' && (
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <h3 className="text-lg font-semibold mb-4">Nouvelle tâche</h3>
           <form onSubmit={handleSubmit}>
@@ -1131,14 +1170,27 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
             </div>
             
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Délai (optionnel)</label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Délai</label>
+              <select
+                value={formData.dueDate ? 'custom' : formData.urgency || 'normal'}
+                onChange={(e) => {
+                  if (e.target.value === 'normal') {
+                    // Délai normal : 7 jours
+                    const normalDate = new Date();
+                    normalDate.setDate(normalDate.getDate() + 7);
+                    setFormData({...formData, dueDate: normalDate.toISOString().split('T')[0], urgency: 'normal'});
+                  } else if (e.target.value === 'urgent') {
+                    // Délai urgent : 2 jours
+                    const urgentDate = new Date();
+                    urgentDate.setDate(urgentDate.getDate() + 2);
+                    setFormData({...formData, dueDate: urgentDate.toISOString().split('T')[0], urgency: 'urgent'});
+                  }
+                }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                placeholder="Date limite"
-              />
+              >
+                <option value="normal">📅 Normal (7 jours)</option>
+                <option value="urgent">⚡ Urgent (2 jours)</option>
+              </select>
             </div>
             
             <div className="mb-4">
@@ -1187,39 +1239,23 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
             </div>
             
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Priorité</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">👤 Assigné à *</label>
               <select
-                value={formData.priority}
-                onChange={(e) => {
-                  const priority = e.target.value as 'low' | 'medium' | 'high' | 'urgent';
-                  setFormData({...formData, priority});
-                }}
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({...formData, assignedTo: e.target.value})}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                required
               >
-                <option value="low">Basse</option>
-                <option value="medium">Moyenne</option>
-                <option value="high">Haute</option>
-                <option value="urgent">Urgente</option>
+                <option value="">-- Sélectionner un membre de l'équipe --</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.email}>
+                    {user.prenom} {user.nom} ({user.email})
+                  </option>
+                ))}
               </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Catégorie</label>
-              <select
-                value={formData.category}
-                onChange={(e) => {
-                  const category = e.target.value as 'prospection' | 'suivi' | 'relance' | 'commercial' | 'admin' | 'other';
-                  setFormData({...formData, category});
-                }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
-              >
-                <option value="prospection">🔍 Prospection</option>
-                <option value="suivi">📞 Suivi</option>
-                <option value="relance">⏰ Relance</option>
-                <option value="commercial">💼 Commercial</option>
-                <option value="admin">📋 Admin</option>
-                <option value="other">📝 Autre</option>
-              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                ⚠️ Une tâche doit être assignée à un membre de l'équipe
+              </p>
             </div>
             
             <button
@@ -1534,6 +1570,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData }) => {
           users={users}
           onTaskUpdate={handleTaskUpdate}
           onTasksReload={handleTasksReload}
+          autoOpenForm={autoOpenReportsForm}
         />
       )}
 

@@ -25,12 +25,10 @@ import TodoListSimple from './components/TodoListSimple';
 import UserManagement from './components/UserManagement';
 import FloatingChatbot from './components/FloatingChatbot';
 import { UserProvider, useUser } from './contexts/UserContext';
-import RealLoginPage from './components/RealLoginPage';
-import OnboardingPage from './components/OnboardingPage';
+import { NavigationProvider, useNavigation } from './contexts/NavigationContext';
 import UserPhotoUpload from './components/UserPhotoUpload';
 import UserProfileModal from './components/UserProfileModal';
 import GoogleCallback from './pages/GoogleCallback';
-import { handleGoogleCallback } from './services/googleAuthService';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -42,12 +40,12 @@ import './styles/colors.css';
 
 function MainApp() {
   const { activePlatforms, setActivePlatforms } = usePlatform();
-  const { currentUser, isAdmin, isAuthenticated, loading: userLoading } = useUser();
+  const { currentUser, isAdmin } = useUser();
   const { selectedRegion, setAvailableRegions } = useRegion();
+  const { onNavigateToReports } = useNavigation();
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
   const [tasks, setTasks] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
   // Initialiser les plateformes autorisées au premier chargement de l'utilisateur
@@ -70,19 +68,24 @@ function MainApp() {
     }
   }, [currentUser, isAdmin, setActivePlatforms]);
 
-  // Gérer l'affichage de l'onboarding
+  // Écouter l'événement de navigation vers les rapports depuis le modal client
   useEffect(() => {
-    if (isAuthenticated && currentUser) {
-      // Vérifier si c'est la première connexion de la journée
-      const lastLogin = localStorage.getItem('lastLogin');
-      const today = new Date().toDateString();
-      
-      if (lastLogin !== today) {
-        setShowOnboarding(true);
-        localStorage.setItem('lastLogin', today);
-      }
-    }
-  }, [isAuthenticated, currentUser]);
+    const handleNavigateToReportsFromModal = () => {
+      console.log('🎯 Événement navigateToReportsFromModal reçu !');
+      console.log('🔄 Changement d\'onglet vers todo...');
+      setActiveTab('todo');
+      setShouldOpenReportsForm(true);
+    };
+
+    console.log('👂 Ajout de l\'écouteur d\'événement navigateToReportsFromModal');
+    window.addEventListener('navigateToReportsFromModal', handleNavigateToReportsFromModal);
+    return () => {
+      console.log('👂 Suppression de l\'écouteur d\'événement navigateToReportsFromModal');
+      window.removeEventListener('navigateToReportsFromModal', handleNavigateToReportsFromModal);
+    };
+  }, []);
+
+  // L'onboarding est maintenant géré par ProtectedRoute
   
   // Données filtrées selon les plateformes actives et la région
   const filteredAdherentData = useMemo(() => {
@@ -101,7 +104,30 @@ function MainApp() {
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
   const [showFournisseurModal, setShowFournisseurModal] = useState(false);
+  const [autoOpenReportsForm, setAutoOpenReportsForm] = useState(false);
+  const [shouldOpenReportsForm, setShouldOpenReportsForm] = useState(false);
   const [selectedFamille, setSelectedFamille] = useState<FamilleProduitPerformance | null>(null);
+
+  // Log pour debug de autoOpenReportsForm
+  useEffect(() => {
+    console.log('🔍 App.tsx - autoOpenReportsForm changé:', autoOpenReportsForm);
+  }, [autoOpenReportsForm]);
+
+  // Ouvrir le formulaire quand l'onglet todo est affiché et qu'on doit l'ouvrir
+  useEffect(() => {
+    if (activeTab === 'todo' && shouldOpenReportsForm) {
+      console.log('📝 Ouverture automatique du formulaire...');
+      setAutoOpenReportsForm(true);
+      setShouldOpenReportsForm(false);
+      
+      // Réinitialiser après un délai
+      setTimeout(() => {
+        console.log('🔄 Réinitialisation de autoOpenReportsForm');
+        setAutoOpenReportsForm(false);
+      }, 2000);
+    }
+  }, [activeTab, shouldOpenReportsForm]);
+
   const [showFamilleModal, setShowFamilleModal] = useState(false);
   const [showStartup, setShowStartup] = useState(true);
 
@@ -317,7 +343,7 @@ function MainApp() {
       setShowStartup(false);
     };
 
-    const handleNavigateToReports = () => {
+    const handleNavigateToReportsFromOnboarding = () => {
       setActiveTab('groupeClients');
       setShowStartup(false);
     };
@@ -329,13 +355,13 @@ function MainApp() {
 
     // Écouter les événements de navigation
     window.addEventListener('navigateToNotes', handleNavigateToNotes);
-    window.addEventListener('navigateToReports', handleNavigateToReports);
+    window.addEventListener('navigateToReports', handleNavigateToReportsFromOnboarding);
     window.addEventListener('navigateToDashboard', handleNavigateToDashboard);
 
     // Nettoyer les écouteurs
     return () => {
       window.removeEventListener('navigateToNotes', handleNavigateToNotes);
-      window.removeEventListener('navigateToReports', handleNavigateToReports);
+      window.removeEventListener('navigateToReports', handleNavigateToReportsFromOnboarding);
       window.removeEventListener('navigateToDashboard', handleNavigateToDashboard);
     };
   }, []);
@@ -578,6 +604,23 @@ function MainApp() {
                 }`}
               >
                 <span className="text-lg mr-1">👥</span>Utilisateurs
+              </button>
+              
+              {/* Séparateur */}
+              <div className="w-px h-8 bg-gray-300 mx-3"></div>
+              
+              {/* Bouton Note Rapide */}
+              <button
+                onClick={() => {
+                  setActiveTab('todo');
+                  // Ouvrir directement la note simple
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('openQuickNote'));
+                  }, 100);
+                }}
+                className="px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-700"
+              >
+                <span className="text-lg mr-1">📝</span>Note Rapide
               </button>
             </div>
             
@@ -1086,6 +1129,7 @@ function MainApp() {
              <div className="space-y-6">
                <TodoListSimple 
                  adherentData={filteredAdherentData}
+                 autoOpenReportsForm={autoOpenReportsForm}
                />
              </div>
            )}
@@ -1108,6 +1152,7 @@ function MainApp() {
           setShowClientModal(false);
           setSelectedClient(null);
         }}
+        onNavigateToReports={onNavigateToReports}
       />
 
       {/* Modal de détails fournisseur */}
@@ -1192,17 +1237,23 @@ function App() {
 
   return (
     <UserProvider>
-      <ProtectedRoute 
+      <NavigationProvider
         onNavigateToNotes={handleNavigateToNotes}
         onNavigateToReports={handleNavigateToReports}
         onNavigateToDashboard={handleNavigateToDashboard}
       >
-        <PlatformProvider>
-          <RegionProvider>
-            <MainApp />
-          </RegionProvider>
-        </PlatformProvider>
-      </ProtectedRoute>
+        <ProtectedRoute 
+          onNavigateToNotes={handleNavigateToNotes}
+          onNavigateToReports={handleNavigateToReports}
+          onNavigateToDashboard={handleNavigateToDashboard}
+        >
+          <PlatformProvider>
+            <RegionProvider>
+              <MainApp />
+            </RegionProvider>
+          </PlatformProvider>
+        </ProtectedRoute>
+      </NavigationProvider>
     </UserProvider>
   );
 }

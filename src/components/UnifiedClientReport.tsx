@@ -3,8 +3,8 @@ import { TodoTask } from '../types/index';
 import { User } from '../types/user';
 import { createTask, fetchTasks, updateTask, deleteTask, fetchUsers, createNote } from '../config/supabase-users';
 // import { fetchClientNotesByCode, createClientNote, fetchClientNotes } from '../config/supabase-notes';
-import NotesImport from './NotesImport';
 import { callOpenAI } from '../config/openai';
+import NotesImport from './NotesImport';
 
 interface ClientReport {
   id: string;
@@ -31,9 +31,10 @@ interface UnifiedClientReportProps {
   users: User[];
   onTaskUpdate: (task: TodoTask) => void;
   onTasksReload: () => void;
+  autoOpenForm?: boolean;
 }
 
-const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData, tasks, users, onTaskUpdate, onTasksReload }) => {
+const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData, tasks, users, onTaskUpdate, onTasksReload, autoOpenForm = false }) => {
   const [reports, setReports] = useState<ClientReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -46,6 +47,39 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
   const [showImport, setShowImport] = useState(false);
   const [clientNotes, setClientNotes] = useState<any[]>([]);
   const [actionAssignments, setActionAssignments] = useState<{[key: number]: string}>({});
+  
+  // État pour le type de rapport (nouveau)
+  const [reportType, setReportType] = useState<'visit' | 'note'>('visit');
+  
+  // États pour les notes simples (nouveau)
+  const [simpleNote, setSimpleNote] = useState({
+    content: '',
+    priority: 'medium' as 'low' | 'medium' | 'high',
+    notifyUsers: [] as string[],
+    aiImproved: false
+  });
+  const [isImprovingNote, setIsImprovingNote] = useState(false);
+
+  // Ouvrir automatiquement le formulaire si autoOpenForm est true
+  useEffect(() => {
+    console.log('🔍 UnifiedClientReport - autoOpenForm:', autoOpenForm);
+    if (autoOpenForm) {
+      console.log('📝 UnifiedClientReport - Ouverture automatique du formulaire');
+      setShowForm(true);
+    }
+  }, [autoOpenForm]);
+
+  // Écouter l'événement "openQuickNote" pour ouvrir directement la note simple
+  useEffect(() => {
+    const handleOpenQuickNote = () => {
+      console.log('⚡ Ouverture rapide de note simple');
+      setReportType('note');
+      setShowForm(true);
+    };
+
+    window.addEventListener('openQuickNote', handleOpenQuickNote);
+    return () => window.removeEventListener('openQuickNote', handleOpenQuickNote);
+  }, []);
 
   const [formData, setFormData] = useState<{
     clientCode: string;
@@ -297,6 +331,85 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
     }
   };
 
+  // Fonction pour améliorer la note avec l'IA
+  const handleImproveNote = async () => {
+    if (!simpleNote.content.trim()) return;
+    
+    setIsImprovingNote(true);
+    try {
+      const response = await callOpenAI({
+        messages: [
+          {
+            role: 'system',
+            content: 'Tu es un assistant qui améliore des NOTES INTERNES pour les commerciaux. Transforme des phrases courtes ou mal formulées en notes professionnelles claires. IMPORTANT: Génère une NOTE, pas un email, pas une lettre. Format: phrase courte et précise, ton professionnel mais direct.'
+          },
+          {
+            role: 'user',
+            content: `Transforme cette phrase en note professionnelle : "${simpleNote.content}"`
+          }
+        ]
+      });
+      
+      if (response.success && response.response) {
+        setSimpleNote({
+          ...simpleNote,
+          content: response.response,
+          aiImproved: true
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'amélioration de la note:', error);
+      alert('Erreur lors de l\'amélioration de la note');
+    } finally {
+      setIsImprovingNote(false);
+    }
+  };
+
+  // Fonction pour créer une note simple
+  const handleCreateSimpleNote = async () => {
+    if (!selectedClient || !simpleNote.content.trim()) {
+      alert('Veuillez sélectionner un client et saisir une note');
+      return;
+    }
+
+    try {
+      // Créer la note simple
+      await createNote({
+        codeUnion: selectedClient,
+        noteSimple: simpleNote.content,
+        auteur: 'Utilisateur', // TODO: Remplacer par l'utilisateur connecté
+        dateCreation: new Date().toISOString().split('T')[0]
+      });
+
+      // Log des utilisateurs notifiés (pas de tâche créée pour éviter la confusion)
+      if (simpleNote.notifyUsers.length > 0) {
+        console.log('👥 Utilisateurs notifiés:', simpleNote.notifyUsers.join(', '));
+        console.log('📝 Note avec priorité:', simpleNote.priority);
+      }
+
+      // Reset du formulaire
+      setSimpleNote({ 
+        content: '', 
+        priority: 'medium', 
+        notifyUsers: [], 
+        aiImproved: false 
+      });
+      setSelectedClient('');
+      setClientSearch('');
+      setShowForm(false);
+
+      alert(`✅ Note créée avec succès !${simpleNote.notifyUsers.length > 0 ? ` (${simpleNote.notifyUsers.length} personne(s) notifiée(s))` : ''}`);
+      
+      // Recharger les données
+      handleImportComplete();
+      onTasksReload();
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de la note:', error);
+      alert('❌ Erreur lors de la création de la note');
+    }
+  };
+
   // Fonction pour obtenir le nom d'utilisateur par email
   const getUserNameByEmail = (email: string) => {
     const user = users.find(u => u.email === email);
@@ -371,12 +484,27 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
           <p className="text-gray-600">Système unifié : Rapports + Tâches + IA pour commerciaux</p>
         </div>
         <div className="flex gap-2">
+          {/* Boutons de création clairs */}
           <button
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              setReportType('visit');
+              setShowForm(true);
+            }}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center gap-2"
           >
-            {showForm ? '❌ Annuler' : '⚡ Nouveau Rapport'}
+            📋 Rapport de visite complet
           </button>
+          
+          <button
+            onClick={() => {
+              setReportType('note');
+              setShowForm(true);
+            }}
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 flex items-center gap-2"
+          >
+            📝 Note simple rapide
+          </button>
+          
           <button
             onClick={() => setShowImport(!showImport)}
             className="bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-teal-700 transition-all duration-200 flex items-center gap-2"
@@ -389,7 +517,9 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
       {/* Formulaire de création optimisé */}
       {showForm && (
         <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">⚡ Création Rapide de Rapport</h3>
+          <h3 className="text-lg font-semibold mb-4">
+            {reportType === 'visit' ? '📋 Rapport de Visite Complet' : '📝 Note Simple Rapide'}
+          </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Sélection du client */}
@@ -435,7 +565,89 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
               </div>
             </div>
 
-            {/* Date de visite */}
+            {/* Formulaire de note simple */}
+            {reportType === 'note' && (
+              <>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    📝 Note simple *
+                  </label>
+                  <textarea
+                    value={simpleNote.content}
+                    onChange={(e) => setSimpleNote({...simpleNote, content: e.target.value})}
+                    placeholder="Tapez votre note ici... L'IA pourra l'améliorer automatiquement !"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={4}
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <button
+                      type="button"
+                      onClick={handleImproveNote}
+                      disabled={!simpleNote.content.trim() || isImprovingNote}
+                      className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      {isImprovingNote ? '⏳ Amélioration...' : '🤖 Améliorer avec l\'IA'}
+                    </button>
+                    {simpleNote.aiImproved && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        ✅ Amélioré par l'IA
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    🚨 Priorité
+                  </label>
+                  <select
+                    value={simpleNote.priority}
+                    onChange={(e) => setSimpleNote({...simpleNote, priority: e.target.value as any})}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="low">🟢 Basse</option>
+                    <option value="medium">🟡 Normale</option>
+                    <option value="high">🔴 Haute</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    👥 Notifier l'équipe
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-2">
+                    {users.map(user => (
+                      <label key={user.id} className="flex items-center space-x-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={simpleNote.notifyUsers.includes(user.email)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSimpleNote({
+                                ...simpleNote,
+                                notifyUsers: [...simpleNote.notifyUsers, user.email]
+                              });
+                            } else {
+                              setSimpleNote({
+                                ...simpleNote,
+                                notifyUsers: simpleNote.notifyUsers.filter(email => email !== user.email)
+                              });
+                            }
+                          }}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>{user.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Formulaire de rapport de visite (existant) */}
+            {reportType === 'visit' && (
+              <>
+                {/* Date de visite */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 📅 Date de visite *
@@ -645,6 +857,8 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
                 rows={2}
               />
             </div>
+              </>
+            )}
           </div>
 
           {/* Boutons d'action */}
@@ -656,11 +870,11 @@ const UnifiedClientReport: React.FC<UnifiedClientReportProps> = ({ adherentData,
               Annuler
             </button>
             <button
-              onClick={handleCreateReport}
-              disabled={loading || !formData.clientCode || !formData.visitDate}
+              onClick={reportType === 'visit' ? handleCreateReport : handleCreateSimpleNote}
+              disabled={loading || !selectedClient || (reportType === 'visit' ? !formData.visitDate : !simpleNote.content.trim())}
               className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
             >
-              {loading ? '⏳ Création...' : '✅ Créer le Rapport'}
+              {loading ? '⏳ Création...' : reportType === 'visit' ? '✅ Créer le Rapport' : '✅ Créer la Note'}
             </button>
           </div>
         </div>
