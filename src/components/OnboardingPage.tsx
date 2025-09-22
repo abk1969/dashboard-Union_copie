@@ -658,29 +658,25 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                 >
                   {mauriceData.upcomingMeetings.length > 0 ? (
-                    mauriceData.upcomingMeetings.map((meeting: any, index: number) => {
-                      // Debug de la structure des données
-                      if (index === 0) {
-                        console.log('🔍 Structure meeting:', meeting);
-                        console.log('🔍 meeting.start:', meeting.start);
-                      }
-                      
-                      // Formatage simple de la date
-                      let timeDisplay = 'Heure non définie';
-                      try {
-                        const dateStr = meeting.start?.dateTime || meeting.start?.date;
-                        if (dateStr) {
-                          const date = new Date(dateStr);
-                          if (!isNaN(date.getTime())) {
-                            timeDisplay = date.toLocaleTimeString('fr-FR', { 
+                    mauriceData.upcomingMeetings.slice(0, 5).map((meeting: any, index: number) => {
+                      // Formatage ultra-simple
+                      const getTime = (meeting: any) => {
+                        try {
+                          const start = meeting.start;
+                          if (start?.dateTime) {
+                            return new Date(start.dateTime).toLocaleTimeString('fr-FR', { 
                               hour: '2-digit', 
                               minute: '2-digit' 
                             });
                           }
+                          if (start?.date) {
+                            return new Date(start.date).toLocaleDateString('fr-FR');
+                          }
+                          return 'Aujourd\'hui';
+                        } catch {
+                          return 'Aujourd\'hui';
                         }
-                      } catch (error) {
-                        console.error('Erreur formatage date:', error, meeting);
-                      }
+                      };
 
                       return (
                         <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -690,7 +686,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                               {meeting.summary || 'Rendez-vous'}
                             </p>
                             <p className="text-gray-500 text-xs">
-                              {timeDisplay}
+                              {getTime(meeting)}
                             </p>
                           </div>
                         </div>
