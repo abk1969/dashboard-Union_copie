@@ -489,40 +489,61 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                 </button>
               </div>
               
-              {/* Message motivant généré par IA */}
-              {motivationalMessage && (
-                <div className="animate-slide-up bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100 shadow-sm max-w-2xl">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl animate-pulse">💫</span>
-                    <div>
-                      <p className="text-gray-700 italic font-medium leading-relaxed">
-                        {motivationalMessage}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">✨ Message inspirant généré pour vous</p>
+              {/* Messages motivants et exercice de respiration */}
+              <div className="flex gap-6 items-start">
+                {/* Messages motivants */}
+                <div className="flex-1 space-y-4">
+                  {/* Message motivant généré par IA */}
+                  {motivationalMessage && (
+                    <div className="animate-slide-up bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl animate-pulse">💫</span>
+                        <div>
+                          <p className="text-gray-700 italic font-medium leading-relaxed">
+                            {motivationalMessage}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2">✨ Message inspirant généré pour vous</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* Message d'équipe */}
-              {teamMessage && (
-                <div className="animate-slide-up bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-4 border border-green-100 shadow-sm max-w-2xl" style={{animationDelay: '0.3s'}}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">🤝</span>
-                    <p className="text-gray-700 font-medium">{teamMessage}</p>
-                  </div>
-                </div>
-              )}
+                  {/* Message d'équipe */}
+                  {teamMessage && (
+                    <div className="animate-slide-up bg-gradient-to-r from-green-50 to-teal-50 rounded-2xl p-4 border border-green-100 shadow-sm" style={{animationDelay: '0.3s'}}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">🤝</span>
+                        <p className="text-gray-700 font-medium">{teamMessage}</p>
+                      </div>
+                    </div>
+                  )}
 
-              {/* Ritual du moment */}
-              {morningRitual && (
-                <div className="animate-slide-up bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100 shadow-sm max-w-2xl" style={{animationDelay: '0.6s'}}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl animate-bounce">🌱</span>
-                    <p className="text-gray-700 font-medium">{morningRitual}</p>
-                  </div>
+                  {/* Ritual du moment */}
+                  {morningRitual && (
+                    <div className="animate-slide-up bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-100 shadow-sm" style={{animationDelay: '0.6s'}}>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl animate-bounce">🌱</span>
+                        <p className="text-gray-700 font-medium">{morningRitual}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Exercice de respiration - Version agrandie */}
+                {showBreathingExercise && (
+                  <div className="w-80 flex-shrink-0">
+                    <BreathingExercise 
+                      isVisible={showBreathingExercise}
+                      compact={false}
+                      onComplete={() => {
+                        setBreathingCompleted(true);
+                        setShowBreathingExercise(false);
+                        console.log('🧘 Exercice de respiration terminé');
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-6">
               {/* Météo */}
@@ -543,93 +564,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                 )}
               </div>
 
-              {/* Calendrier compact avec défilement */}
-              {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 min-w-[280px] max-w-[320px]">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                      📅 Prochains rendez-vous
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          const container = document.getElementById('calendar-scroll');
-                          if (container) {
-                            container.scrollBy({ top: -60, behavior: 'smooth' });
-                          }
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Défiler vers le haut"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const container = document.getElementById('calendar-scroll');
-                          if (container) {
-                            container.scrollBy({ top: 60, behavior: 'smooth' });
-                          }
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        title="Défiler vers le bas"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    id="calendar-scroll"
-                    className="space-y-2 max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
-                  >
-                    {mauriceData.upcomingMeetings.length > 0 ? (
-                      mauriceData.upcomingMeetings.map((meeting: any, index: number) => (
-                        <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-800 truncate">
-                              {meeting.summary || 'Rendez-vous'}
-                            </p>
-                            <p className="text-gray-500 text-xs">
-                              {(() => {
-                                try {
-                                  const dateStr = meeting.start?.dateTime || meeting.start?.date;
-                                  if (!dateStr) return 'Heure non définie';
-                                  
-                                  const date = new Date(dateStr);
-                                  if (isNaN(date.getTime())) return 'Date invalide';
-                                  
-                                  return date.toLocaleTimeString('fr-FR', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit' 
-                                  });
-                                } catch (error) {
-                                  console.error('Erreur formatage date:', error, meeting);
-                                  return 'Erreur date';
-                                }
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 text-sm italic">Aucun rendez-vous prévu</p>
-                    )}
-                  </div>
-                  
-                  {mauriceData.upcomingMeetings.length > 5 && (
-                    <div className="mt-2 text-center">
-                      <p className="text-xs text-gray-400">
-                        {mauriceData.upcomingMeetings.length} rendez-vous au total
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+
 
               {onSkip && (
                 <button
@@ -673,20 +608,95 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
           {/* Widgets latéraux */}
           <div className="space-y-4">
             
-            {/* Exercice de respiration pendant le chargement */}
-            {showBreathingExercise && (
-              <div className="bg-gradient-to-br from-pink-50 to-purple-100 rounded-2xl p-4 shadow-lg border border-pink-200">
-                <BreathingExercise 
-                  isVisible={showBreathingExercise}
-                  onComplete={() => {
-                    setBreathingCompleted(true);
-                    setShowBreathingExercise(false); // Disparaît automatiquement
-                    console.log('🧘 Exercice de respiration terminé');
-                  }}
-                />
+            
+
+            {/* Widget Calendrier */}
+            {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    📅 Prochains rendez-vous
+                  </h3>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const container = document.getElementById('calendar-scroll');
+                        if (container) {
+                          container.scrollBy({ top: -60, behavior: 'smooth' });
+                        }
+                      }}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Défiler vers le haut"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const container = document.getElementById('calendar-scroll');
+                        if (container) {
+                          container.scrollBy({ top: 60, behavior: 'smooth' });
+                        }
+                      }}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Défiler vers le bas"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div 
+                  id="calendar-scroll"
+                  className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
+                >
+                  {mauriceData.upcomingMeetings.length > 0 ? (
+                    mauriceData.upcomingMeetings.map((meeting: any, index: number) => (
+                      <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-800 truncate">
+                            {meeting.summary || 'Rendez-vous'}
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {(() => {
+                              try {
+                                const dateStr = meeting.start?.dateTime || meeting.start?.date;
+                                if (!dateStr) return 'Heure non définie';
+                                
+                                const date = new Date(dateStr);
+                                if (isNaN(date.getTime())) return 'Date invalide';
+                                
+                                return date.toLocaleTimeString('fr-FR', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                });
+                              } catch (error) {
+                                console.error('Erreur formatage date:', error, meeting);
+                                return 'Erreur date';
+                              }
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-sm italic">Aucun rendez-vous prévu</p>
+                  )}
+                </div>
+                
+                {mauriceData.upcomingMeetings.length > 5 && (
+                  <div className="mt-2 text-center">
+                    <p className="text-xs text-gray-400">
+                      {mauriceData.upcomingMeetings.length} rendez-vous au total
+                    </p>
+                  </div>
+                )}
               </div>
             )}
-            
 
             {/* Widget statistiques rapides - plus compact */}
             <div className="bg-white rounded-lg shadow-md p-4">
