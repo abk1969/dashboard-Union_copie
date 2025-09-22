@@ -664,6 +664,12 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   
                   {mauriceData.upcomingMeetings.length > 0 ? (
                     mauriceData.upcomingMeetings.slice(0, 5).map((meeting: any, index: number) => {
+                      // DEBUG: Log de la structure des données
+                      if (index === 0) {
+                        console.log('🔍 MEETING STRUCTURE:', meeting);
+                        console.log('🔍 MEETING KEYS:', Object.keys(meeting));
+                      }
+                      
                       // Formatage ultra-simple
                       const getTime = (meeting: any) => {
                         try {
@@ -683,15 +689,28 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                         }
                       };
 
+                      // Essayer différentes propriétés pour le titre
+                      const getTitle = (meeting: any) => {
+                        return meeting.summary || 
+                               meeting.title || 
+                               meeting.subject || 
+                               meeting.name || 
+                               `Rendez-vous ${index + 1}`;
+                      };
+
                       return (
                         <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
                           <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-800 truncate">
-                              {meeting.summary || 'Rendez-vous'}
+                              {getTitle(meeting)}
                             </p>
                             <p className="text-gray-500 text-xs">
                               {getTime(meeting)}
+                            </p>
+                            {/* DEBUG: Afficher les propriétés disponibles */}
+                            <p className="text-xs text-red-500">
+                              DEBUG: {Object.keys(meeting).join(', ')}
                             </p>
                           </div>
                         </div>
