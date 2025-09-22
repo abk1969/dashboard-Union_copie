@@ -6,7 +6,6 @@ import { getCurrentWeather } from '../services/weatherService';
 import { getMauriceData } from '../services/gmailService';
 import MauriceTyping from './MauriceTyping';
 import GoogleAuthButton from './GoogleAuthButton';
-import CalendarWidget from './CalendarWidget';
 import BreathingExercise from './BreathingExercise';
 
 // Service pour générer des messages motivants avec l'IA
@@ -306,10 +305,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
         setGoogleAuthenticated(false);
       } finally {
         setMauriceLoading(false);
-        // Masquer l'exercice de respiration quand Maurice est prêt
-        setTimeout(() => {
-          setShowBreathingExercise(false);
-        }, 500);
+        // L'exercice disparaîtra automatiquement via onComplete
       }
     };
 
@@ -529,6 +525,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
               )}
             </div>
             <div className="flex items-center gap-6">
+              {/* Météo */}
               <div className="text-center animate-float">
                 <div className="text-7xl mb-2 filter drop-shadow-lg">
                   {weatherLoading ? '⏳' : weatherIcon}
@@ -545,6 +542,43 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   </p>
                 )}
               </div>
+
+              {/* Calendrier compact */}
+              {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 shadow-lg border border-white/20 min-w-[280px]">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    📅 Prochains rendez-vous
+                  </h3>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {mauriceData.upcomingMeetings.length > 0 ? (
+                      mauriceData.upcomingMeetings.slice(0, 3).map((meeting: any, index: number) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-800 truncate">
+                              {meeting.summary || 'Rendez-vous'}
+                            </p>
+                            <p className="text-gray-500 text-xs">
+                              {new Date(meeting.start?.dateTime || meeting.start?.date).toLocaleTimeString('fr-FR', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-sm italic">Aucun rendez-vous prévu</p>
+                    )}
+                  </div>
+                  {mauriceData.upcomingMeetings.length > 3 && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">
+                      +{mauriceData.upcomingMeetings.length - 3} autres
+                    </p>
+                  )}
+                </div>
+              )}
+
               {onSkip && (
                 <button
                   onClick={onSkip}
@@ -564,19 +598,6 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
           
           {/* Maurice au centre */}
           <div className="lg:col-span-2">
-            {/* Exercice de respiration pendant le chargement */}
-            {showBreathingExercise && (
-              <div className="mb-6">
-                <BreathingExercise 
-                  isVisible={showBreathingExercise}
-                  onComplete={() => {
-                    setBreathingCompleted(true);
-                    console.log('🧘 Exercice de respiration terminé');
-                  }}
-                />
-              </div>
-            )}
-
             {/* Widget Maurice - Message personnalisé */}
             {!mauriceLoading && mauriceMessage && (
               <MauriceTyping 
@@ -600,13 +621,20 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
           {/* Widgets latéraux */}
           <div className="space-y-4">
             
-            {/* Widget Calendrier */}
-            {googleAuthenticated && mauriceData && (
-              <CalendarWidget 
-                meetings={mauriceData.upcomingMeetings}
-                isLoading={mauriceLoading}
-              />
+            {/* Exercice de respiration pendant le chargement */}
+            {showBreathingExercise && (
+              <div className="bg-gradient-to-br from-pink-50 to-purple-100 rounded-2xl p-4 shadow-lg border border-pink-200">
+                <BreathingExercise 
+                  isVisible={showBreathingExercise}
+                  onComplete={() => {
+                    setBreathingCompleted(true);
+                    setShowBreathingExercise(false); // Disparaît automatiquement
+                    console.log('🧘 Exercice de respiration terminé');
+                  }}
+                />
+              </div>
             )}
+            
 
             {/* Widget statistiques rapides - plus compact */}
             <div className="bg-white rounded-lg shadow-md p-4">
@@ -631,30 +659,6 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
               </div>
             </div>
 
-            {/* Widget actions rapides - plus compact */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">⚡ Actions</h3>
-              <div className="space-y-2">
-                <button 
-                  onClick={onNavigateToNotes}
-                  className="w-full bg-blue-600 text-white py-2 px-3 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  📝 Notes
-                </button>
-                <button 
-                  onClick={onNavigateToDashboard}
-                  className="w-full bg-green-600 text-white py-2 px-3 rounded-lg hover:bg-green-700 transition-colors text-sm"
-                >
-                  📊 Tableau de bord
-                </button>
-                <button 
-                  onClick={onNavigateToReports}
-                  className="w-full bg-purple-600 text-white py-2 px-3 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                >
-                  📋 Rapports
-                </button>
-              </div>
-            </div>
 
             {/* Debug : Forcer l'affichage du bouton Google */}
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
