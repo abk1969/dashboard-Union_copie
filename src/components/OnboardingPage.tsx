@@ -7,6 +7,7 @@ import { getMauriceData } from '../services/gmailService';
 import MauriceTyping from './MauriceTyping';
 import GoogleAuthButton from './GoogleAuthButton';
 import CalendarWidget from './CalendarWidget';
+import BreathingExercise from './BreathingExercise';
 
 // Service pour générer des messages motivants avec l'IA
 const generateMotivationalMessage = async (userName: string, weatherData?: any, recentTasks?: any[]): Promise<string> => {
@@ -194,6 +195,10 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
   const [mauriceLoading, setMauriceLoading] = useState<boolean>(true);
   const [googleAuthenticated, setGoogleAuthenticated] = useState<boolean>(false);
   const [mauriceData, setMauriceData] = useState<any>(null);
+  
+  // États pour l'exercice de respiration
+  const [showBreathingExercise, setShowBreathingExercise] = useState<boolean>(false);
+  const [breathingCompleted, setBreathingCompleted] = useState<boolean>(false);
 
   // Mise à jour de la date et heure
   useEffect(() => {
@@ -272,11 +277,17 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
     loadWeather();
   }, []);
 
-  // Charger les données de Maurice
+  // Charger les données de Maurice avec exercice de respiration
   useEffect(() => {
     const loadMauriceData = async () => {
       try {
         setMauriceLoading(true);
+        
+        // Démarrer l'exercice de respiration après un court délai
+        setTimeout(() => {
+          setShowBreathingExercise(true);
+        }, 1000);
+        
         const mauriceData = await getMauriceData(userEmail);
         
         if (mauriceData) {
@@ -295,6 +306,10 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
         setGoogleAuthenticated(false);
       } finally {
         setMauriceLoading(false);
+        // Masquer l'exercice de respiration quand Maurice est prêt
+        setTimeout(() => {
+          setShowBreathingExercise(false);
+        }, 500);
       }
     };
 
@@ -549,6 +564,19 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
           
           {/* Maurice au centre */}
           <div className="lg:col-span-2">
+            {/* Exercice de respiration pendant le chargement */}
+            {showBreathingExercise && (
+              <div className="mb-6">
+                <BreathingExercise 
+                  isVisible={showBreathingExercise}
+                  onComplete={() => {
+                    setBreathingCompleted(true);
+                    console.log('🧘 Exercice de respiration terminé');
+                  }}
+                />
+              </div>
+            )}
+
             {/* Widget Maurice - Message personnalisé */}
             {!mauriceLoading && mauriceMessage && (
               <MauriceTyping 
