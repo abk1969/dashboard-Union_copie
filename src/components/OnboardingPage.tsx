@@ -616,7 +616,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
 
             {/* Widget Calendrier - FORCÉ POUR TEST */}
             {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
-              <div className="bg-white rounded-lg shadow-md p-4 border-4 border-red-500" style={{minHeight: '200px', zIndex: 9999}}>
+              <div className="bg-white rounded-lg shadow-md p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     📅 Prochains rendez-vous ({mauriceData.upcomingMeetings.length})
@@ -657,70 +657,41 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   id="calendar-scroll"
                   className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                 >
-                  {/* DEBUG MESSAGE */}
-                  <div className="bg-yellow-100 p-2 rounded text-xs text-yellow-800 mb-2">
-                    🔍 DEBUG: {mauriceData.upcomingMeetings.length} rendez-vous chargés
-                  </div>
                   
                   {mauriceData.upcomingMeetings.length > 0 ? (
                     mauriceData.upcomingMeetings.slice(0, 5).map((meeting: any, index: number) => {
-                      // DEBUG: Log de la structure des données
-                      if (index === 0) {
-                        console.log('🔍 MEETING STRUCTURE:', meeting);
-                        console.log('🔍 MEETING KEYS:', Object.keys(meeting));
-                      }
                       
-                      // Formatage des dates - Essayer toutes les propriétés possibles
+                      // Formatage des dates - Structure Google Calendar correcte
                       const getTime = (meeting: any) => {
                         try {
-                          // Essayer différentes structures de dates
-                          const start = meeting.start;
-                          const end = meeting.end;
+                          // Utiliser les bonnes propriétés : startTime et endTime
+                          const startTime = meeting.startTime;
+                          const endTime = meeting.endTime;
                           
-                          // Propriétés possibles pour la date/heure
-                          const dateTime = start?.dateTime || start?.date || end?.dateTime || end?.date;
-                          const startTime = start?.time || start?.timeZone;
-                          const endTime = end?.time || end?.timeZone;
-                          
-                          if (dateTime) {
-                            const date = new Date(dateTime);
+                          if (startTime) {
+                            const date = new Date(startTime);
                             if (!isNaN(date.getTime())) {
-                              // Si c'est une date complète avec heure
-                              if (dateTime.includes('T') || dateTime.includes(' ')) {
-                                return date.toLocaleString('fr-FR', { 
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                });
-                              } else {
-                                // Si c'est juste une date
-                                return date.toLocaleDateString('fr-FR');
-                              }
+                              // Format : "23/09 10:00"
+                              return date.toLocaleString('fr-FR', { 
+                                day: '2-digit',
+                                month: '2-digit',
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              });
                             }
                           }
                           
-                          // Fallback : essayer d'autres propriétés
-                          if (meeting.startTime) {
-                            return new Date(meeting.startTime).toLocaleString('fr-FR');
-                          }
-                          if (meeting.date) {
-                            return new Date(meeting.date).toLocaleString('fr-FR');
-                          }
-                          
-                          return 'Date à définir';
+                          return 'Date non définie';
                         } catch (error) {
                           console.error('Erreur formatage date:', error, meeting);
                           return 'Erreur date';
                         }
                       };
 
-                      // Essayer différentes propriétés pour le titre
+                      // Utiliser la bonne propriété pour le titre
                       const getTitle = (meeting: any) => {
-                        return meeting.summary || 
-                               meeting.title || 
-                               meeting.subject || 
-                               meeting.name || 
+                        return meeting.title || 
+                               meeting.summary || 
                                `Rendez-vous ${index + 1}`;
                       };
 
@@ -733,10 +704,6 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                             </p>
                             <p className="text-gray-500 text-xs">
                               {getTime(meeting)}
-                            </p>
-                            {/* DEBUG: Afficher les propriétés disponibles */}
-                            <p className="text-xs text-red-500">
-                              DEBUG: {Object.keys(meeting).join(', ')}
                             </p>
                           </div>
                         </div>
