@@ -9,7 +9,7 @@ import GoogleAuthButton from './GoogleAuthButton';
 import CalendarWidget from './CalendarWidget';
 
 // Service pour générer des messages motivants avec l'IA
-const generateMotivationalMessage = async (): Promise<string> => {
+const generateMotivationalMessage = async (userName: string, weatherData?: any, recentTasks?: any[]): Promise<string> => {
   const fallbackMessages = [
     "Aujourd'hui est une opportunité unique de faire briller votre expertise ✨",
     "Votre présence apporte une valeur inestimable à l'équipe Union 🌟",
@@ -21,13 +21,66 @@ const generateMotivationalMessage = async (): Promise<string> => {
     "Votre vision stratégique façonne l'avenir brillant de notre union commerciale 🎨"
   ];
 
-  // Pour l'instant, utilisation directe des messages fallback
-  // L'intégration IA sera ajoutée plus tard via Maurice le chatbot
+  try {
+    // Import dynamique de l'IA
+    const { callOpenAI } = await import('../config/openai');
+    
+    // Contexte pour l'IA
+    const context = {
+      userName: userName || 'Cher collègue',
+      weather: weatherData ? `${weatherData.temperature}°C - ${weatherData.description}` : 'météo inconnue',
+      timeOfDay: new Date().getHours() < 12 ? 'matin' : new Date().getHours() < 18 ? 'après-midi' : 'soir',
+      taskCount: recentTasks?.length || 0,
+      currentDate: new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    };
+
+    const prompt = `Tu es un coach motivationnel pour l'équipe Union. Génère un message de bien-être personnalisé et inspirant pour ${context.userName}.
+
+CONTEXTE:
+- Nom: ${context.userName}
+- Météo: ${context.weather}
+- Moment: ${context.timeOfDay}
+- Tâches récentes: ${context.taskCount}
+- Date: ${context.currentDate}
+
+EXIGENCES:
+- Message court et percutant (1-2 phrases max)
+- Ton chaleureux et professionnel
+- Mentionner le contexte (météo, moment de la journée, etc.)
+- Utiliser des emojis appropriés
+- Éviter les clichés, être authentique
+- Focus sur l'énergie positive et la motivation
+
+FORMAT: Message motivant + emoji final`;
+
+    const response = await callOpenAI({
+      messages: [
+        {
+          role: 'system',
+          content: 'Tu es un coach motivationnel expert qui crée des messages inspirants et personnalisés pour des commerciaux.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    });
+
+    if (response.success && response.response) {
+      console.log('🤖 Message motivationnel IA généré:', response.response);
+      return response.response;
+    }
+  } catch (error) {
+    console.error('❌ Erreur génération message IA:', error);
+  }
+
+  // Fallback vers les messages prédéfinis
+  console.log('🔄 Utilisation du message fallback');
   return fallbackMessages[Math.floor(Math.random() * fallbackMessages.length)];
 };
 
-// Messages d'équipe inspirants selon l'heure
-const getTeamMessage = (): string => {
+// Messages d'équipe inspirants selon l'heure avec IA
+const getTeamMessage = async (userName: string, weatherData?: any): Promise<string> => {
   const hour = new Date().getHours();
   const teamMessages = {
     morning: [
@@ -47,6 +100,53 @@ const getTeamMessage = (): string => {
     ]
   };
 
+  try {
+    // Import dynamique de l'IA
+    const { callOpenAI } = await import('../config/openai');
+    
+    const timeOfDay = hour >= 6 && hour < 12 ? 'matin' : hour >= 12 && hour < 18 ? 'après-midi' : 'soir';
+    const weatherContext = weatherData ? ` avec un temps ${weatherData.description} à ${weatherData.temperature}°C` : '';
+    
+    const prompt = `Tu es un coach d'équipe pour l'Union commerciale. Génère un message d'équipe inspirant et personnalisé.
+
+CONTEXTE:
+- Moment: ${timeOfDay}
+- Météo: ${weatherContext}
+- Utilisateur: ${userName || 'Cher collègue'}
+
+EXIGENCES:
+- Message court et percutant (1 phrase max)
+- Focus sur l'esprit d'équipe et la collaboration
+- Ton chaleureux et motivant
+- Mentionner le moment de la journée
+- Utiliser des emojis appropriés
+- Éviter les clichés, être authentique
+
+FORMAT: Message d'équipe + emoji final`;
+
+    const response = await callOpenAI({
+      messages: [
+        {
+          role: 'system',
+          content: 'Tu es un coach d\'équipe expert qui crée des messages inspirants pour renforcer l\'esprit d\'équipe.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ]
+    });
+
+    if (response.success && response.response) {
+      console.log('🤖 Message d\'équipe IA généré:', response.response);
+      return response.response;
+    }
+  } catch (error) {
+    console.error('❌ Erreur génération message équipe IA:', error);
+  }
+
+  // Fallback vers les messages prédéfinis
+  console.log('🔄 Utilisation du message équipe fallback');
   if (hour >= 6 && hour < 12) {
     const messages = teamMessages.morning;
     return messages[Math.floor(Math.random() * messages.length)];
@@ -239,13 +339,21 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
     window.location.reload();
   };
 
-  // Charger les messages inspirants
+  // Charger les messages inspirants avec IA
   useEffect(() => {
     const loadInspirationalContent = async () => {
       try {
-        const aiMessage = await generateMotivationalMessage();
+        const weatherData = {
+          temperature,
+          description: weatherDescription,
+          city: weatherCity
+        };
+        
+        const aiMessage = await generateMotivationalMessage(userName, weatherData, recentTasks);
         setMotivationalMessage(aiMessage);
-        setTeamMessage(getTeamMessage());
+        
+        const teamMessage = await getTeamMessage(userName, weatherData);
+        setTeamMessage(teamMessage);
       } catch (error) {
         console.log('Chargement des messages par défaut');
         setMotivationalMessage("Votre présence illumine cette journée et inspire l'excellence autour de vous ✨");
@@ -254,7 +362,7 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
     };
 
     loadInspirationalContent();
-  }, []);
+  }, [userName, temperature, weatherDescription, weatherCity, recentTasks]);
 
   // Charger les tâches récentes de l'utilisateur
   useEffect(() => {

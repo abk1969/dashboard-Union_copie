@@ -14,6 +14,12 @@ const BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 // Fonction pour obtenir la météo actuelle
 export const getCurrentWeather = async (): Promise<WeatherData | null> => {
   try {
+    console.log('🌤️ Debug météo:', {
+      API_KEY: API_KEY ? `${API_KEY.substring(0, 8)}...` : 'undefined',
+      isDefaultKey: API_KEY === 'YOUR_OPENWEATHER_API_KEY',
+      envVar: process.env.REACT_APP_OPENWEATHER_API_KEY ? `${process.env.REACT_APP_OPENWEATHER_API_KEY.substring(0, 8)}...` : 'undefined'
+    });
+    
     // Vérifier si la clé API est configurée
     if (API_KEY === 'YOUR_OPENWEATHER_API_KEY') {
       console.warn('⚠️ Clé API OpenWeatherMap non configurée, utilisation de données simulées');
