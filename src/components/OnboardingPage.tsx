@@ -670,22 +670,48 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                         console.log('🔍 MEETING KEYS:', Object.keys(meeting));
                       }
                       
-                      // Formatage ultra-simple
+                      // Formatage des dates - Essayer toutes les propriétés possibles
                       const getTime = (meeting: any) => {
                         try {
+                          // Essayer différentes structures de dates
                           const start = meeting.start;
-                          if (start?.dateTime) {
-                            return new Date(start.dateTime).toLocaleTimeString('fr-FR', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            });
+                          const end = meeting.end;
+                          
+                          // Propriétés possibles pour la date/heure
+                          const dateTime = start?.dateTime || start?.date || end?.dateTime || end?.date;
+                          const startTime = start?.time || start?.timeZone;
+                          const endTime = end?.time || end?.timeZone;
+                          
+                          if (dateTime) {
+                            const date = new Date(dateTime);
+                            if (!isNaN(date.getTime())) {
+                              // Si c'est une date complète avec heure
+                              if (dateTime.includes('T') || dateTime.includes(' ')) {
+                                return date.toLocaleString('fr-FR', { 
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                });
+                              } else {
+                                // Si c'est juste une date
+                                return date.toLocaleDateString('fr-FR');
+                              }
+                            }
                           }
-                          if (start?.date) {
-                            return new Date(start.date).toLocaleDateString('fr-FR');
+                          
+                          // Fallback : essayer d'autres propriétés
+                          if (meeting.startTime) {
+                            return new Date(meeting.startTime).toLocaleString('fr-FR');
                           }
-                          return 'Aujourd\'hui';
-                        } catch {
-                          return 'Aujourd\'hui';
+                          if (meeting.date) {
+                            return new Date(meeting.date).toLocaleString('fr-FR');
+                          }
+                          
+                          return 'Date à définir';
+                        } catch (error) {
+                          console.error('Erreur formatage date:', error, meeting);
+                          return 'Erreur date';
                         }
                       };
 
