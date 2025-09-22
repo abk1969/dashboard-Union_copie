@@ -32,7 +32,7 @@ interface MarqueClientData {
   pourcentageTotal: number;
 }
 
-const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
+const MarqueModal: React.FC<MarqueDetailModalProps> = ({
   marque, 
   fournisseur, 
   allAdherentData, 
@@ -40,7 +40,7 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
   onClose,
   onFamilleClick
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'familles' | 'clients'>('overview');
+  const [activeTab, setActiveTab] = useState<'familles' | 'clients'>('familles');
   const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
   // Calculer les données détaillées de la marque
@@ -83,7 +83,12 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
           sousFamilles: data.sousFamilles
         };
       })
-      .sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      .sort((a, b) => {
+        const totalA = a.ca2024 + a.ca2025;
+        const totalB = b.ca2024 + b.ca2025;
+        console.log(`🔍 Tri: ${a.famille} = ${totalA.toLocaleString('fr-FR')}€ vs ${b.famille} = ${totalB.toLocaleString('fr-FR')}€`);
+        return totalB - totalA; // Du plus grand au plus petit
+      });
 
     // Performance par client
     const clientsMap = new Map<string, { ca2024: number; ca2025: number }>();
@@ -166,7 +171,6 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             {[
-              { id: 'overview', label: 'Vue d\'ensemble', icon: '📊' },
               { id: 'familles', label: 'Familles', icon: '📦' },
               { id: 'clients', label: 'Clients', icon: '👥' }
             ].map(tab => (
@@ -191,86 +195,6 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
 
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {/* Vue d'ensemble */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble de {marque}</h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">
-                  <div className="text-blue-100 text-sm font-medium">CA 2024</div>
-                  <div className="text-2xl font-bold">
-                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marqueData.totalCA2024)}
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl">
-                  <div className="text-green-100 text-sm font-medium">CA 2025</div>
-                  <div className="text-2xl font-bold">
-                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marqueData.totalCA2025)}
-                  </div>
-                </div>
-                
-                <div className={`p-6 rounded-xl text-white ${
-                  marqueData.progressionGenerale > 0 
-                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-600' 
-                    : marqueData.progressionGenerale < 0 
-                    ? 'bg-gradient-to-br from-red-500 to-red-600' 
-                    : 'bg-gradient-to-br from-gray-500 to-gray-600'
-                }`}>
-                  <div className="text-sm font-medium opacity-90">Progression</div>
-                  <div className="text-2xl font-bold">
-                    {getStatusIcon(marqueData.progressionGenerale)} {marqueData.progressionGenerale >= 0 ? '+' : ''}{marqueData.progressionGenerale}%
-                  </div>
-                </div>
-                
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl">
-                  <div className="text-purple-100 text-sm font-medium">Clients Uniques</div>
-                  <div className="text-2xl font-bold">{marqueData.clientsUniques}</div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h4 className="text-lg font-semibold text-gray-800 mb-4">📈 Évolution du CA</h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">2024</span>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full" 
-                          style={{ width: '100%' }}
-                        ></div>
-                      </div>
-                      <span className="font-semibold text-gray-900">
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marqueData.totalCA2024)}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">2025</span>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full ${
-                            marqueData.progressionGenerale > 0 ? 'bg-green-500' : 
-                            marqueData.progressionGenerale < 0 ? 'bg-red-500' : 'bg-gray-500'
-                          }`}
-                          style={{ 
-                            width: `${Math.min(100, (marqueData.totalCA2025 / marqueData.totalCA2024) * 100)}%` 
-                          }}
-                        ></div>
-                      </div>
-                      <span className="font-semibold text-gray-900">
-                        {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marqueData.totalCA2025)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Familles */}
           {activeTab === 'familles' && (
             <div className="space-y-4 sm:space-y-6">
@@ -307,8 +231,8 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                       );
                     }
                     
-                    return familleData.sousFamilles.map((sousFamille, index) => {
-                      // Calculer les données pour cette sous-famille
+                    // Trier les sous-familles par CA total (2024 + 2025)
+                    const sousFamillesAvecCA = familleData.sousFamilles.map(sousFamille => {
                       const sousFamilleData = allAdherentData.filter(item => 
                         item.fournisseur === fournisseur && 
                         item.marque === marque && 
@@ -317,16 +241,27 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                       );
                       const ca2024 = sousFamilleData.filter(item => item.annee === 2024).reduce((sum, item) => sum + item.ca, 0);
                       const ca2025 = sousFamilleData.filter(item => item.annee === 2025).reduce((sum, item) => sum + item.ca, 0);
-                      const progression = ca2024 > 0 ? ((ca2025 - ca2024) / ca2024) * 100 : 0;
+                      return {
+                        nom: sousFamille,
+                        caTotal: ca2024 + ca2025,
+                        ca2024,
+                        ca2025,
+                        data: sousFamilleData
+                      };
+                    }).sort((a, b) => b.caTotal - a.caTotal); // Du plus grand au plus petit
+
+                    return sousFamillesAvecCA.map((sousFamille, index) => {
+                      // Calculer les données pour cette sous-famille
+                      const progression = sousFamille.ca2024 > 0 ? ((sousFamille.ca2025 - sousFamille.ca2024) / sousFamille.ca2024) * 100 : 0;
                       const totalCA = allAdherentData.filter(item => 
                         item.fournisseur === fournisseur && item.marque === marque
                       ).reduce((sum, item) => sum + item.ca, 0);
-                      const pourcentageTotal = totalCA > 0 ? ((ca2024 + ca2025) / totalCA) * 100 : 0;
-                      const clients = new Set(sousFamilleData.map(item => item.codeUnion)).size;
+                      const pourcentageTotal = totalCA > 0 ? (sousFamille.caTotal / totalCA) * 100 : 0;
+                      const clients = new Set(sousFamille.data.map(item => item.codeUnion)).size;
 
                       return (
                         <div 
-                          key={sousFamille}
+                          key={sousFamille.nom}
                           className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow"
                         >
                           <div className="flex items-center justify-between mb-3">
@@ -335,7 +270,7 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                                 {index + 1}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-semibold text-gray-900 text-sm sm:text-base">{sousFamille}</span>
+                                <span className="font-semibold text-gray-900 text-sm sm:text-base">{sousFamille.nom}</span>
                                 <span className="text-xs text-gray-500">{selectedFamille}</span>
                               </div>
                             </div>
@@ -351,13 +286,13 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                             <div>
                               <span className="text-gray-500">CA 2024:</span>
                               <span className="ml-2 font-semibold text-gray-900">
-                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ca2024)}
+                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamille.ca2024)}
                               </span>
                             </div>
                             <div>
                               <span className="text-gray-500">CA 2025:</span>
                               <span className="ml-2 font-semibold text-gray-900">
-                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ca2025)}
+                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamille.ca2025)}
                               </span>
                             </div>
                             <div>
@@ -463,7 +398,8 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                               );
                             }
                             
-                            return familleData.sousFamilles.map((sousFamille, index) => {
+                            // Trier les sous-familles par CA total (2024 + 2025)
+                            const sousFamillesAvecCA = familleData.sousFamilles.map(sousFamille => {
                               const sousFamilleData = allAdherentData.filter(item => 
                                 item.fournisseur === fournisseur && 
                                 item.marque === marque && 
@@ -472,22 +408,32 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
                               );
                               const ca2024 = sousFamilleData.filter(item => item.annee === 2024).reduce((sum, item) => sum + item.ca, 0);
                               const ca2025 = sousFamilleData.filter(item => item.annee === 2025).reduce((sum, item) => sum + item.ca, 0);
-                              const progression = ca2024 > 0 ? ((ca2025 - ca2024) / ca2024) * 100 : 0;
+                              return {
+                                nom: sousFamille,
+                                caTotal: ca2024 + ca2025,
+                                ca2024,
+                                ca2025,
+                                data: sousFamilleData
+                              };
+                            }).sort((a, b) => b.caTotal - a.caTotal); // Du plus grand au plus petit
+
+                            return sousFamillesAvecCA.map((sousFamille, index) => {
+                              const progression = sousFamille.ca2024 > 0 ? ((sousFamille.ca2025 - sousFamille.ca2024) / sousFamille.ca2024) * 100 : 0;
                               const totalCA = allAdherentData.filter(item => 
                                 item.fournisseur === fournisseur && item.marque === marque
                               ).reduce((sum, item) => sum + item.ca, 0);
-                              const pourcentageTotal = totalCA > 0 ? ((ca2024 + ca2025) / totalCA) * 100 : 0;
-                              const clients = new Set(sousFamilleData.map(item => item.codeUnion)).size;
+                              const pourcentageTotal = totalCA > 0 ? (sousFamille.caTotal / totalCA) * 100 : 0;
+                              const clients = new Set(sousFamille.data.map(item => item.codeUnion)).size;
 
                               return (
-                                <tr key={sousFamille} className="hover:bg-gray-50">
+                                <tr key={sousFamille.nom} className="hover:bg-gray-50">
                                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{selectedFamille}</td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sousFamille}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sousFamille.nom}</td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ca2024)}
+                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamille.ca2024)}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
-                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(ca2025)}
+                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamille.ca2025)}
                                   </td>
                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -610,4 +556,4 @@ const MarqueDetailModal: React.FC<MarqueDetailModalProps> = ({
   );
 };
 
-export default MarqueDetailModal;
+export default MarqueModal;

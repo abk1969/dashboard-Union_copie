@@ -38,7 +38,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartTyp
   const isFournisseur = chartType === 'fournisseur';
   
   const chartData = type === 'doughnut' ? {
-    labels: data.map(item => isFournisseur ? (item as FournisseurPerformance).fournisseur : (item as FamilleProduitPerformance).sousFamille),
+    labels: data.map(item => isFournisseur ? (item as FournisseurPerformance).fournisseur : (item as FamilleProduitPerformance).famille),
     datasets: [
       {
         data: data.map(item => isFournisseur ? (item as FournisseurPerformance).pourcentageTotal : (item as FamilleProduitPerformance).pourcentageTotal),
@@ -60,7 +60,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, type, title, chartTyp
       },
     ],
   } : {
-    labels: data.map(item => isFournisseur ? (item as FournisseurPerformance).fournisseur : (item as FamilleProduitPerformance).sousFamille),
+    labels: data.map(item => isFournisseur ? (item as FournisseurPerformance).fournisseur : (item as FamilleProduitPerformance).famille),
     datasets: [
       {
         label: 'CA 2024 (Jan-Août)',

@@ -55,7 +55,8 @@ export const fallbackData: AdherentData[] = [
     groupeClient: 'Démo',
     fournisseur: 'Fournisseur Démo',
     marque: 'Marque Démo',
-    sousFamille: 'Famille Démo',
+    famille: 'freinage',
+    sousFamille: 'plaquettes de frein',
     groupeFournisseur: 'Démo',
     annee: 2025,
     ca: 1000

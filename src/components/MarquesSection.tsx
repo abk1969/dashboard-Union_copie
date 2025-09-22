@@ -5,7 +5,7 @@ import { formatCurrency, formatPercentageDirect, formatProgression } from '../ut
 interface MarquesSectionProps {
   adherentsData: AdherentData[];
   famillesPerformance?: Array<{
-    sousFamille: string;
+    famille: string;
     ca2024: number;
     ca2025: number;
     progression: number;
@@ -150,26 +150,32 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
     return marques;
   }, [adherentsData]);
 
-  // Grouper les marques par famille (sousFamille) - Logique directe comme dans Fournisseurs
+  // Grouper les marques par famille (vraie colonne famille) puis par sous-famille
   const marquesByFamille = useMemo(() => {
-    const grouped = new Map<string, MarquePerformance[]>();
+    const grouped = new Map<string, { sousFamilles: Map<string, MarquePerformance[]> }>();
     
-    // Grouper directement depuis adherentsData pour avoir toutes les marques
+    // Grouper par famille puis par sous-famille
     adherentsData.forEach(adherent => {
-      const famille = adherent.sousFamille;
+      const famille = adherent.famille;
+      const sousFamille = adherent.sousFamille;
       const marque = adherent.marque;
       
-      if (!famille || !marque) return;
+      if (!famille || !sousFamille || !marque) return;
       
       if (!grouped.has(famille)) {
-        grouped.set(famille, []);
+        grouped.set(famille, { sousFamilles: new Map() });
       }
       
-      // Vérifier si cette marque existe déjà dans le groupe
-      const existingMarque = grouped.get(famille)!.find(m => m.marque === marque);
+      const familleData = grouped.get(famille)!;
+      if (!familleData.sousFamilles.has(sousFamille)) {
+        familleData.sousFamilles.set(sousFamille, []);
+      }
+      
+      // Vérifier si cette marque existe déjà dans cette sous-famille
+      const existingMarque = familleData.sousFamilles.get(sousFamille)!.find(m => m.marque === marque);
       
       if (!existingMarque) {
-        // Créer une nouvelle entrée marque pour cette famille
+        // Créer une nouvelle entrée marque pour cette sous-famille
         const newMarque: MarquePerformance = {
           marque,
           ca2024: 0,
@@ -182,27 +188,31 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
           evolutionClassement: 0,
           fournisseurs: {}
         };
-        grouped.get(famille)!.push(newMarque);
+        familleData.sousFamilles.get(sousFamille)!.push(newMarque);
       }
     });
     
-    // Maintenant calculer les CA pour chaque marque dans chaque famille
-    grouped.forEach((marques, famille) => {
-      marques.forEach(marque => {
-        const marqueData = adherentsData.filter(adherent => 
-          adherent.sousFamille === famille && adherent.marque === marque.marque
-        );
-        
-        marqueData.forEach(adherent => {
-          if (adherent.annee === 2024) {
-            marque.ca2024 += adherent.ca;
-          } else if (adherent.annee === 2025) {
-            marque.ca2025 += adherent.ca;
-          }
+    // Calculer les CA pour chaque marque dans chaque sous-famille
+    grouped.forEach((familleData, famille) => {
+      familleData.sousFamilles.forEach((marques, sousFamille) => {
+        marques.forEach(marque => {
+          const marqueData = adherentsData.filter(adherent => 
+            adherent.famille === famille && 
+            adherent.sousFamille === sousFamille && 
+            adherent.marque === marque.marque
+          );
+          
+          marqueData.forEach(adherent => {
+            if (adherent.annee === 2024) {
+              marque.ca2024 += adherent.ca;
+            } else if (adherent.annee === 2025) {
+              marque.ca2025 += adherent.ca;
+            }
+          });
+          
+          // Calculer la progression
+          marque.progression = marque.ca2024 > 0 ? ((marque.ca2025 - marque.ca2024) / marque.ca2024) * 100 : 0;
         });
-        
-        // Calculer la progression
-        marque.progression = marque.ca2024 > 0 ? ((marque.ca2025 - marque.ca2024) / marque.ca2024) * 100 : 0;
       });
     });
     
@@ -662,14 +672,14 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
 
       </div>
 
-      {/* Performance par Famille de Produits */}
+      {/* Performance par Famille de Produits - Hiérarchie à 3 niveaux */}
       {famillesPerformance && famillesPerformance.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-2xl font-bold text-gray-800">📦 Performance par Famille de Produits</h3>
               <p className="text-gray-600 mt-1">
-                Analyse du CA par famille de produits et évolution 2024 vs 2025
+                Hiérarchie: Marque → Famille → Sous-famille
               </p>
             </div>
             <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
@@ -681,7 +691,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Famille</th>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Famille / Sous-famille</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2024</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">CA 2025</th>
                   <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Progression</th>
@@ -690,33 +700,27 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {currentFamilles.map((item) => {
-                  const isExpanded = expandedFamilles.has(item.sousFamille);
-                  const marquesInFamille = marquesByFamille.get(item.sousFamille) || [];
+                  const isExpanded = expandedFamilles.has(item.famille);
+                  const familleData = marquesByFamille.get(item.famille);
                   
                   return (
-                    <React.Fragment key={item.sousFamille}>
+                    <React.Fragment key={item.famille}>
                       {/* Ligne principale de la famille */}
                       <tr 
-                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
-                        onClick={() => toggleFamilleExpansion(item.sousFamille)}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-200 bg-gray-50"
+                        onClick={() => toggleFamilleExpansion(item.famille)}
                       >
                         <td className="py-3 px-4 text-sm font-medium text-gray-900">
                           <div className="flex items-center space-x-2">
                             <span className={`transform transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                               ▶️
                             </span>
-                            <span 
-                              className="hover:text-blue-600 cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFamilleClick(item.sousFamille);
-                              }}
-                            >
-                              {item.sousFamille}
+                            <span className="font-bold text-lg">
+                              {item.famille}
                             </span>
-                            {marquesInFamille.length > 0 && (
-                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                {marquesInFamille.length} marque{marquesInFamille.length > 1 ? 's' : ''}
+                            {familleData && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full">
+                                {Array.from(familleData.sousFamilles.keys()).length} sous-famille{Array.from(familleData.sousFamilles.keys()).length > 1 ? 's' : ''}
                               </span>
                             )}
                           </div>
@@ -735,35 +739,73 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
                         <td className="py-3 px-4 text-sm text-right text-gray-700">{item.pourcentageTotal.toFixed(1)}%</td>
                       </tr>
                       
-                      {/* Lignes des marques détaillées (si famille développée) */}
-                      {isExpanded && marquesInFamille.length > 0 && (
+                      {/* Lignes des sous-familles détaillées (si famille développée) */}
+                      {isExpanded && familleData && (
                         <>
-                          {marquesInFamille
-                            .sort((a, b) => b.ca2025 - a.ca2025)
-                            .map((marque) => (
-                            <tr key={`${item.sousFamille}-${marque.marque}`} className="bg-blue-50 hover:bg-blue-100 cursor-pointer" onClick={() => handleMarqueClick(marque.marque)}>
-                              <td className="py-2 px-8 text-sm text-gray-700">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-blue-500">🏷️</span>
-                                  <span className="font-medium text-blue-700 hover:text-blue-900">{marque.marque}</span>
-                                </div>
-                              </td>
-                              <td className="py-2 px-4 text-sm text-right text-gray-600">
-                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2024)}
-                              </td>
-                              <td className="py-2 px-4 text-sm text-right text-gray-600">
-                                {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2025)}
-                              </td>
-                              <td className="py-2 px-4 text-sm text-right">
-                                <span className={`font-medium ${marque.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {marque.progression >= 0 ? '+' : ''}{marque.progression.toFixed(1)}%
-                                </span>
-                              </td>
-                              <td className="py-2 px-4 text-sm text-right text-gray-600">
-                                {marque.pourcentage2025.toFixed(1)}%
-                              </td>
-                            </tr>
-                          ))}
+                          {Array.from(familleData.sousFamilles.entries()).map(([sousFamille, marques]) => {
+                            const sousFamilleCA2024 = marques.reduce((sum, m) => sum + m.ca2024, 0);
+                            const sousFamilleCA2025 = marques.reduce((sum, m) => sum + m.ca2025, 0);
+                            const sousFamilleProgression = sousFamilleCA2024 > 0 ? ((sousFamilleCA2025 - sousFamilleCA2024) / sousFamilleCA2024) * 100 : 0;
+                            
+                            return (
+                              <React.Fragment key={`${item.famille}-${sousFamille}`}>
+                                {/* Ligne sous-famille */}
+                                <tr className="bg-blue-50 hover:bg-blue-100 cursor-pointer" onClick={() => handleFamilleClick(sousFamille)}>
+                                  <td className="py-2 px-8 text-sm text-gray-700">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-blue-500">📦</span>
+                                      <span className="font-medium text-blue-700 hover:text-blue-900">{sousFamille}</span>
+                                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                        {marques.length} marque{marques.length > 1 ? 's' : ''}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamilleCA2024)}
+                                  </td>
+                                  <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                    {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(sousFamilleCA2025)}
+                                  </td>
+                                  <td className="py-2 px-4 text-sm text-right">
+                                    <span className={`font-medium ${sousFamilleProgression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {sousFamilleProgression >= 0 ? '+' : ''}{sousFamilleProgression.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-4 text-sm text-right text-gray-600">
+                                    {((sousFamilleCA2025 / item.ca2025) * 100).toFixed(1)}%
+                                  </td>
+                                </tr>
+                                
+                                {/* Lignes des marques dans cette sous-famille */}
+                                {marques
+                                  .sort((a, b) => b.ca2025 - a.ca2025)
+                                  .map((marque) => (
+                                  <tr key={`${item.famille}-${sousFamille}-${marque.marque}`} className="bg-green-50 hover:bg-green-100 cursor-pointer" onClick={() => handleMarqueClick(marque.marque)}>
+                                    <td className="py-1 px-12 text-sm text-gray-600">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-green-500">🏷️</span>
+                                        <span className="font-medium text-green-700 hover:text-green-900">{marque.marque}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-1 px-4 text-sm text-right text-gray-500">
+                                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2024)}
+                                    </td>
+                                    <td className="py-1 px-4 text-sm text-right text-gray-500">
+                                      {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(marque.ca2025)}
+                                    </td>
+                                    <td className="py-1 px-4 text-sm text-right">
+                                      <span className={`font-medium ${marque.progression >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {marque.progression >= 0 ? '+' : ''}{marque.progression.toFixed(1)}%
+                                      </span>
+                                    </td>
+                                    <td className="py-1 px-4 text-sm text-right text-gray-500">
+                                      {((marque.ca2025 / sousFamilleCA2025) * 100).toFixed(1)}%
+                                    </td>
+                                  </tr>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
                         </>
                       )}
                     </React.Fragment>

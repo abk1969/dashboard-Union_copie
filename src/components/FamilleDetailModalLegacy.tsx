@@ -23,7 +23,7 @@ const FamilleDetailModalLegacy: React.FC<FamilleDetailModalLegacyProps> = ({
   const familleData = useMemo(() => {
     if (!famille) return null;
 
-    const data = allAdherentData.filter(item => item.sousFamille === famille.sousFamille);
+    const data = allAdherentData.filter(item => item.famille === famille.famille);
     
     // Clients par famille
     const clientsMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
@@ -125,7 +125,7 @@ const FamilleDetailModalLegacy: React.FC<FamilleDetailModalLegacyProps> = ({
         <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2">📦 {famille.sousFamille}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">📦 {famille.famille}</h2>
               <p className="text-purple-100 text-sm sm:text-base">
                 Analyse détaillée de la famille de produits
               </p>
@@ -157,7 +157,7 @@ const FamilleDetailModalLegacy: React.FC<FamilleDetailModalLegacyProps> = ({
           {/* Vue d'ensemble */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble de {famille.sousFamille}</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">📊 Vue d'ensemble de {famille.famille}</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl">

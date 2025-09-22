@@ -29,6 +29,7 @@ export interface SupabaseAdherent {
   regionCommerciale?: string; // Nouvelle colonne région
   fournisseur: string;
   marque: string;
+  famille: string;
   sousFamille: string;
   groupeFournisseur: string;
   annee: number;
@@ -50,7 +51,7 @@ export const fetchAdherentsData = async (): Promise<SupabaseAdherent[]> => {
       const offset = page * pageSize;
       console.log(`📄 Récupération de la page ${page + 1} (offset: ${offset})...`);
       
-      const requestUrl = `adherents?select=codeUnion,raisonSociale,groupeClient,fournisseur,marque,sousFamille,groupeFournisseur,annee,ca,regionCommerciale&limit=${pageSize}&offset=${offset}`;
+      const requestUrl = `adherents?select=codeUnion,raisonSociale,groupeClient,fournisseur,marque,famille,sousFamille,groupeFournisseur,annee,ca,regionCommerciale&limit=${pageSize}&offset=${offset}`;
       console.log('🔗 URL Supabase:', requestUrl);
       const response = await fetch(getSupabaseRestUrl(requestUrl), {
         method: 'GET',

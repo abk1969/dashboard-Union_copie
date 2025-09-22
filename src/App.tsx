@@ -246,15 +246,15 @@ function MainApp() {
       .sort((a, b) => b.ca2025 - a.ca2025);
   }, [filteredAdherentData, globalMetrics.caTotal2024]);
 
-    // Performance par famille
+    // Performance par famille (vraie colonne famille)
   const currentFamillesProduitsPerformance = useMemo(() => {
     const familleMap = new Map<string, { ca2024: number; ca2025: number }>();
 
     filteredAdherentData.forEach(item => {
-      if (!familleMap.has(item.sousFamille)) {
-        familleMap.set(item.sousFamille, { ca2024: 0, ca2025: 0 });
+      if (!familleMap.has(item.famille)) {
+        familleMap.set(item.famille, { ca2024: 0, ca2025: 0 });
       }
-      const famille = familleMap.get(item.sousFamille)!;
+      const famille = familleMap.get(item.famille)!;
       if (item.annee === 2024) famille.ca2024 += item.ca;
       if (item.annee === 2025) famille.ca2025 += item.ca;
     });
@@ -269,7 +269,42 @@ function MainApp() {
         const pourcentageTotal = totalCA2025 > 0 ? (data.ca2025 / totalCA2025) * 100 : 0;
         
         return {
-          sousFamille: famille,
+          famille: famille,
+          ca2024: data.ca2024,
+          ca2025: data.ca2025,
+          progression: Math.round(progression * 10) / 10,
+          pourcentageTotal: Math.round(pourcentageTotal * 10) / 10
+        };
+      })
+      .sort((a, b) => b.ca2025 - a.ca2025);
+  }, [filteredAdherentData]);
+
+  // Performance par sous-famille (nouvelle logique)
+  const currentSousFamillesProduitsPerformance = useMemo(() => {
+    const sousFamilleMap = new Map<string, { famille: string; ca2024: number; ca2025: number }>();
+
+    filteredAdherentData.forEach(item => {
+      const key = `${item.famille}|${item.sousFamille}`;
+      if (!sousFamilleMap.has(key)) {
+        sousFamilleMap.set(key, { famille: item.famille, ca2024: 0, ca2025: 0 });
+      }
+      const sousFamille = sousFamilleMap.get(key)!;
+      if (item.annee === 2024) sousFamille.ca2024 += item.ca;
+      if (item.annee === 2025) sousFamille.ca2025 += item.ca;
+    });
+
+    const totalCA2025 = filteredAdherentData
+      .filter(item => item.annee === 2025)
+      .reduce((sum, item) => sum + item.ca, 0);
+
+    return Array.from(sousFamilleMap.entries())
+      .map(([key, data]) => {
+        const progression = data.ca2024 > 0 ? ((data.ca2025 - data.ca2024) / data.ca2024) * 100 : 0;
+        const pourcentageTotal = totalCA2025 > 0 ? (data.ca2025 / totalCA2025) * 100 : 0;
+        
+        return {
+          sousFamille: key.split('|')[1],
+          famille: data.famille,
           ca2024: data.ca2024,
           ca2025: data.ca2025,
           progression: Math.round(progression * 10) / 10,
@@ -402,6 +437,7 @@ function MainApp() {
           groupeClient: item.groupeClient,
           fournisseur: item.fournisseur,
           marque: item.marque,
+          famille: item.famille,
           sousFamille: item.sousFamille,
           groupeFournisseur: item.groupeFournisseur,
           annee: item.annee,

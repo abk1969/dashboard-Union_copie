@@ -8,7 +8,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Premium',
     fournisseur: 'BOSCH',
     marque: 'BOSCH',
-    sousFamille: 'Freins',
+    famille: 'freinage',
+    sousFamille: 'plaquettes de frein',
     groupeFournisseur: 'Automobile',
     annee: 2024,
     ca: 15000
@@ -19,7 +20,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Premium',
     fournisseur: 'BOSCH',
     marque: 'BOSCH',
-    sousFamille: 'Freins',
+    famille: 'freinage',
+    sousFamille: 'plaquettes de frein',
     groupeFournisseur: 'Automobile',
     annee: 2025,
     ca: 18000
@@ -30,7 +32,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Standard',
     fournisseur: 'LUK',
     marque: 'LUK',
-    sousFamille: 'Embrayage',
+    famille: 'embrayage',
+    sousFamille: 'kits embrayage',
     groupeFournisseur: 'Automobile',
     annee: 2024,
     ca: 8000
@@ -41,7 +44,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Standard',
     fournisseur: 'LUK',
     marque: 'LUK',
-    sousFamille: 'Embrayage',
+    famille: 'embrayage',
+    sousFamille: 'kits embrayage',
     groupeFournisseur: 'Automobile',
     annee: 2025,
     ca: 9500
@@ -52,7 +56,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Premium',
     fournisseur: 'ACR',
     marque: 'ACR',
-    sousFamille: 'Filtres',
+    famille: 'filtre',
+    sousFamille: 'filtres à huile',
     groupeFournisseur: 'Automobile',
     annee: 2024,
     ca: 12000
@@ -63,7 +68,8 @@ export const sampleData: AdherentData[] = [
     groupeClient: 'Premium',
     fournisseur: 'ACR',
     marque: 'ACR',
-    sousFamille: 'Filtres',
+    famille: 'filtre',
+    sousFamille: 'filtres à huile',
     groupeFournisseur: 'Automobile',
     annee: 2025,
     ca: 14000

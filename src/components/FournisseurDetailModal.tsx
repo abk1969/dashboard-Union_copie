@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { FournisseurPerformance, AdherentData, AdherentSummary } from '../types';
 import CloseButton from './CloseButton';
 import InteractionTracker from './InteractionTracker';
-import MarqueDetailModal from './MarqueDetailModal';
+import MarqueModal from './MarqueModal';
 import FamilleDetailModal from './FamilleDetailModal';
 
 interface FournisseurDetailModalProps {
@@ -628,13 +628,13 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
 
       {/* Modal Marque Detail */}
       {selectedMarque && (
-        <MarqueDetailModal
+        <MarqueModal
           marque={selectedMarque}
           fournisseur={fournisseur.fournisseur}
           allAdherentData={allAdherentData}
           isOpen={!!selectedMarque}
           onClose={() => setSelectedMarque(null)}
-          onFamilleClick={(famille) => {
+          onFamilleClick={(famille: string) => {
             setSelectedMarque(null);
             setSelectedFamille(famille);
           }}

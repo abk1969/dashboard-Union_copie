@@ -15,15 +15,17 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   const [showPreview, setShowPreview] = useState(false);
   const [filePreview, setFilePreview] = useState<any[]>([]);
   const [columnMapping, setColumnMapping] = useState<{[key: string]: number}>({
-    raisonSociale: 4,        // Colonne 4 : Raison Sociale
-    codeUnion: 3,            // Colonne 3 : Code Union
-    groupeClient: 5,         // Colonne 5 : Groupe Client
-    fournisseur: 7,          // Colonne 7 : Fournisseur
-    marque: 8,               // Colonne 8 : Marque
-    sousFamille: 11,         // Colonne 11 : Sous Famille
-    groupeFournisseur: 9,    // Colonne 9 : Groupe FRS
-    annee: 2,                // Colonne 2 : Année
-    ca: 12                   // Colonne 12 : CA (€) - CORRECT !
+    raisonSociale: 3,        // Colonne 4 : Raison Sociale
+    codeUnion: 2,            // Colonne 3 : Code Union
+    groupeClient: 4,         // Colonne 5 : Groupe Client
+    regionCommerciale: 5,    // Colonne 6 : Région Commerciale
+    fournisseur: 6,          // Colonne 7 : Fournisseur
+    marque: 7,               // Colonne 8 : Marque
+    famille: 9,              // Colonne 10 : Famille
+    sousFamille: 10,         // Colonne 11 : Sous Famille
+    groupeFournisseur: 8,    // Colonne 9 : Groupe FRS
+    annee: 1,                // Colonne 2 : Année
+    ca: 11                   // Colonne 12 : CA (€)
   });
   const [pushToSupabase, setPushToSupabase] = useState(false);
   const [showExcelImport, setShowExcelImport] = useState(false);
@@ -46,27 +48,130 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
     loadComponents();
   }, []);
 
+  // Fonction de normalisation des champs (version robuste)
+  const normalizeField = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    return String(value ?? "")
+      .replace(/\u00A0|\u202F/g, " ")  // remplace NBSP et autres espaces spéciaux
+      .trim()
+      .toUpperCase();
+  };
+
+  // Fonction de normalisation du CA (version robuste)
+  const normalizeCA = (value: any): number => {
+    if (typeof value === "number") return Math.round(value * 100) / 100;
+    
+    const s = String(value ?? "")
+      .replace(/\s/g, "")    // supprime espaces (y compris NBSP)
+      .replace(",", ".");    // virgule -> point
+
+    const n = Number(s);
+    if (!Number.isFinite(n)) {
+      console.log(`⚠️ CA invalide détecté: "${value}" → 0`);
+      return 0;
+    }
+
+    // corrige les valeurs quasi nulles comme "4.44e-16"
+    return Math.abs(n) < 1e-9 ? 0 : Math.round(n * 100) / 100;
+  };
+
+  // Fonction pour créer la clé d'agrégation (SANS Groupe FRS)
+  const createAggregationKey = (item: AdherentData): string => {
+    return [
+      item.annee,
+      normalizeField(item.codeUnion),
+      normalizeField(item.raisonSociale),
+      normalizeField(item.groupeClient),
+      normalizeField(item.regionCommerciale),
+      normalizeField(item.fournisseur),
+      normalizeField(item.marque),
+      normalizeField(item.famille) || 'VIDE', // Gérer les familles vides
+      normalizeField(item.sousFamille) || 'VIDE' // Gérer les sous-familles vides
+      // NE PAS inclure groupeFournisseur (vide pour ACR/DCA/EXADIS)
+    ].join('|');
+  };
+
+  // Fonction d'agrégation des données
+  const aggregateData = (data: AdherentData[]): AdherentData[] => {
+    console.log('🔄 Début de l\'agrégation des données...');
+    console.log(`📊 Données avant agrégation: ${data.length} lignes`);
+    
+    const aggregatedMap = new Map<string, AdherentData>();
+    const caByFournisseur: { [key: string]: number } = {};
+    let totalCAProcessed = 0;
+    let totalCAAggregated = 0;
+    
+    data.forEach((item, index) => {
+      const key = createAggregationKey(item);
+      const normalizedCA = normalizeCA(item.ca);
+      totalCAProcessed += normalizedCA;
+      
+      // Compter le CA par fournisseur AVANT agrégation
+      const fournisseur = normalizeField(item.fournisseur);
+      caByFournisseur[fournisseur] = (caByFournisseur[fournisseur] || 0) + normalizedCA;
+      
+      if (aggregatedMap.has(key)) {
+        // Additionner les CA pour les clés identiques
+        const existing = aggregatedMap.get(key)!;
+        existing.ca += normalizedCA;
+        console.log(`🔄 Agrégation ligne ${index + 1}: ${normalizedCA}€ ajouté à la clé existante`);
+      } else {
+        // Créer une nouvelle entrée avec CA normalisé
+        aggregatedMap.set(key, {
+          ...item,
+          ca: normalizedCA
+        });
+      }
+    });
+    
+    const aggregatedData = Array.from(aggregatedMap.values());
+    totalCAAggregated = aggregatedData.reduce((sum, item) => sum + item.ca, 0);
+    
+    console.log(`📊 Données après agrégation: ${aggregatedData.length} lignes`);
+    console.log(`💰 Total CA traité: ${totalCAProcessed.toLocaleString('fr-FR')}€`);
+    console.log(`💰 Total CA agrégé: ${totalCAAggregated.toLocaleString('fr-FR')}€`);
+    console.log(`📊 Écart traitement: ${(totalCAAggregated - totalCAProcessed).toLocaleString('fr-FR')}€`);
+    
+    // Vérification de cohérence par fournisseur
+    const caByFournisseurAfter: { [key: string]: number } = {};
+    aggregatedData.forEach(item => {
+      const fournisseur = normalizeField(item.fournisseur);
+      caByFournisseurAfter[fournisseur] = (caByFournisseurAfter[fournisseur] || 0) + item.ca;
+    });
+    
+    console.log('📊 Vérification de cohérence par fournisseur:');
+    Object.keys(caByFournisseur).forEach(fournisseur => {
+      const caAvant = caByFournisseur[fournisseur];
+      const caApres = caByFournisseurAfter[fournisseur] || 0;
+      const ecart = caApres - caAvant;
+      console.log(`  ${fournisseur}: ${caAvant.toLocaleString('fr-FR')}€ → ${caApres.toLocaleString('fr-FR')}€ (écart: ${ecart.toLocaleString('fr-FR')}€)`);
+    });
+    
+    return aggregatedData;
+  };
+
   // Fonction pour pousser les données vers Supabase
   const pushDataToSupabase = async (data: AdherentData[]) => {
     try {
-      console.log('🔄 Poussage vers Supabase...', data.length, 'enregistrements');
+      console.log('🚀 Poussée des données vers Supabase...');
+      console.log(`📊 Nombre de données à pousser: ${data.length}`);
       
-      // Supprimer les anciennes données avant d'ajouter les nouvelles
+      // Supprimer les données existantes
       console.log('🗑️ Suppression des anciennes données...');
-      
       const { error: deleteError } = await supabase
         .from('adherents')
         .delete()
-        .neq('id', 0); // Supprimer tous les enregistrements
+        .neq('id', 0);
       
       if (deleteError) {
-        throw new Error(`Erreur lors de la suppression: ${deleteError.message}`);
+        console.error('❌ Erreur lors de la suppression:', deleteError);
+        return;
       }
       
       console.log('✅ Anciennes données supprimées');
       
       // Insérer les nouvelles données par lots
-      const batchSize = 100;
+      const batchSize = 1000;
       for (let i = 0; i < data.length; i += batchSize) {
         const batch = data.slice(i, i + batchSize);
         
@@ -75,580 +180,410 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
           .insert(batch);
         
         if (insertError) {
-          throw new Error(`Erreur lot ${Math.floor(i/batchSize) + 1}: ${insertError.message}`);
+          console.error('Erreur lors de l\'insertion du lot:', insertError);
+          return;
         }
         
         console.log(`✅ Lot ${Math.floor(i/batchSize) + 1} inséré (${batch.length} enregistrements)`);
       }
       
-      console.log('🎉 Toutes les données poussées vers Supabase !');
-      return true;
+      console.log('✅ Toutes les données ont été poussées vers Supabase');
       
     } catch (error) {
-      console.error('❌ Erreur lors du poussage vers Supabase:', error);
-      throw error;
+      console.error('❌ Erreur lors de la poussée vers Supabase:', error);
     }
-  };
-
-  const processExcelFile = async (file: File): Promise<AdherentData[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          
-          // Afficher l'aperçu d'abord
-          setFilePreview(jsonData.slice(0, 5)); // Premières 5 lignes
-          setShowPreview(true);
-          
-          // Convertir les données en format AdherentData avec le mapping personnalisé
-          const processedData = convertToAdherentData(jsonData);
-          resolve(processedData);
-        } catch (error) {
-          reject(error);
-        }
-      };
-      reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
-  const processCSVFile = async (file: File): Promise<AdherentData[]> => {
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: false, // Pas d'en-tête automatique
-        skipEmptyLines: true,
-        complete: (results) => {
-          try {
-            // Afficher l'aperçu d'abord
-            setFilePreview(results.data.slice(0, 5)); // Premières 5 lignes
-            setShowPreview(true);
-            
-            // Convertir les données en format AdherentData avec le mapping personnalisé
-            const processedData = convertToAdherentData(results.data);
-            resolve(processedData);
-          } catch (error) {
-            reject(error);
-          }
-        },
-        error: (error) => reject(error)
-      });
-    });
-  };
-
-  // Fonction de détection automatique des colonnes
-  const detectColumnMapping = (headers: string[]): Record<string, number> => {
-    const mapping: Record<string, number> = {};
-    
-    // Vérifier si la première ligne contient des en-têtes ou des données
-    const firstRow = headers[0] || '';
-    const isHeaderRow = firstRow.toLowerCase().includes('mois') || 
-                       firstRow.toLowerCase().includes('année') || 
-                       firstRow.toLowerCase().includes('code') ||
-                       firstRow.toLowerCase().includes('raison');
-    
-    console.log('Détection en-têtes:', { firstRow, isHeaderRow });
-    
-    // Si c'est une ligne d'en-têtes, utiliser les vrais noms de colonnes
-    if (isHeaderRow) {
-      headers.forEach((header, index) => {
-        const headerLower = header.toLowerCase().trim();
-        
-        // Mapping intelligent basé sur les mots-clés
-        if (headerLower.includes('code') && headerLower.includes('un')) {
-          mapping.codeUnion = index;
-        } else if (headerLower.includes('raison') && headerLower.includes('sociale')) {
-          mapping.raisonSociale = index;
-        } else if (headerLower.includes('groupe') && headerLower.includes('client')) {
-          mapping.groupeClient = index;
-        } else if (headerLower.includes('fournisseur') && !headerLower.includes('groupe')) {
-          mapping.fournisseur = index;
-        } else if (headerLower.includes('marque')) {
-          mapping.marque = index;
-        } else if (headerLower.includes('sous') && headerLower.includes('famille')) {
-          mapping.sousFamille = index;
-        } else if (headerLower.includes('groupe') && (headerLower.includes('frs') || headerLower.includes('fournisseur'))) {
-          mapping.groupeFournisseur = index;
-        } else if (headerLower.includes('année') || headerLower.includes('annee')) {
-          mapping.annee = index;
-        } else if (headerLower.includes('ca') || headerLower.includes('chiffre')) {
-          mapping.ca = index;
-        }
-      });
-    } else {
-      // Si ce n'est pas une ligne d'en-têtes, utiliser le mapping par position
-      // Basé sur la structure que vous avez montrée
-      mapping.codeUnion = 2;      // Colonne 2: Code Un
-      mapping.raisonSociale = 3;  // Colonne 3: Raison Sociale
-      mapping.groupeClient = 4;   // Colonne 4: Groupe Client
-      mapping.fournisseur = 6;    // Colonne 6: Fournisseur
-      mapping.marque = 7;         // Colonne 7: Marque
-      mapping.groupeFournisseur = 8; // Colonne 8: Groupe FRS
-      mapping.sousFamille = 10;   // Colonne 10: Sous Famille
-      mapping.annee = 1;          // Colonne 1: Année
-      mapping.ca = 11;            // Colonne 11: CA (€)
-    }
-    
-    console.log('Détection automatique:', { headers, mapping });
-    return mapping;
-  };
-
-  const convertToAdherentData = (rawData: any[]): AdherentData[] => {
-    console.log('Données brutes reçues:', rawData.length, 'lignes');
-    console.log('Mapping des colonnes:', columnMapping);
-    
-    // Détection automatique des colonnes basée sur les en-têtes
-    const headers = rawData[0] || [];
-    const autoMapping = detectColumnMapping(headers);
-    console.log('Mapping automatique détecté:', autoMapping);
-    
-    // Utiliser le mapping automatique si pas de mapping manuel
-    let finalMapping = Object.keys(columnMapping).length > 0 ? columnMapping : autoMapping;
-    
-    // Si le mapping automatique n'a pas trouvé les bonnes colonnes, forcer le mapping
-    if (!finalMapping.codeUnion || !finalMapping.raisonSociale) {
-      console.log('Mapping automatique incomplet, utilisation du mapping forcé');
-      finalMapping = {
-        codeUnion: 2,      // Colonne 2: Code Un
-        raisonSociale: 3,  // Colonne 3: Raison Sociale
-        groupeClient: 4,   // Colonne 4: Groupe Client
-        fournisseur: 6,    // Colonne 6: Fournisseur
-        marque: 7,         // Colonne 7: Marque
-        groupeFournisseur: 8, // Colonne 8: Groupe FRS
-        sousFamille: 10,   // Colonne 10: Sous Famille
-        annee: 1,          // Colonne 1: Année
-        ca: 11             // Colonne 11: CA (€)
-      };
-    }
-    
-    // Forcer le mapping basé sur votre structure Excel
-    // Votre fichier commence directement par les données, pas d'en-têtes
-    const dataRows = rawData;
-    
-    console.log('Utilisation du mapping forcé pour votre structure Excel');
-    console.log('Après suppression en-tête:', dataRows.length, 'lignes');
-    
-    const processedData = dataRows
-      .filter((row: any, index: number) => {
-        // Vérifier que la ligne n'est pas vide
-        if (!row || row.length === 0) {
-          console.log(`Ligne ${index + 1} vide, ignorée`);
-          return false;
-        }
-        
-        // Vérifier qu'on a assez de colonnes
-        const maxColumnIndex = Math.max(...Object.values(finalMapping));
-        if (row.length <= maxColumnIndex) {
-          console.log(`Ligne ${index + 1} pas assez de colonnes:`, row.length, 'vs', maxColumnIndex + 1);
-          return false;
-        }
-        
-        return true;
-      })
-      .map((row: any, index: number) => {
-        try {
-          // Debug pour la colonne CA
-          const caValue = row[finalMapping.ca];
-          const caString = String(caValue || '0');
-          const caCleaned = caString.replace(',', '.').replace(/\s/g, '');
-          const caParsed = parseFloat(caCleaned);
-          
-          console.log(`Ligne ${index + 1} CA debug:`, {
-            original: caValue,
-            string: caString,
-            cleaned: caCleaned,
-            parsed: caParsed
-          });
-          
-          const adherentData: AdherentData = {
-            raisonSociale: String(row[finalMapping.raisonSociale] || '').trim(),
-            codeUnion: String(row[finalMapping.codeUnion] || '').trim(),
-            groupeClient: String(row[finalMapping.groupeClient] || '').trim(),
-            fournisseur: String(row[finalMapping.fournisseur] || '').trim(),
-            marque: String(row[finalMapping.marque] || '').trim(),
-            sousFamille: String(row[finalMapping.sousFamille] || '').trim(),
-            groupeFournisseur: String(row[finalMapping.groupeFournisseur] || '').trim(),
-            annee: parseInt(String(row[finalMapping.annee] || '2024')),
-            ca: caParsed
-          };
-          
-          // Validation supplémentaire
-          if (adherentData.raisonSociale === '' || adherentData.codeUnion === '') {
-            console.log(`Ligne ${index + 1} données essentielles manquantes:`, adherentData);
-            return null;
-          }
-          
-          return adherentData;
-        } catch (error) {
-          console.warn(`Erreur de conversion ligne ${index + 1}:`, error, row);
-          return null;
-        }
-      })
-      .filter((item): item is AdherentData => item !== null);
-    
-    console.log('Données finales traitées:', processedData.length, 'lignes');
-    return processedData;
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setFileName(file.name);
+    console.log(`🔍 État initial pushToSupabase: ${pushToSupabase}`);
     setIsImporting(true);
-    setImportStatus('📁 Fichier sélectionné, traitement en cours...');
+    setImportStatus('Chargement du fichier...');
+    setFileName(file.name);
 
-    await processFile(file);
-  };
-
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const files = event.dataTransfer.files;
-    if (files.length > 0) {
-      const file = files[0];
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
-        setFileName(file.name);
-        setIsImporting(true);
-        setImportStatus('📁 Fichier déposé, traitement en cours...');
-        
-        // Traiter directement le fichier déposé
-        processFile(file);
-      } else {
-        setImportStatus('❌ Format de fichier non supporté. Utilisez Excel (.xlsx, .xls) ou CSV (.csv)');
-        setTimeout(() => setImportStatus(''), 5000);
-      }
-    }
-  };
-
-  const processFile = async (file: File) => {
     try {
-      let importedData: AdherentData[];
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      console.log('📊 Données brutes reçues:', jsonData.length, 'lignes');
+      console.log('🗂️ Mapping des colonnes:', columnMapping);
+
+      // Détection automatique des en-têtes
+      const firstRow = jsonData[0] as string[];
+      const isHeaderRow = firstRow && (
+        firstRow[0]?.toLowerCase().includes('mois') || 
+        firstRow[1]?.toLowerCase().includes('ann') ||
+        firstRow[2]?.toLowerCase().includes('code')
+      );
+
+      console.log('🔍 Détection en-têtes:', { firstRow: firstRow?.[0], isHeaderRow });
+
+      let dataRows = jsonData;
+      if (isHeaderRow) {
+        dataRows = jsonData.slice(1);
+        console.log('📋 Ligne d\'en-têtes supprimée, données restantes:', dataRows.length, 'lignes');
+      }
+
+      // Filtrage et conversion des données
+      let lignesRejeteesColonnes = 0;
+      let lignesRejeteesValidation = 0;
+      let lignesRejeteesConversion = 0;
+      let totalCARejete = 0;
+      let lignesCAZero = 0;
+      let totalCAZero = 0;
       
-      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        setImportStatus('📊 Traitement du fichier Excel...');
-        importedData = await processExcelFile(file);
-      } else if (file.name.endsWith('.csv')) {
-        setImportStatus('📄 Traitement du fichier CSV...');
-        importedData = await processCSVFile(file);
+      console.log(`📊 Début du filtrage sur ${dataRows.length} lignes`);
+      console.log(`📊 Données brutes reçues: ${jsonData.length} lignes`);
+      console.log(`📊 Lignes après suppression en-têtes: ${dataRows.length} lignes`);
+      
+      const processedData = dataRows
+        .filter((row: any, index: number) => {
+          if (!row || row.length === 0) return false;
+          
+          // Vérifier qu'on a assez de colonnes (au moins 11 colonnes pour les champs essentiels)
+          if (row.length < 11) {
+            console.log(`⚠️ Ligne ${index + 1} pas assez de colonnes:`, row.length, 'vs 11 minimum');
+            lignesRejeteesColonnes++;
+            return false;
+          }
+          
+          // Log pour les lignes avec moins de 12 colonnes mais au moins 11
+          if (row.length < 12) {
+            console.log(`⚠️ Ligne ${index + 1} colonnes insuffisantes:`, row.length, 'vs 12 (mais acceptée)');
+          }
+          
+          return true;
+        })
+        .map((row: any, index: number) => {
+          try {
+            const adherentData: AdherentData = {
+              raisonSociale: normalizeField(row[columnMapping.raisonSociale]),
+              codeUnion: normalizeField(row[columnMapping.codeUnion]),
+              groupeClient: normalizeField(row[columnMapping.groupeClient]),
+              regionCommerciale: normalizeField(row[columnMapping.regionCommerciale]),
+              fournisseur: normalizeField(row[columnMapping.fournisseur]),
+              marque: normalizeField(row[columnMapping.marque]),
+              famille: normalizeField(row[columnMapping.famille]), // NOUVELLE COLONNE
+              sousFamille: normalizeField(row[columnMapping.sousFamille]),
+              groupeFournisseur: normalizeField(row[columnMapping.groupeFournisseur]),
+              annee: parseInt(String(row[columnMapping.annee] || '2024')),
+              ca: normalizeCA(row[columnMapping.ca])
+            };
+
+            // Validation des champs obligatoires uniquement
+            const isRequiredOk = (item: AdherentData) =>
+              Number.isFinite(item.annee) &&
+              item.codeUnion?.trim() &&
+              item.fournisseur?.trim() &&
+              Number.isFinite(item.ca);
+
+            if (!isRequiredOk(adherentData)) {
+              console.log(`⚠️ Ligne ${index + 1} champs obligatoires manquants:`, adherentData);
+              totalCARejete += adherentData.ca;
+              lignesRejeteesValidation++;
+              return null;
+            }
+
+            // Compter les lignes avec CA = 0
+            if (adherentData.ca === 0) {
+              lignesCAZero++;
+              totalCAZero += 0; // Pas besoin d'ajouter 0, mais pour la cohérence
+            }
+
+            return adherentData;
+          } catch (error) {
+            console.warn(`❌ Erreur de conversion ligne ${index + 1}:`, error, row);
+            // Essayer de calculer le CA même en cas d'erreur
+            try {
+              const caRejete = normalizeCA(row[columnMapping.ca]);
+              totalCARejete += caRejete;
+            } catch (e) {
+              // Ignorer si on ne peut pas calculer le CA
+            }
+            lignesRejeteesConversion++;
+            return null;
+          }
+        })
+        .filter((item): item is AdherentData => item !== null);
+
+      console.log(`📊 Statistiques de filtrage:`);
+      console.log(`  - Lignes rejetées (colonnes): ${lignesRejeteesColonnes}`);
+      console.log(`  - Lignes rejetées (validation): ${lignesRejeteesValidation}`);
+      console.log(`  - Lignes rejetées (conversion): ${lignesRejeteesConversion}`);
+      console.log(`  - Lignes acceptées: ${processedData.length}`);
+      console.log(`  - Lignes avec CA = 0: ${lignesCAZero}`);
+      console.log(`  - CA rejeté: ${totalCARejete.toLocaleString('fr-FR')}€`);
+
+      console.log('📊 Données après conversion:', processedData.length, 'lignes');
+
+      if (processedData.length === 0) {
+        setImportStatus('❌ Aucune donnée valide trouvée');
+        return;
+      }
+
+      // Calcul du total AVANT agrégation
+      const totalAvant = processedData.reduce((sum, item) => sum + item.ca, 0);
+      console.log(`💰 Total AVANT agrégation: ${totalAvant.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`);
+
+      // Agrégation des données
+      const aggregatedData = aggregateData(processedData);
+
+      // Calcul du total APRÈS agrégation
+      const totalApres = aggregatedData.reduce((sum, item) => sum + item.ca, 0);
+      console.log(`💰 Total APRÈS agrégation: ${totalApres.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`);
+      console.log(`📊 CONTRÔLE DE COHÉRENCE`);
+      console.log(`  Total AVANT: ${totalAvant.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`);
+      console.log(`  Total APRÈS: ${totalApres.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€`);
+      console.log(`  Différence: ${(totalApres - totalAvant).toFixed(2)}€`);
+
+      // Aperçu des données
+      setFilePreview(aggregatedData.slice(0, 10));
+      setShowPreview(true);
+
+      // Pousser vers Supabase si demandé
+      console.log(`🔍 pushToSupabase: ${pushToSupabase}`);
+      // TEMPORAIRE: Forcer la poussée vers Supabase pour test
+      const forcePushToSupabase = true;
+      console.log(`🔍 forcePushToSupabase: ${forcePushToSupabase}`);
+      if (pushToSupabase || forcePushToSupabase) {
+        console.log('🚀 Début de la poussée vers Supabase...');
+        setImportStatus('Poussée vers Supabase...');
+        await pushDataToSupabase(aggregatedData);
+        setImportStatus('✅ Données poussées vers Supabase');
+        console.log('✅ Poussée vers Supabase terminée');
       } else {
-        throw new Error('Format de fichier non supporté');
+        console.log('ℹ️ Poussée vers Supabase désactivée');
+        setImportStatus(`✅ ${aggregatedData.length} lignes importées avec succès`);
       }
 
-      if (importedData.length === 0) {
-        throw new Error('Aucune donnée valide trouvée dans le fichier');
-      }
+      onDataImported(aggregatedData);
 
-      setImportStatus(`✅ ${importedData.length} lignes importées avec succès !`);
-      onDataImported(importedData);
-      
-      // Pousser vers Supabase si activé
-      if (pushToSupabase && importedData.length > 0) {
-        setImportStatus(`🔄 Poussage vers Supabase...`);
-        try {
-          await pushDataToSupabase(importedData);
-          setImportStatus(`🎉 ${importedData.length} lignes importées et remplacées dans Supabase !`);
-        } catch (error) {
-          setImportStatus(`⚠️ Import local réussi, mais erreur Supabase: ${error}`);
-        }
-      }
-      
-      setTimeout(() => setImportStatus(''), 5000);
     } catch (error) {
-      setImportStatus(`❌ Erreur lors de l'import : ${error}`);
-      setTimeout(() => setImportStatus(''), 5000);
+      console.error('❌ Erreur lors de l\'import:', error);
+      setImportStatus('❌ Erreur lors de l\'import');
     } finally {
       setIsImporting(false);
     }
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
-
-  const updateColumnMapping = (field: string, columnIndex: number) => {
+  const handleColumnMappingChange = (field: string, value: number) => {
     setColumnMapping(prev => ({
       ...prev,
-      [field]: columnIndex
+      [field]: value
     }));
   };
 
-  const handleImportWithMapping = async () => {
-    if (!filePreview.length) return;
-    
-    setIsImporting(true);
-    setImportStatus('🔄 Import avec le nouveau mapping...');
-    
-    try {
-      // Re-traiter le fichier avec le nouveau mapping
-      const processedData = convertToAdherentData(filePreview);
-      
-      if (processedData.length === 0) {
-        throw new Error('Aucune donnée valide avec ce mapping');
-      }
-
-      setImportStatus(`✅ ${processedData.length} lignes importées avec le nouveau mapping !`);
-      onDataImported(processedData);
-      setShowPreview(false);
-      
-      setTimeout(() => setImportStatus(''), 5000);
-    } catch (error) {
-      setImportStatus(`❌ Erreur avec le nouveau mapping : ${error}`);
-      setTimeout(() => setImportStatus(''), 5000);
-    } finally {
-      setIsImporting(false);
-    }
+  const handlePreviewConfirm = () => {
+    setShowPreview(false);
+    setImportStatus('Import terminé');
   };
 
   return (
-    <div className="data-import bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-700">
-          📥 Import de Données
-        </h3>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-500">
-            Supporte Excel (.xlsx, .xls) et CSV (.csv)
-          </div>
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={pushToSupabase}
-              onChange={(e) => setPushToSupabase(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">Remplacer dans Supabase</span>
-          </label>
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800">📊 Import de Données</h2>
+          <p className="text-gray-600 mt-1">
+            Importez vos données Excel pour analyser les performances
+          </p>
+        </div>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowExcelImport(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            📋 Clients Excel
+          </button>
+          <button
+            onClick={() => setShowImportedClients(true)}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            👥 Clients Importés
+          </button>
         </div>
       </div>
 
-      {/* Boutons d'import spécialisés */}
-      <div className="mb-6">
-        <div className="flex flex-wrap gap-4">
-          {ExcelClientImport && (
-            <button
-              onClick={() => setShowExcelImport(true)}
-              className="flex items-center px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-colors font-medium shadow-md"
-            >
-              <span className="text-xl mr-2">👤</span>
-              Import Données Clients (Excel)
-            </button>
-          )}
-          
-          {ImportedClientsList && (
-            <button
-              onClick={() => setShowImportedClients(true)}
-              className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-colors font-medium shadow-md"
-            >
-              <span className="text-xl mr-2">📋</span>
-              Voir Clients Importés
-            </button>
-          )}
-          <div className="text-sm text-gray-600 flex items-center">
-            <span className="mr-2">📋</span>
-            Import standard CA/Adhérents ci-dessous
-          </div>
-        </div>
-      </div>
-
-      {/* Zone de drop */}
-      <div
-        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-          isImporting 
-            ? 'border-blue-300 bg-blue-50' 
-            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
-        }`}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-      >
-        {isImporting ? (
-          <div className="space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <div className="text-blue-600 font-medium">Traitement en cours...</div>
-            <div className="text-sm text-gray-600">{fileName}</div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="text-6xl">📁</div>
-            <div className="text-xl font-medium text-gray-700">
-              Glissez-déposez votre fichier ici
+      <div className="space-y-6">
+        {/* Upload de fichier */}
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileUpload}
+            disabled={isImporting}
+            className="hidden"
+            id="file-upload"
+          />
+          <label
+            htmlFor="file-upload"
+            className={`cursor-pointer ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <div className="text-6xl mb-4">📁</div>
+            <div className="text-xl font-semibold text-gray-700 mb-2">
+              {isImporting ? 'Import en cours...' : 'Cliquez pour sélectionner un fichier'}
             </div>
             <div className="text-gray-500">
-              ou cliquez pour sélectionner un fichier
+              Formats supportés: .xlsx, .xls, .csv
             </div>
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload"
-            />
-            <label
-              htmlFor="file-upload"
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
-            >
-              📂 Choisir un fichier
-            </label>
+          </label>
+        </div>
+
+        {/* Statut d'import */}
+        {importStatus && (
+          <div className={`p-4 rounded-lg ${
+            importStatus.includes('✅') ? 'bg-green-50 text-green-800' :
+            importStatus.includes('❌') ? 'bg-red-50 text-red-800' :
+            'bg-blue-50 text-blue-800'
+          }`}>
+            {importStatus}
           </div>
         )}
-      </div>
 
-      {/* Aperçu du fichier et mapping des colonnes */}
-      {showPreview && filePreview.length > 0 && (
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h4 className="font-medium text-blue-800 mb-3">🔍 Aperçu du fichier et configuration des colonnes</h4>
-          
-          {/* Aperçu des données */}
-          <div className="mb-4">
-            <h5 className="font-medium text-blue-700 mb-2">Premières lignes du fichier :</h5>
+        {/* Mapping des colonnes */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🗂️ Mapping des Colonnes</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {Object.entries(columnMapping).map(([field, value]) => (
+              <div key={field} className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  {field === 'raisonSociale' ? 'Raison Sociale' :
+                   field === 'codeUnion' ? 'Code Union' :
+                   field === 'groupeClient' ? 'Groupe Client' :
+                   field === 'regionCommerciale' ? 'Région Commerciale' :
+                   field === 'fournisseur' ? 'Fournisseur' :
+                   field === 'marque' ? 'Marque' :
+                   field === 'famille' ? 'Famille' :
+                   field === 'sousFamille' ? 'Sous Famille' :
+                   field === 'groupeFournisseur' ? 'Groupe Fournisseur' :
+                   field === 'annee' ? 'Année' :
+                   field === 'ca' ? 'CA (€)' : field}:
+                </label>
+                <select
+                  value={value}
+                  onChange={(e) => handleColumnMappingChange(field, parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from({ length: 20 }, (_, i) => (
+                    <option key={i} value={i}>
+                      Colonne {i + 1}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Option Supabase */}
+        <div className="flex items-center space-x-3">
+          <input
+            type="checkbox"
+            id="pushToSupabase"
+            checked={pushToSupabase}
+            onChange={(e) => setPushToSupabase(e.target.checked)}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label htmlFor="pushToSupabase" className="text-sm font-medium text-gray-700">
+            Pousser les données vers Supabase après import
+          </label>
+        </div>
+
+        {/* Aperçu des données */}
+        {showPreview && (
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">👀 Aperçu des Données</h3>
+              <button
+                onClick={handlePreviewConfirm}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Confirmer
+              </button>
+            </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full text-xs border border-gray-300">
-                <thead className="bg-gray-100">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
-                    {filePreview[0]?.map((col: any, index: number) => (
-                      <th key={index} className="border border-gray-300 px-2 py-1 text-center">
-                        Colonne {index}
-                      </th>
-                    ))}
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Raison Sociale
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Code Union
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Marque
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Famille
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Sous-Famille
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      CA
+                    </th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filePreview.slice(1).map((row: any, rowIndex: number) => (
-                    <tr key={rowIndex}>
-                      {row.map((cell: any, colIndex: number) => (
-                        <td key={colIndex} className="border border-gray-300 px-2 py-1 text-center">
-                          {String(cell || '').substring(0, 20)}
-                        </td>
-                      ))}
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filePreview.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.raisonSociale}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.codeUnion}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.marque}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.famille}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.sousFamille}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {item.ca.toLocaleString('fr-FR')}€
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+        )}
 
-          {/* Configuration du mapping */}
-          <div className="mb-4">
-            <h5 className="font-medium text-blue-700 mb-2">Configuration du mapping des colonnes :</h5>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(columnMapping).map(([field, columnIndex]) => (
-                <div key={field} className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-blue-700 min-w-[120px]">
-                    {field === 'raisonSociale' ? 'Raison Sociale' :
-                     field === 'codeUnion' ? 'Code Union' :
-                     field === 'groupeClient' ? 'Groupe Client' :
-                     field === 'fournisseur' ? 'Fournisseur' :
-                     field === 'marque' ? 'Marque' :
-                     field === 'sousFamille' ? 'Sous Famille' :
-                     field === 'groupeFournisseur' ? 'Groupe Fournisseur' :
-                     field === 'annee' ? 'Année' :
-                     field === 'ca' ? 'CA (€)' : field}:
-                  </label>
-                  <select
-                    value={columnIndex}
-                    onChange={(e) => updateColumnMapping(field, parseInt(e.target.value))}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
-                  >
-                    {filePreview[0]?.map((_: any, index: number) => (
-                      <option key={index} value={index}>
-                        Colonne {index}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Boutons d'action */}
-          <div className="flex space-x-3">
-            <button
-              onClick={handleImportWithMapping}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-            >
-              ✅ Importer avec ce mapping
-            </button>
-            <button
-              onClick={() => setShowPreview(false)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
-            >
-              ❌ Annuler
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Instructions */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-700 mb-2">📋 Structure de vos données :</h4>
-        <div className="text-sm text-gray-600 space-y-1">
-          <div>• <strong>Colonne 0</strong> : Mois (cumul-annuel)</div>
-          <div>• <strong>Colonne 1</strong> : Année (2024/2025)</div>
-          <div>• <strong>Colonne 2</strong> : Code Union (M0114, M0109, etc.)</div>
-          <div>• <strong>Colonne 3</strong> : Raison Sociale (Nom de l'entreprise)</div>
-          <div>• <strong>Colonne 4</strong> : Groupe Client (GROUPE LES LYONNAIS, etc.)</div>
-          <div>• <strong>Colonne 5</strong> : Région Commerciale (LYON, SUD, etc.)</div>
-          <div>• <strong>Colonne 6</strong> : Fournisseur (Alliance, ACR, DCA, Exadis)</div>
-          <div>• <strong>Colonne 7</strong> : Marque (GAMOTECH, AIRTEX, etc.)</div>
-          <div>• <strong>Colonne 8</strong> : Groupe FRS (AIER, AIRTEX PRODUCTS, etc.)</div>
-          <div>• <strong>Colonne 9</strong> : Famille (injection essence et diesel vl, etc.)</div>
-          <div>• <strong>Colonne 10</strong> : Sous Famille (injecteurs cr, pompes, etc.)</div>
-          <div>• <strong>Colonne 11</strong> : CA (€) (Chiffre d'affaires)</div>
-        </div>
-        <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-          <div className="text-sm text-green-800">
-            <strong>✅ Mapping automatique :</strong> Le système a détecté votre structure et configuré automatiquement 
-            le mapping des colonnes. Vous pouvez ajuster si nécessaire.
+        {/* Informations sur le format attendu */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-blue-800 mb-2">📋 Format de fichier attendu :</h4>
+          <div className="text-sm text-blue-700 space-y-1">
+            <div>• <strong>Colonne 2</strong> : Année</div>
+            <div>• <strong>Colonne 3</strong> : Code Union</div>
+            <div>• <strong>Colonne 4</strong> : Raison Sociale</div>
+            <div>• <strong>Colonne 5</strong> : Groupe Client</div>
+            <div>• <strong>Colonne 6</strong> : Région Commerciale</div>
+            <div>• <strong>Colonne 7</strong> : Fournisseur</div>
+            <div>• <strong>Colonne 8</strong> : Marque</div>
+            <div>• <strong>Colonne 9</strong> : Groupe FRS</div>
+            <div>• <strong>Colonne 10</strong> : Famille (freinage, embrayage, etc.)</div>
+            <div>• <strong>Colonne 11</strong> : Sous Famille (plaquettes, disques, etc.)</div>
+            <div>• <strong>Colonne 12</strong> : CA (€)</div>
           </div>
         </div>
       </div>
 
-      {/* Statut de l'import */}
-      {importStatus && (
-        <div className={`mt-4 p-3 rounded-lg ${
-          importStatus.includes('✅') 
-            ? 'bg-green-100 text-green-800' 
-            : importStatus.includes('❌') 
-            ? 'bg-red-100 text-red-800'
-            : 'bg-blue-100 text-blue-800'
-        }`}>
-          {importStatus}
-        </div>
+      {/* Composants dynamiques */}
+      {ExcelClientImport && showExcelImport && (
+        <ExcelClientImport onClose={() => setShowExcelImport(false)} />
       )}
-
-      {/* Modal d'import Excel Clients */}
-      {showExcelImport && ExcelClientImport && (
-        <ExcelClientImport
-          onImportComplete={(result: any) => {
-            console.log('Import Excel Clients terminé:', result);
-            setShowExcelImport(false);
-            // TODO: Traiter les données clients importées
-          }}
-          onClose={() => setShowExcelImport(false)}
-        />
-      )}
-
-      {/* Modal Clients Importés */}
-      {showImportedClients && ImportedClientsList && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">Clients Importés</h2>
-              <button
-                onClick={() => setShowImportedClients(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <ImportedClientsList />
-            </div>
-          </div>
-        </div>
+      
+      {ImportedClientsList && showImportedClients && (
+        <ImportedClientsList onClose={() => setShowImportedClients(false)} />
       )}
     </div>
   );

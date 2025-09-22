@@ -5,7 +5,8 @@ export interface AdherentData {
   regionCommerciale?: string; // Région commerciale (REGION PARISIENNE, NORD, SUD, etc.)
   fournisseur: string;
   marque: string;
-  sousFamille: string;
+  famille: string; // Famille de produits (freinage, embrayage, etc.)
+  sousFamille: string; // Sous-famille (plaquettes, disques, etc.)
   groupeFournisseur: string;
   annee: number;
   ca: number;
@@ -36,7 +37,16 @@ export interface FournisseurPerformance {
 }
 
 export interface FamilleProduitPerformance {
-  sousFamille: string;
+  famille: string; // Famille principale (freinage, embrayage, etc.)
+  ca2024: number;
+  ca2025: number;
+  pourcentageTotal: number;
+  progression: number;
+}
+
+export interface SousFamilleProduitPerformance {
+  sousFamille: string; // Sous-famille (plaquettes, disques, etc.)
+  famille: string; // Famille parente
   ca2024: number;
   ca2025: number;
   pourcentageTotal: number;
@@ -56,6 +66,7 @@ export interface Filtres {
   regionCommerciale?: string;
   fournisseur?: string;
   marque?: string;
+  famille?: string;
   sousFamille?: string;
   annee?: number;
 }
