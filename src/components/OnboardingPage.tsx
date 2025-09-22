@@ -298,6 +298,10 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
           setGoogleAuthenticated(!isGoogleData);
           console.log('🤖 Message Maurice généré:', mauriceData.personalizedMessage);
           console.log('🔍 Données Google:', !isGoogleData);
+          console.log('📅 Agenda chargé:', {
+            hasUpcomingMeetings: !!mauriceData.upcomingMeetings,
+            meetingsCount: mauriceData.upcomingMeetings?.length || 0
+          });
         }
       } catch (error) {
         console.error('❌ Erreur chargement Maurice:', error);
@@ -610,16 +614,8 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
             
             
 
-            {/* Widget Calendrier */}
-            {(() => {
-              console.log('🔍 Debug Agenda:', {
-                googleAuthenticated,
-                hasMauriceData: !!mauriceData,
-                hasUpcomingMeetings: !!(mauriceData && mauriceData.upcomingMeetings),
-                upcomingMeetingsLength: mauriceData?.upcomingMeetings?.length || 0
-              });
-              return googleAuthenticated && mauriceData && mauriceData.upcomingMeetings;
-            })() && (
+            {/* Widget Calendrier - FORCÉ POUR TEST */}
+            {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
               <div className="bg-white rounded-lg shadow-md p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -775,6 +771,29 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                 >
                   Log Debug
                 </button>
+              </div>
+            </div>
+
+            {/* Test de rendu forcé de l'agenda */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-green-800 mb-2">
+                  🧪 Test Agenda Forcé
+                </h3>
+                <p className="text-green-700 text-xs mb-2">
+                  Affichage forcé de l'agenda pour test
+                </p>
+                <div className="bg-white rounded-lg shadow-md p-3 text-left">
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">📅 Test Agenda</h4>
+                  <p className="text-xs text-gray-600">
+                    Rendez-vous: {mauriceData?.upcomingMeetings?.length || 0}
+                  </p>
+                  {mauriceData?.upcomingMeetings?.slice(0, 3).map((meeting: any, index: number) => (
+                    <div key={index} className="text-xs text-gray-500 mt-1">
+                      • {meeting.summary || 'Rendez-vous'}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
