@@ -658,35 +658,44 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                 >
                   {mauriceData.upcomingMeetings.length > 0 ? (
-                    mauriceData.upcomingMeetings.map((meeting: any, index: number) => (
-                      <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-800 truncate">
-                            {meeting.summary || 'Rendez-vous'}
-                          </p>
-                          <p className="text-gray-500 text-xs">
-                            {(() => {
-                              try {
-                                const dateStr = meeting.start?.dateTime || meeting.start?.date;
-                                if (!dateStr) return 'Heure non définie';
-                                
-                                const date = new Date(dateStr);
-                                if (isNaN(date.getTime())) return 'Date invalide';
-                                
-                                return date.toLocaleTimeString('fr-FR', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
-                                });
-                              } catch (error) {
-                                console.error('Erreur formatage date:', error, meeting);
-                                return 'Erreur date';
-                              }
-                            })()}
-                          </p>
+                    mauriceData.upcomingMeetings.map((meeting: any, index: number) => {
+                      // Debug de la structure des données
+                      if (index === 0) {
+                        console.log('🔍 Structure meeting:', meeting);
+                        console.log('🔍 meeting.start:', meeting.start);
+                      }
+                      
+                      // Formatage simple de la date
+                      let timeDisplay = 'Heure non définie';
+                      try {
+                        const dateStr = meeting.start?.dateTime || meeting.start?.date;
+                        if (dateStr) {
+                          const date = new Date(dateStr);
+                          if (!isNaN(date.getTime())) {
+                            timeDisplay = date.toLocaleTimeString('fr-FR', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            });
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Erreur formatage date:', error, meeting);
+                      }
+
+                      return (
+                        <div key={index} className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-800 truncate">
+                              {meeting.summary || 'Rendez-vous'}
+                            </p>
+                            <p className="text-gray-500 text-xs">
+                              {timeDisplay}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-gray-500 text-sm italic">Aucun rendez-vous prévu</p>
                   )}
