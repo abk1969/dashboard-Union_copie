@@ -616,10 +616,10 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
 
             {/* Widget Calendrier - FORCÉ POUR TEST */}
             {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
-              <div className="bg-white rounded-lg shadow-md p-4">
+              <div className="bg-white rounded-lg shadow-md p-4 border-4 border-red-500" style={{minHeight: '200px', zIndex: 9999}}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    📅 Prochains rendez-vous
+                    📅 Prochains rendez-vous ({mauriceData.upcomingMeetings.length})
                   </h3>
                   <div className="flex items-center gap-1">
                     <button
@@ -657,6 +657,11 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   id="calendar-scroll"
                   className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100"
                 >
+                  {/* DEBUG MESSAGE */}
+                  <div className="bg-yellow-100 p-2 rounded text-xs text-yellow-800 mb-2">
+                    🔍 DEBUG: {mauriceData.upcomingMeetings.length} rendez-vous chargés
+                  </div>
+                  
                   {mauriceData.upcomingMeetings.length > 0 ? (
                     mauriceData.upcomingMeetings.slice(0, 5).map((meeting: any, index: number) => {
                       // Formatage ultra-simple
