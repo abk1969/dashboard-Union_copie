@@ -437,3 +437,148 @@ export interface ExcelImportResult {
   data: ClientInfo[];
   commercials: CommercialUnion[];
 }
+
+// Interface pour les performances commerciales (basée sur la vraie structure)
+export interface CommercialPerformance {
+  agentUnion: string; // Nom du commercial depuis clients.agent_union
+  mailAgent: string; // Email du commercial depuis clients.mail_agent
+  prenom: string; // Extrait du nom complet
+  nom: string; // Extrait du nom complet
+  email?: string; // Depuis la table users
+  photo?: string; // Depuis la table user_photos
+  ca2024: number;
+  ca2025: number;
+  progression: number;
+  pourcentageTotal: number;
+  clientsUniques: number;
+  totalClients: number;
+  famillesUniques: number;
+  marquesUniques: number;
+  fournisseursUniques: number;
+  regionsUniques: number;
+  moyenneCAparClient: number;
+  topClient: {
+    codeUnion: string;
+    raisonSociale: string;
+    ca: number;
+  };
+  topFamille: {
+    famille: string;
+    ca: number;
+  };
+  topMarque: {
+    marque: string;
+    ca: number;
+  };
+  topFournisseur: {
+    fournisseur: string;
+    ca: number;
+  };
+  evolutionMensuelle: {
+    mois: string;
+    ca2024: number;
+    ca2025: number;
+  }[];
+  // Nouvelles données détaillées pour les modals
+  clients: {
+    codeUnion: string;
+    raisonSociale: string;
+    groupeClient: string;
+    regionCommerciale?: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    derniereActivite: string;
+  }[];
+  familles: {
+    famille: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  marques: {
+    marque: string;
+    fournisseur: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  fournisseurs: {
+    fournisseur: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  regions: {
+    region: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+}
+
+// Interface pour les détails d'un commercial
+export interface CommercialDetail {
+  commercial: string;
+  prenom: string;
+  nom: string;
+  email?: string;
+  photo?: string;
+  clients: {
+    codeUnion: string;
+    raisonSociale: string;
+    groupeClient: string;
+    regionCommerciale?: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    derniereActivite: string;
+  }[];
+  familles: {
+    famille: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  marques: {
+    marque: string;
+    fournisseur: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  fournisseurs: {
+    fournisseur: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  regions: {
+    region: string;
+    ca2024: number;
+    ca2025: number;
+    progression: number;
+    pourcentageTotal: number;
+    clients: number;
+  }[];
+  totalCA2024: number;
+  totalCA2025: number;
+  progressionGenerale: number;
+  clientsUniques: number;
+}

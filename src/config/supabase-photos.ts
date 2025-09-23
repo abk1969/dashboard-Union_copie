@@ -56,16 +56,11 @@ export const uploadUserPhoto = async (
 
     const photoUrl = urlData.publicUrl;
 
-    // Enregistrer les métadonnées dans la table user_photos
+    // Mettre à jour la photo_url dans la table users
     const { error: dbError } = await supabase
-      .from('user_photos')
-      .insert({
-        user_id: actualUserId,
-        file_name: fileName,
-        file_path: filePath,
-        file_size: file.size,
-        mime_type: file.type
-      });
+      .from('users')
+      .update({ photo_url: filePath })
+      .eq('id', actualUserId);
 
     if (dbError) {
       console.error('❌ Erreur sauvegarde métadonnées:', dbError);
@@ -99,18 +94,17 @@ export const getUserPhoto = async (userId: string, userEmail?: string): Promise<
     }
 
     const { data, error } = await supabase
-      .from('user_photos')
-      .select('file_path')
-      .eq('user_id', actualUserId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .from('users')
+      .select('photo_url')
+      .eq('id', actualUserId)
+      .single();
 
     if (error) {
       console.error('❌ Erreur récupération photo:', error);
       return { success: false, error: error.message };
     }
 
-    if (!data || data.length === 0) {
+    if (!data || !data.photo_url) {
       // Aucune photo trouvée
       return { success: true, photoUrl: undefined };
     }
@@ -118,7 +112,7 @@ export const getUserPhoto = async (userId: string, userEmail?: string): Promise<
     // Obtenir l'URL publique
     const { data: urlData } = supabase.storage
       .from('user-photos')
-      .getPublicUrl(data[0].file_path);
+      .getPublicUrl(data.photo_url);
 
     return { success: true, photoUrl: urlData.publicUrl };
   } catch (error) {
@@ -132,18 +126,17 @@ export const deleteUserPhoto = async (userId: string): Promise<{ success: boolea
   try {
     // Récupérer les informations de la photo
     const { data: photoData, error: fetchError } = await supabase
-      .from('user_photos')
-      .select('file_path')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
+      .from('users')
+      .select('photo_url')
+      .eq('id', userId)
+      .single();
 
     if (fetchError) {
       console.error('Erreur récupération photo à supprimer:', fetchError);
       return { success: false, error: fetchError.message };
     }
 
-    if (!photoData || photoData.length === 0) {
+    if (!photoData || !photoData.photo_url) {
       // Aucune photo trouvée
       return { success: true };
     }
@@ -151,18 +144,18 @@ export const deleteUserPhoto = async (userId: string): Promise<{ success: boolea
     // Supprimer le fichier du storage
     const { error: storageError } = await supabase.storage
       .from('user-photos')
-      .remove([photoData[0].file_path]);
+      .remove([photoData.photo_url]);
 
     if (storageError) {
       console.error('Erreur suppression fichier storage:', storageError);
       return { success: false, error: storageError.message };
     }
 
-    // Supprimer l'enregistrement de la base de données
+    // Supprimer la photo_url de la table users
     const { error: dbError } = await supabase
-      .from('user_photos')
-      .delete()
-      .eq('user_id', userId);
+      .from('users')
+      .update({ photo_url: null })
+      .eq('id', userId);
 
     if (dbError) {
       console.error('Erreur suppression métadonnées:', dbError);

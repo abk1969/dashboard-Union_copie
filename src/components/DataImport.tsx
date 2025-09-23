@@ -205,11 +205,11 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
 
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
       console.log('📊 Données brutes reçues:', jsonData.length, 'lignes');
       console.log('🗂️ Mapping des colonnes:', columnMapping);
 
@@ -224,7 +224,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       console.log('🔍 Détection en-têtes:', { firstRow: firstRow?.[0], isHeaderRow });
 
       let dataRows = jsonData;
-      if (isHeaderRow) {
+    if (isHeaderRow) {
         dataRows = jsonData.slice(1);
         console.log('📋 Ligne d\'en-têtes supprimée, données restantes:', dataRows.length, 'lignes');
       }
@@ -240,28 +240,28 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
       console.log(`📊 Début du filtrage sur ${dataRows.length} lignes`);
       console.log(`📊 Données brutes reçues: ${jsonData.length} lignes`);
       console.log(`📊 Lignes après suppression en-têtes: ${dataRows.length} lignes`);
-      
-      const processedData = dataRows
-        .filter((row: any, index: number) => {
+    
+    const processedData = dataRows
+      .filter((row: any, index: number) => {
           if (!row || row.length === 0) return false;
           
           // Vérifier qu'on a assez de colonnes (au moins 11 colonnes pour les champs essentiels)
           if (row.length < 11) {
             console.log(`⚠️ Ligne ${index + 1} pas assez de colonnes:`, row.length, 'vs 11 minimum');
             lignesRejeteesColonnes++;
-            return false;
-          }
-          
+          return false;
+        }
+        
           // Log pour les lignes avec moins de 12 colonnes mais au moins 11
           if (row.length < 12) {
             console.log(`⚠️ Ligne ${index + 1} colonnes insuffisantes:`, row.length, 'vs 12 (mais acceptée)');
-          }
-          
-          return true;
-        })
-        .map((row: any, index: number) => {
-          try {
-            const adherentData: AdherentData = {
+        }
+        
+        return true;
+      })
+      .map((row: any, index: number) => {
+        try {
+          const adherentData: AdherentData = {
               raisonSociale: normalizeField(row[columnMapping.raisonSociale]),
               codeUnion: normalizeField(row[columnMapping.codeUnion]),
               groupeClient: normalizeField(row[columnMapping.groupeClient]),
@@ -286,17 +286,17 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
               console.log(`⚠️ Ligne ${index + 1} champs obligatoires manquants:`, adherentData);
               totalCARejete += adherentData.ca;
               lignesRejeteesValidation++;
-              return null;
-            }
+            return null;
+          }
 
             // Compter les lignes avec CA = 0
             if (adherentData.ca === 0) {
               lignesCAZero++;
               totalCAZero += 0; // Pas besoin d'ajouter 0, mais pour la cohérence
             }
-
-            return adherentData;
-          } catch (error) {
+          
+          return adherentData;
+        } catch (error) {
             console.warn(`❌ Erreur de conversion ligne ${index + 1}:`, error, row);
             // Essayer de calculer le CA même en cas d'erreur
             try {
@@ -306,11 +306,11 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
               // Ignorer si on ne peut pas calculer le CA
             }
             lignesRejeteesConversion++;
-            return null;
-          }
-        })
-        .filter((item): item is AdherentData => item !== null);
-
+          return null;
+        }
+      })
+      .filter((item): item is AdherentData => item !== null);
+    
       console.log(`📊 Statistiques de filtrage:`);
       console.log(`  - Lignes rejetées (colonnes): ${lignesRejeteesColonnes}`);
       console.log(`  - Lignes rejetées (validation): ${lignesRejeteesValidation}`);
@@ -379,7 +379,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
   };
 
   const handlePreviewConfirm = () => {
-    setShowPreview(false);
+      setShowPreview(false);
     setImportStatus('Import terminé');
   };
 
@@ -393,34 +393,34 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button
-            onClick={() => setShowExcelImport(true)}
+            <button
+              onClick={() => setShowExcelImport(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
+            >
             📋 Clients Excel
-          </button>
-          <button
-            onClick={() => setShowImportedClients(true)}
+            </button>
+            <button
+              onClick={() => setShowImportedClients(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-          >
+            >
             👥 Clients Importés
-          </button>
+            </button>
         </div>
       </div>
 
       <div className="space-y-6">
         {/* Upload de fichier */}
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-          <input
-            type="file"
+            <input
+              type="file"
             accept=".xlsx,.xls,.csv"
-            onChange={handleFileUpload}
+              onChange={handleFileUpload}
             disabled={isImporting}
-            className="hidden"
-            id="file-upload"
-          />
-          <label
-            htmlFor="file-upload"
+              className="hidden"
+              id="file-upload"
+            />
+            <label
+              htmlFor="file-upload"
             className={`cursor-pointer ${isImporting ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="text-6xl mb-4">📁</div>
@@ -430,7 +430,7 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             <div className="text-gray-500">
               Formats supportés: .xlsx, .xls, .csv
             </div>
-          </label>
+            </label>
         </div>
 
         {/* Statut d'import */}
@@ -451,19 +451,19 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
             {Object.entries(columnMapping).map(([field, value]) => (
               <div key={field} className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  {field === 'raisonSociale' ? 'Raison Sociale' :
-                   field === 'codeUnion' ? 'Code Union' :
-                   field === 'groupeClient' ? 'Groupe Client' :
+                    {field === 'raisonSociale' ? 'Raison Sociale' :
+                     field === 'codeUnion' ? 'Code Union' :
+                     field === 'groupeClient' ? 'Groupe Client' :
                    field === 'regionCommerciale' ? 'Région Commerciale' :
-                   field === 'fournisseur' ? 'Fournisseur' :
-                   field === 'marque' ? 'Marque' :
+                     field === 'fournisseur' ? 'Fournisseur' :
+                     field === 'marque' ? 'Marque' :
                    field === 'famille' ? 'Famille' :
-                   field === 'sousFamille' ? 'Sous Famille' :
-                   field === 'groupeFournisseur' ? 'Groupe Fournisseur' :
-                   field === 'annee' ? 'Année' :
-                   field === 'ca' ? 'CA (€)' : field}:
-                </label>
-                <select
+                     field === 'sousFamille' ? 'Sous Famille' :
+                     field === 'groupeFournisseur' ? 'Groupe Fournisseur' :
+                     field === 'annee' ? 'Année' :
+                     field === 'ca' ? 'CA (€)' : field}:
+                  </label>
+                  <select
                   value={value}
                   onChange={(e) => handleColumnMappingChange(field, parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -471,13 +471,13 @@ const DataImport: React.FC<DataImportProps> = ({ onDataImported }) => {
                   {Array.from({ length: 20 }, (_, i) => (
                     <option key={i} value={i}>
                       Colonne {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
         {/* Option Supabase */}
         <div className="flex items-center space-x-3">

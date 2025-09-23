@@ -2,6 +2,18 @@ import * as XLSX from 'xlsx';
 import { ClientInfo, CommercialUnion, ExcelImportResult } from '../types';
 import { saveClient, saveCommercial } from '../config/supabase-clients';
 
+// Fonction pour convertir ClientInfo en Client
+const convertClientInfoToClient = (clientInfo: ClientInfo) => {
+  return {
+    code_union: clientInfo.codeUnion,
+    nom_client: clientInfo.nomClient,
+    groupe: clientInfo.groupe,
+    ville: clientInfo.ville,
+    agent_union: clientInfo.agentUnion,
+    mail_agent: clientInfo.mailAgent
+  };
+};
+
 export class ExcelImportService {
   /**
    * Parse un fichier Excel et extrait les données clients
@@ -136,7 +148,8 @@ export class ExcelImportService {
     // Sauvegarder les clients
     for (const client of clients) {
       try {
-        const result = await saveClient(client);
+        const clientData = convertClientInfoToClient(client);
+        const result = await saveClient(clientData);
         if (result.success) {
           savedClients++;
         } else {

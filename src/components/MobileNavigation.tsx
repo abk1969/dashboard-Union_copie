@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface MobileNavigationProps {
   activeTab: string;
-  onTabChange: (tab: 'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'import' | 'todo' | 'users') => void;
+  onTabChange: (tab: 'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'import' | 'todo' | 'users') => void;
 }
 
 const MobileNavigation: React.FC<MobileNavigationProps> = ({ activeTab, onTabChange }) => {
@@ -13,12 +13,13 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({ activeTab, onTabCha
     { id: 'fournisseurs', label: '🏢 Fournisseurs', icon: '🏢' },
     { id: 'marques', label: '🏷️ Marques', icon: '🏷️' },
     { id: 'groupeClients', label: '👥 Groupe Clients', icon: '👥' },
+    { id: 'commercials', label: '💼 Commerciaux', icon: '💼' },
     { id: 'import', label: '📥 Import', icon: '📥' },
     { id: 'todo', label: '📋 To-Do List', icon: '📋' },
     { id: 'users', label: '👥 Utilisateurs', icon: '👥' }
   ];
 
-  const handleTabClick = (tabId: 'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'import' | 'todo' | 'users' | 'chatbot') => {
+  const handleTabClick = (tabId: 'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'import' | 'todo' | 'users' | 'chatbot') => {
     onTabChange(tabId as any);
     setIsMenuOpen(false);
   };

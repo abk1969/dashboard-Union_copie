@@ -7,7 +7,7 @@ import { DocumentService } from '../services/documentService';
 import { DOCUMENT_TYPES } from '../config/documentTypes';
 import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
 import PDFViewer from './PDFViewer';
-import { getClients } from '../config/supabase-clients';
+import { fetchClients } from '../config/supabase-clients';
 import ClientNotesTasks from './ClientNotesTasks';
 // import { getNotesByCodeUnion } from '../data/notesData';
 // import { NoteModal } from './NoteModal';
@@ -18,6 +18,8 @@ interface ClientDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateToReports?: () => void;
+  clients?: any[];
+  setEditingClient?: (client: any) => void;
 }
 
 interface ClientPerformanceData {
@@ -55,12 +57,14 @@ interface ClientMarqueMultiFournisseurData {
   pourcentageMarque: number;
 }
 
-const ClientDetailModal: React.FC<ClientDetailModalProps> = ({ 
-  client, 
-  allAdherentData, 
-  isOpen, 
+const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
+  client,
+  allAdherentData,
+  isOpen,
   onClose,
-  onNavigateToReports
+  onNavigateToReports,
+  clients = [],
+  setEditingClient
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'fournisseurs' | 'marques' | 'marquesMulti' | 'familles' | 'timeline' | 'documents' | 'notes' | 'infoClient'>('overview');
   const [showExportModal, setShowExportModal] = useState(false);
@@ -108,58 +112,77 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       
       setLoadingClientInfo(true);
       try {
-        const result = await getClients();
-        console.log('📊 Résultat getClients:', result);
+        const clients = await fetchClients();
+        console.log('📊 Résultat fetchClients:', clients);
         
-        if (result.success && result.data) {
+        if (clients && clients.length > 0) {
           try {
-            console.log('📋 Premiers clients disponibles:', result.data.slice(0, 10).map(c => ({ 
-              codeUnion: `"${c.codeUnion || 'UNDEFINED'}"`, 
-              nomClient: `"${c.nomClient || 'UNDEFINED'}"`,
+            console.log('📋 Premiers clients disponibles:', clients.slice(0, 10).map((c: any) => ({ 
+              code_union: `"${c.code_union || 'UNDEFINED'}"`, 
+              nom_client: `"${c.nom_client || 'UNDEFINED'}"`,
               ville: `"${c.ville || 'UNDEFINED'}"` 
             })));
             
                   // Afficher tous les codes Union pour voir le pattern
-                  const allCodes = result.data.map(c => c.codeUnion).filter(Boolean);
+                  const allCodes = clients.map((c: any) => c.code_union).filter(Boolean);
                   console.log('🔢 Tous les codes Union:', allCodes.slice(0, 20));
                   
                   // Debug: Afficher la structure complète du premier client
-                  if (result.data.length > 0) {
-                    console.log('🔍 Structure du premier client:', Object.keys(result.data[0]));
-                    console.log('🔍 Premier client complet:', result.data[0]);
+                  if (clients.length > 0) {
+                    console.log('🔍 Structure du premier client:', Object.keys(clients[0]));
+                    console.log('🔍 Premier client complet:', clients[0]);
                   }
           } catch (error) {
             console.error('❌ Erreur lors de l\'affichage des clients:', error);
-            console.log('📋 Données brutes:', result.data.slice(0, 3));
+            console.log('📋 Données brutes:', clients.slice(0, 3));
           }
           
           // Chercher spécifiquement le client M0013
-          const clientM0013 = result.data.find(c => c.codeUnion === 'M0013');
+          const clientM0013 = clients.find((c: any) => c.code_union === 'M0013');
           console.log('🔍 Client M0013 trouvé:', clientM0013);
           
           // Essayer plusieurs correspondances possibles
-          let foundClient = result.data.find(c => c.codeUnion === client.codeUnion);
+          let foundClient = clients.find((c: any) => c.code_union === client.codeUnion);
           
           if (!foundClient) {
             console.log('🔍 Recherche par nom...');
             // Essayer avec le nom de l'entreprise
-            foundClient = result.data.find(c => 
-              c.nomClient && client.raisonSociale && 
-              c.nomClient.toLowerCase().includes(client.raisonSociale.toLowerCase())
+            foundClient = clients.find((c: any) => 
+              c.nom_client && client.raisonSociale && 
+              c.nom_client.toLowerCase().includes(client.raisonSociale.toLowerCase())
             );
           }
           
           if (!foundClient) {
             console.log('🔍 Recherche par code Union partiel...');
             // Essayer avec une correspondance partielle du code Union
-            foundClient = result.data.find(c => 
-              c.codeUnion && client.codeUnion && 
-              c.codeUnion.includes(client.codeUnion) || client.codeUnion.includes(c.codeUnion)
+            foundClient = clients.find((c: any) => 
+              c.code_union && client.codeUnion && 
+              c.code_union.includes(client.codeUnion) || client.codeUnion.includes(c.code_union)
             );
           }
           
           console.log('✅ Client trouvé:', foundClient);
-          setClientInfo(foundClient || null);
+          // Convertir Client en ClientInfo si nécessaire
+          if (foundClient) {
+            const clientInfo = {
+              codeUnion: foundClient.code_union,
+              nomClient: foundClient.nom_client || 'Inconnu',
+              groupe: foundClient.groupe || 'Inconnu',
+              contactMagasin: foundClient.contact_magasin || '',
+              adresse: foundClient.adresse || '',
+              codePostal: foundClient.code_postal || '',
+              ville: foundClient.ville || '',
+              telephone: foundClient.telephone || '',
+              mail: foundClient.mail || '',
+              sirenSiret: foundClient.siren_siret || '',
+              agentUnion: foundClient.agent_union || '',
+              mailAgent: foundClient.mail_agent || ''
+            };
+            setClientInfo(clientInfo);
+          } else {
+            setClientInfo(null);
+          }
         }
       } catch (error) {
         console.error('❌ Erreur lors du chargement des informations client:', error);
@@ -1688,7 +1711,19 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                 <h3 className="text-2xl font-bold text-gray-800">👤 Informations Client</h3>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {/* TODO: Éditer les infos client */}}
+                    onClick={() => {
+                      console.log('🖱️ BOUTON MODIFIER CLIQUÉ DANS MODAL !', clientInfo);
+                      if (clientInfo && setEditingClient) {
+                        // Trouver le client dans la liste des clients
+                        const clientData = clients.find(c => c.code_union === clientInfo.codeUnion);
+                        if (clientData) {
+                          console.log('✅ Ouverture du modal d\'édition pour:', clientData.nom_client);
+                          setEditingClient(clientData);
+                        } else {
+                          console.log('❌ Client non trouvé dans la liste');
+                        }
+                      }
+                    }}
                     className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-colors font-medium"
                   >
                     ✏️ Modifier

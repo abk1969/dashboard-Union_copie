@@ -3,17 +3,23 @@ import { PlatformProvider, usePlatform } from './contexts/PlatformContext';
 import { RegionProvider, useRegion, extractUniqueRegions, filterDataByRegion } from './contexts/RegionContext';
 import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUtils';
 import { calculateRankings } from './utils/rankingUtils';
-import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance } from './types';
+import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance, CommercialPerformance } from './types';
 import { fallbackData } from './data/defaultData';
 import { fetchAdherentsData } from './config/supabase';
 import { fetchTasks, fetchUsers } from './config/supabase-users';
+import { fetchClients } from './config/supabase-clients';
 import './styles/onboarding.css';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
+import ClientEditModal from './components/ClientEditModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
 import FamilleDetailModalLegacy from './components/FamilleDetailModalLegacy';
 import MarquesSection from './components/MarquesSection';
 import GroupeClientsSection from './components/GroupeClientsSection';
+import CommercialsSection from './components/CommercialsSection';
+import ClientsAnalysis from './components/ClientsAnalysis';
+import { fetchCommercialsWithClients, fetchCommercialsInfo } from './config/supabase-clients-commercials';
+import { debugCommercialsMapping } from './utils/debugCommercialsMapping';
 import DataImport from './components/DataImport';
 import DataBackup from './components/DataBackup';
 import { SupabaseDocumentUploader } from './components/SupabaseDocumentUploader';
@@ -46,6 +52,10 @@ function MainApp() {
   const [allAdherentData, setAllAdherentData] = useState<AdherentData[]>(fallbackData);
   const [tasks, setTasks] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [clientsWithCommercials, setClientsWithCommercials] = useState<any[]>([]);
+  const [commercialsInfo, setCommercialsInfo] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [editingClient, setEditingClient] = useState<any>(null);
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
   // Initialiser les plateformes autorisées au premier chargement de l'utilisateur
@@ -99,7 +109,7 @@ function MainApp() {
     const regions = extractUniqueRegions(allAdherentData);
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'import' | 'todo' | 'users'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'import' | 'todo' | 'users'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -279,6 +289,7 @@ function MainApp() {
       .sort((a, b) => b.ca2025 - a.ca2025);
   }, [filteredAdherentData]);
 
+
   // Performance par sous-famille (nouvelle logique)
   const currentSousFamillesProduitsPerformance = useMemo(() => {
     const sousFamilleMap = new Map<string, { famille: string; ca2024: number; ca2025: number }>();
@@ -435,6 +446,7 @@ function MainApp() {
           codeUnion: item.codeUnion,
           raisonSociale: item.raisonSociale,
           groupeClient: item.groupeClient,
+          regionCommerciale: item.regionCommerciale,
           fournisseur: item.fournisseur,
           marque: item.marque,
           famille: item.famille,
@@ -450,7 +462,7 @@ function MainApp() {
         // Charger les tâches et utilisateurs pour le chatbot
         console.log('🔄 Chargement des tâches et utilisateurs...');
         try {
-          const [tasksData, usersData] = await Promise.all([
+          const [tasksData, usersData, clientsData, commercialsData, clientsList] = await Promise.all([
             fetchTasks().catch(err => {
               console.warn('⚠️ Erreur chargement tâches:', err);
               return [];
@@ -458,15 +470,40 @@ function MainApp() {
             fetchUsers().catch(err => {
               console.warn('⚠️ Erreur chargement utilisateurs:', err);
               return [];
+            }),
+            fetchCommercialsWithClients().catch(err => {
+              console.warn('⚠️ Erreur chargement commerciaux avec clients:', err);
+              return [];
+            }),
+            fetchCommercialsInfo().catch(err => {
+              console.warn('⚠️ Erreur chargement infos commerciaux:', err);
+              return [];
+            }),
+            fetchClients().catch(err => {
+              console.warn('⚠️ Erreur chargement clients:', err);
+              return [];
             })
           ]);
           
           setTasks(tasksData);
           setUsers(usersData);
+          setClientsWithCommercials(clientsData);
+          setCommercialsInfo(commercialsData);
+          setClients(clientsList);
           console.log('✅ Tâches chargées:', tasksData.length);
           console.log('✅ Utilisateurs chargés:', usersData.length);
+          console.log('✅ Commerciaux avec clients chargés:', clientsData.length);
+          console.log('✅ Infos commerciaux chargées:', commercialsData.length);
+          console.log('✅ Clients chargés:', clientsList.length);
+          
+          // Debug du mapping commerciaux/adhérents (désactivé)
+          // if (clientsData.length > 0) {
+          //   console.log('🔍 Lancement du debug du mapping...');
+          //   debugCommercialsMapping();
+          // }
+          
         } catch (error) {
-          console.warn('⚠️ Erreur lors du chargement des tâches/utilisateurs:', error);
+          console.warn('⚠️ Erreur lors du chargement des données:', error);
         }
         
       } else {
@@ -607,6 +644,17 @@ function MainApp() {
                 }`}
               >
                 <span className="text-lg mr-1">👥</span>Clients
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('commercials')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'commercials'
+                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-xl shadow-cyan-200'
+                    : 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-700 border border-cyan-200 hover:from-cyan-100 hover:to-cyan-200 hover:border-cyan-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">💼</span>Commerciaux
               </button>
               
               <button
@@ -870,6 +918,12 @@ function MainApp() {
             <AdherentsTable
               data={currentAdherentsSummary}
               onClientClick={handleClientClick}
+            />
+
+            {/* Analyse des clients */}
+            <ClientsAnalysis 
+              adherentData={allAdherentData}
+              commercialsPerformance={clientsWithCommercials}
             />
           </div>
         )}
@@ -1141,6 +1195,15 @@ function MainApp() {
            </div>
          )}
 
+         {/* Onglet Commerciaux */}
+         {activeTab === 'commercials' && (
+           <div className="space-y-6">
+             <CommercialsSection 
+               commercialsPerformance={clientsWithCommercials}
+             />
+           </div>
+         )}
+
                                      {/* Onglet Import */}
            {activeTab === 'import' && (
              <div className="space-y-6">
@@ -1189,6 +1252,20 @@ function MainApp() {
           setSelectedClient(null);
         }}
         onNavigateToReports={onNavigateToReports}
+        clients={clients}
+        setEditingClient={setEditingClient}
+      />
+
+      {/* Modal d'édition client */}
+      <ClientEditModal
+        client={editingClient}
+        isOpen={!!editingClient}
+        onClose={() => setEditingClient(null)}
+        onSave={(updatedClient) => {
+          // Mettre à jour la liste des clients
+          setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+          setEditingClient(null);
+        }}
       />
 
       {/* Modal de détails fournisseur */}

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getClients, ClientInfo } from '../config/supabase-clients';
+import { fetchClients, Client } from '../config/supabase-clients';
 
 interface ImportedClientsListProps {
-  onClientSelect?: (client: ClientInfo) => void;
+  onClientSelect?: (client: Client) => void;
 }
 
 export const ImportedClientsList: React.FC<ImportedClientsListProps> = ({ onClientSelect }) => {
-  const [clients, setClients] = useState<ClientInfo[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,12 +19,12 @@ export const ImportedClientsList: React.FC<ImportedClientsListProps> = ({ onClie
   const loadClients = async () => {
     try {
       setLoading(true);
-      const result = await getClients();
+      const clients = await fetchClients();
       
-      if (result.success && result.data) {
-        setClients(result.data);
+      if (clients && clients.length >= 0) {
+        setClients(clients);
       } else {
-        setError(result.error || 'Erreur lors du chargement des clients');
+        setError('Erreur lors du chargement des clients');
       }
     } catch (err) {
       setError('Erreur inattendue lors du chargement des clients');
@@ -34,16 +34,16 @@ export const ImportedClientsList: React.FC<ImportedClientsListProps> = ({ onClie
   };
 
   const filteredClients = clients.filter(client => {
-    const matchesSearch = (client.nomClient || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (client.nom_client || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (client.ville || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (client.codeUnion || '').toLowerCase().includes(searchTerm.toLowerCase());
+                         (client.code_union || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesRegion = !filterRegion || (client.agentUnion || '').toLowerCase().includes(filterRegion.toLowerCase());
+    const matchesRegion = !filterRegion || (client.agent_union || '').toLowerCase().includes(filterRegion.toLowerCase());
     
     return matchesSearch && matchesRegion;
   });
 
-  const uniqueRegions = Array.from(new Set(clients.map(c => c.agentUnion).filter(region => region && region.trim())));
+  const uniqueRegions = Array.from(new Set(clients.map(c => c.agent_union).filter(region => region && region.trim())));
 
   if (loading) {
     return (
@@ -103,9 +103,9 @@ export const ImportedClientsList: React.FC<ImportedClientsListProps> = ({ onClie
         </div>
         <div className="bg-green-50 p-4 rounded-lg">
           <div className="text-2xl font-bold text-green-600">
-            {clients.filter(c => c.statut === 'actif').length}
+            {clients.length}
           </div>
-          <div className="text-sm text-green-600">Clients actifs</div>
+          <div className="text-sm text-green-600">Clients total</div>
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
           <div className="text-2xl font-bold text-purple-600">{uniqueRegions.length}</div>
@@ -141,28 +141,22 @@ export const ImportedClientsList: React.FC<ImportedClientsListProps> = ({ onClie
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredClients.map((client) => (
-                <tr key={client.codeUnion} className="hover:bg-gray-50">
+                <tr key={client.code_union} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {client.codeUnion || 'N/A'}
+                    {client.code_union || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {client.nomClient || 'N/A'}
+                    {client.nom_client || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {client.ville || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {client.agentUnion || 'N/A'}
+                    {client.agent_union || 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      client.statut === 'actif' 
-                        ? 'bg-green-100 text-green-800'
-                        : client.statut === 'inactif'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {client.statut || 'actif'}
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                      Actif
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
