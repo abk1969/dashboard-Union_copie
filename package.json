@@ -16,6 +16,7 @@
     "chartjs-adapter-date-fns": "^3.0.0",
     "crypto-browserify": "^3.12.1",
     "date-fns": "^2.30.0",
+    "dotenv": "^17.2.2",
     "firebase": "^12.1.0",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.8.1",

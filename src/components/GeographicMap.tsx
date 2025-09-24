@@ -3,6 +3,7 @@ import { Loader } from '@googlemaps/js-api-loader';
 import { AdherentData, CommercialPerformance } from '../types';
 import { GOOGLE_MAPS_CONFIG, getGoogleMapsErrorMessage } from '../config/googleMaps';
 import { GeocodingService, ClientWithCoordinates } from '../services/geocodingService';
+import { debugEnvironmentVariables } from '../utils/debugEnv';
 
 // Déclaration des types Google Maps
 declare global {
@@ -34,6 +35,11 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
   commercialsPerformance,
   clients
 }) => {
+  // Debug des variables d'environnement
+  React.useEffect(() => {
+    debugEnvironmentVariables();
+  }, []);
+
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
@@ -43,9 +49,70 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [clientsWithCoordinates, setClientsWithCoordinates] = useState<ClientWithCoordinates[]>([]);
   const [isLoadingCoordinates, setIsLoadingCoordinates] = useState(false);
+  
+  // États pour les filtres par distance
+  const [distanceFilter, setDistanceFilter] = useState<{
+    enabled: boolean;
+    center: { lat: number; lng: number } | null;
+    radius: number; // en kilomètres
+  }>({
+    enabled: false,
+    center: null,
+    radius: 10
+  });
+  
+  // États pour les notifications de proximité
+  const [proximityNotifications, setProximityNotifications] = useState<{
+    enabled: boolean;
+    radius: number; // en kilomètres
+    userLocation: { lat: number; lng: number } | null;
+  }>({
+    enabled: false,
+    radius: 5,
+    userLocation: null
+  });
 
   // Service de géolocalisation
   const geocodingService = GeocodingService.getInstance();
+
+  // Fonction pour calculer la distance entre deux points (formule de Haversine)
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Rayon de la Terre en kilomètres
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Fonction pour obtenir la géolocalisation de l'utilisateur
+  const getUserLocation = (): Promise<{ lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Géolocalisation non supportée'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          reject(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
+        }
+      );
+    });
+  };
 
   // Couleurs par commercial
   const commercialColors = {
@@ -168,9 +235,22 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
     return clientMarkers.filter(marker => {
       const commercialMatch = selectedCommercial === 'all' || marker.commercial === selectedCommercial;
       const statusMatch = selectedStatus === 'all' || marker.status === selectedStatus;
-      return commercialMatch && statusMatch;
+      
+      // Filtre par distance
+      let distanceMatch = true;
+      if (distanceFilter.enabled && distanceFilter.center) {
+        const distance = calculateDistance(
+          distanceFilter.center.lat,
+          distanceFilter.center.lng,
+          marker.position.lat,
+          marker.position.lng
+        );
+        distanceMatch = distance <= distanceFilter.radius;
+      }
+      
+      return commercialMatch && statusMatch && distanceMatch;
     });
-  }, [clientMarkers, selectedCommercial, selectedStatus]);
+  }, [clientMarkers, selectedCommercial, selectedStatus, distanceFilter]);
 
   // Initialiser Google Maps
   useEffect(() => {
@@ -213,6 +293,16 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
         setMapLoaded(true);
         console.log('✅ Carte Google Maps initialisée');
 
+        // Ajouter un listener pour les clics sur la carte (pour le filtre par distance)
+        mapInstance.current.addListener('click', (event: google.maps.MapMouseEvent) => {
+          if (event.latLng && distanceFilter.enabled) {
+            const lat = event.latLng.lat();
+            const lng = event.latLng.lng();
+            handleSetDistanceCenter(lat, lng);
+            console.log(`📍 Centre du filtre par distance défini: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+          }
+        });
+
       } catch (error) {
         console.error('❌ Erreur initialisation carte:', error);
         setMapError('Erreur lors du chargement de la carte');
@@ -229,6 +319,8 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
     // Nettoyer les anciens marqueurs
     markersRef.current.forEach(marker => marker.setMap(null));
     markersRef.current = [];
+
+    // Note: Les cercles Google Maps sont automatiquement nettoyés quand on recrée la carte
 
     console.log(`📍 Chargement de ${filteredMarkers.length} marqueurs sur la carte`);
 
@@ -275,7 +367,59 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
 
     console.log(`✅ ${markersRef.current.length} marqueurs ajoutés à la carte`);
 
-  }, [filteredMarkers, mapLoaded]);
+    // Créer le cercle de distance si le filtre est activé
+    if (distanceFilter.enabled && distanceFilter.center && mapInstance.current) {
+      const circle = new google.maps.Circle({
+        strokeColor: '#3B82F6',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.1,
+        map: mapInstance.current,
+        center: distanceFilter.center,
+        radius: distanceFilter.radius * 1000 // Convertir km en mètres
+      });
+      
+      console.log(`📍 Cercle de distance créé: rayon ${distanceFilter.radius}km`);
+    }
+
+  }, [filteredMarkers, mapLoaded, distanceFilter]);
+
+  // Effet pour les notifications de proximité
+  useEffect(() => {
+    if (!proximityNotifications.enabled || !proximityNotifications.userLocation) return;
+
+    const checkProximity = () => {
+      const nearbyClients = clientMarkers.filter(marker => {
+        const distance = calculateDistance(
+          proximityNotifications.userLocation!.lat,
+          proximityNotifications.userLocation!.lng,
+          marker.position.lat,
+          marker.position.lng
+        );
+        return distance <= proximityNotifications.radius;
+      });
+
+      if (nearbyClients.length > 0) {
+        console.log(`🔔 ${nearbyClients.length} client(s) à proximité:`, nearbyClients.map(c => c.raisonSociale));
+        
+        // Afficher une notification (vous pouvez personnaliser cela)
+        if (nearbyClients.length === 1) {
+          alert(`🔔 Client à proximité: ${nearbyClients[0].raisonSociale} (${nearbyClients[0].codeUnion})`);
+        } else {
+          alert(`🔔 ${nearbyClients.length} clients à proximité dans un rayon de ${proximityNotifications.radius}km`);
+        }
+      }
+    };
+
+    // Vérifier la proximité immédiatement
+    checkProximity();
+
+    // Vérifier toutes les 30 secondes
+    const interval = setInterval(checkProximity, 30000);
+
+    return () => clearInterval(interval);
+  }, [proximityNotifications, clientMarkers]);
 
   // Fonction pour obtenir la configuration des marqueurs
   const getMarkerConfig = (status: string, commercial: string) => {
@@ -408,6 +552,47 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
     }
   };
 
+  // Fonction pour activer/désactiver le filtre par distance
+  const handleDistanceFilterToggle = () => {
+    setDistanceFilter(prev => ({
+      ...prev,
+      enabled: !prev.enabled,
+      center: !prev.enabled ? null : prev.center
+    }));
+  };
+
+  // Fonction pour définir le centre du filtre par distance
+  const handleSetDistanceCenter = (lat: number, lng: number) => {
+    setDistanceFilter(prev => ({
+      ...prev,
+      center: { lat, lng }
+    }));
+  };
+
+  // Fonction pour activer/désactiver les notifications de proximité
+  const handleProximityNotificationsToggle = async () => {
+    if (!proximityNotifications.enabled) {
+      try {
+        const userLocation = await getUserLocation();
+        setProximityNotifications(prev => ({
+          ...prev,
+          enabled: true,
+          userLocation
+        }));
+        console.log('📍 Géolocalisation utilisateur activée:', userLocation);
+      } catch (error) {
+        console.error('❌ Erreur géolocalisation:', error);
+        alert('Impossible d\'obtenir votre position. Vérifiez les permissions de géolocalisation.');
+      }
+    } else {
+      setProximityNotifications(prev => ({
+        ...prev,
+        enabled: false,
+        userLocation: null
+      }));
+    }
+  };
+
   if (mapError) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-8 text-center">
@@ -468,6 +653,99 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
           </div>
         </div>
 
+        {/* Nouveaux contrôles avancés */}
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🎯 Fonctionnalités avancées</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Filtre par distance */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  📏 Filtre par distance
+                </label>
+                <button
+                  onClick={handleDistanceFilterToggle}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    distanceFilter.enabled
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {distanceFilter.enabled ? 'Activé' : 'Désactivé'}
+                </button>
+              </div>
+              
+              {distanceFilter.enabled && (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <label className="text-xs text-gray-600">Rayon:</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="50"
+                      value={distanceFilter.radius}
+                      onChange={(e) => setDistanceFilter(prev => ({ ...prev, radius: parseInt(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-600 w-12">{distanceFilter.radius} km</span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500">
+                    {distanceFilter.center 
+                      ? `Centre: ${distanceFilter.center.lat.toFixed(4)}, ${distanceFilter.center.lng.toFixed(4)}`
+                      : 'Cliquez sur la carte pour définir le centre'
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Notifications de proximité */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">
+                  🔔 Notifications de proximité
+                </label>
+                <button
+                  onClick={handleProximityNotificationsToggle}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    proximityNotifications.enabled
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {proximityNotifications.enabled ? 'Activé' : 'Désactivé'}
+                </button>
+              </div>
+              
+              {proximityNotifications.enabled && (
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <label className="text-xs text-gray-600">Rayon d'alerte:</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={proximityNotifications.radius}
+                      onChange={(e) => setProximityNotifications(prev => ({ ...prev, radius: parseInt(e.target.value) }))}
+                      className="flex-1"
+                    />
+                    <span className="text-xs text-gray-600 w-12">{proximityNotifications.radius} km</span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500">
+                    {proximityNotifications.userLocation 
+                      ? `Position: ${proximityNotifications.userLocation.lat.toFixed(4)}, ${proximityNotifications.userLocation.lng.toFixed(4)}`
+                      : 'Géolocalisation en cours...'
+                    }
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Statistiques */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
           <div className="bg-blue-50 rounded-lg p-4">
@@ -487,6 +765,31 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
             <div className="text-sm text-yellow-800">Table clients</div>
           </div>
         </div>
+
+        {/* Statistiques des filtres actifs */}
+        {(distanceFilter.enabled || proximityNotifications.enabled) && (
+          <div className="mt-4 p-4 bg-indigo-50 rounded-lg">
+            <h4 className="text-sm font-semibold text-indigo-800 mb-2">🎯 Filtres actifs</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              {distanceFilter.enabled && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-indigo-600">📏 Filtre par distance:</span>
+                  <span className="text-indigo-800">
+                    {filteredMarkers.length} clients dans un rayon de {distanceFilter.radius}km
+                  </span>
+                </div>
+              )}
+              {proximityNotifications.enabled && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-indigo-600">🔔 Notifications:</span>
+                  <span className="text-indigo-800">
+                    Rayon d'alerte de {proximityNotifications.radius}km
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filtres */}
