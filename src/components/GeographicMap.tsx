@@ -72,6 +72,9 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
     userLocation: null
   });
 
+  // État pour les clients à proximité
+  const [nearbyClients, setNearbyClients] = useState<ClientMarker[]>([]);
+
   // Service de géolocalisation
   const geocodingService = GeocodingService.getInstance();
 
@@ -387,10 +390,13 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
 
   // Effet pour les notifications de proximité
   useEffect(() => {
-    if (!proximityNotifications.enabled || !proximityNotifications.userLocation) return;
+    if (!proximityNotifications.enabled || !proximityNotifications.userLocation) {
+      setNearbyClients([]);
+      return;
+    }
 
     const checkProximity = () => {
-      const nearbyClients = clientMarkers.filter(marker => {
+      const nearby = clientMarkers.filter(marker => {
         const distance = calculateDistance(
           proximityNotifications.userLocation!.lat,
           proximityNotifications.userLocation!.lng,
@@ -400,14 +406,19 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
         return distance <= proximityNotifications.radius;
       });
 
-      if (nearbyClients.length > 0) {
-        console.log(`🔔 ${nearbyClients.length} client(s) à proximité:`, nearbyClients.map(c => c.raisonSociale));
+      // Mettre à jour la liste des clients à proximité
+      setNearbyClients(nearby);
+
+      if (nearby.length > 0) {
+        console.log(`🔔 ${nearby.length} client(s) à proximité:`, nearby.map(c => c.raisonSociale));
         
-        // Afficher une notification (vous pouvez personnaliser cela)
-        if (nearbyClients.length === 1) {
-          alert(`🔔 Client à proximité: ${nearbyClients[0].raisonSociale} (${nearbyClients[0].codeUnion})`);
-        } else {
-          alert(`🔔 ${nearbyClients.length} clients à proximité dans un rayon de ${proximityNotifications.radius}km`);
+        // Afficher une notification seulement si c'est une nouvelle détection
+        if (nearby.length !== nearbyClients.length) {
+          if (nearby.length === 1) {
+            alert(`🔔 Client à proximité: ${nearby[0].raisonSociale} (${nearby[0].codeUnion})`);
+          } else {
+            alert(`🔔 ${nearby.length} clients à proximité dans un rayon de ${proximityNotifications.radius}km`);
+          }
         }
       }
     };
@@ -745,6 +756,59 @@ const GeographicMap: React.FC<GeographicMapProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Clients à proximité */}
+        {proximityNotifications.enabled && (
+          <div className="mt-6 p-4 bg-green-50 rounded-lg">
+            <h4 className="text-lg font-semibold text-green-800 mb-3">
+              🔔 Clients à proximité ({nearbyClients.length})
+            </h4>
+            
+            {nearbyClients.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {nearbyClients.map((client, index) => {
+                  const distance = proximityNotifications.userLocation ? 
+                    calculateDistance(
+                      proximityNotifications.userLocation.lat,
+                      proximityNotifications.userLocation.lng,
+                      client.position.lat,
+                      client.position.lng
+                    ) : 0;
+
+                  return (
+                    <div key={client.id || index} className="bg-white rounded-lg p-3 shadow-sm border border-green-200">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h5 className="font-medium text-gray-900 text-sm">{client.raisonSociale}</h5>
+                          <p className="text-xs text-gray-600">{client.codeUnion}</p>
+                          <p className="text-xs text-gray-500">{client.ville}</p>
+                          <p className="text-xs text-gray-500">{client.commercial}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs font-medium text-green-600">
+                            {distance.toFixed(1)} km
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            CA: {client.ca2024.toLocaleString('fr-FR')}€
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <div className="text-gray-500 text-sm">
+                  Aucun client dans un rayon de {proximityNotifications.radius}km
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  La liste se met à jour automatiquement toutes les 30 secondes
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Statistiques */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
