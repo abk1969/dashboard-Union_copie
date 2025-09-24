@@ -18,6 +18,7 @@ import MarquesSection from './components/MarquesSection';
 import GroupeClientsSection from './components/GroupeClientsSection';
 import CommercialsSection from './components/CommercialsSection';
 import ClientsAnalysis from './components/ClientsAnalysis';
+import GeographicMap from './components/GeographicMap';
 import { fetchCommercialsWithClients, fetchCommercialsInfo } from './config/supabase-clients-commercials';
 import { debugCommercialsMapping } from './utils/debugCommercialsMapping';
 import DataImport from './components/DataImport';
@@ -109,7 +110,7 @@ function MainApp() {
     const regions = extractUniqueRegions(allAdherentData);
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
-  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'import' | 'todo' | 'users'>('adherents');
+  const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'geographic' | 'import' | 'todo' | 'users'>('adherents');
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -658,6 +659,17 @@ function MainApp() {
               </button>
               
               <button
+                onClick={() => setActiveTab('geographic')}
+                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  activeTab === 'geographic'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl shadow-green-200'
+                    : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200 hover:from-green-100 hover:to-green-200 hover:border-green-300 hover:shadow-md'
+                }`}
+              >
+                <span className="text-lg mr-1">🗺️</span>Géographie
+              </button>
+              
+              <button
                 onClick={() => setActiveTab('import')}
                 className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
                   activeTab === 'import'
@@ -1200,6 +1212,17 @@ function MainApp() {
            <div className="space-y-6">
              <CommercialsSection 
                commercialsPerformance={clientsWithCommercials}
+             />
+           </div>
+         )}
+
+         {/* Onglet Géographie */}
+         {activeTab === 'geographic' && (
+           <div className="space-y-6">
+             <GeographicMap 
+               adherentData={filteredAdherentData}
+               commercialsPerformance={clientsWithCommercials}
+               clients={clients}
              />
            </div>
          )}

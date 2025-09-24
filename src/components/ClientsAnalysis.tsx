@@ -186,6 +186,8 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
       
       // Trouver le commercial assigné à ce client
       let assignedCommercial: string | undefined;
+      
+      // 1. Vérifier dans commercialsPerformance (clients avec données adherents)
       for (const commercial of commercialsPerformance) {
         if (commercial.clients.some(client => client.codeUnion === codeUnion)) {
           assignedCommercial = commercial.agentUnion;
@@ -193,15 +195,25 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
         }
       }
       
+      // 2. Si pas trouvé et que le client est dans la table clients, vérifier dans les données users
+      if (!assignedCommercial && inClientsTable) {
+        // Chercher dans les données des commerciaux depuis la table users
+        for (const commercial of commercialsPerformance) {
+          // Vérifier si ce commercial a ce client dans ses clients_assignes
+          // (cette information devrait être dans commercialsPerformance mais peut-être pas encore)
+          // Pour l'instant, on va utiliser une approche différente
+        }
+      }
+      
       let status: ClientAnalysis['status'] = 'active';
       if (!inClientsTable && inAdherentsTable) {
-        status = 'in_adherents_only';
+        status = 'in_adherents_only'; // Client en erreur
       } else if (inClientsTable && !inAdherentsTable) {
-        status = 'in_clients_only';
+        status = 'in_clients_only'; // Table clients (fusionné avec sans CA)
       } else if (!hasCommercial) {
         status = 'orphan';
       } else if (totalCA === 0) {
-        status = 'no_ca';
+        status = 'in_clients_only'; // Fusionner avec table clients
       } else if (ca2025 === 0 && ca2024 > 0) {
         status = 'inactive';
       }
@@ -258,12 +270,25 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
     // Filtre par commercial
     if (selectedCommercial !== 'all') {
       const beforeCount = filtered.length;
+      const clientsWithCommercial = filtered.filter(c => c.commercial);
+      const clientsWithThisCommercial = filtered.filter(c => c.commercial === selectedCommercial);
+      
+      console.log('👤 Debug filtre commercial:', {
+        before: beforeCount,
+        selectedCommercial,
+        clientsWithCommercial: clientsWithCommercial.length,
+        clientsWithThisCommercial: clientsWithThisCommercial.length,
+        sampleClients: clientsWithCommercial.slice(0, 3).map(c => ({
+          codeUnion: c.codeUnion,
+          commercial: c.commercial,
+          status: c.status
+        }))
+      });
+      
       filtered = filtered.filter(client => client.commercial === selectedCommercial);
       console.log('👤 Après filtre commercial:', {
         before: beforeCount,
-        after: filtered.length,
-        selectedCommercial,
-        clientsWithThisCommercial: clientsAnalysis.filter(c => c.commercial === selectedCommercial).length
+        after: filtered.length
       });
     }
     
@@ -316,12 +341,11 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
     const total = clientsAnalysis.length;
     const active = clientsAnalysis.filter(c => c.status === 'active').length;
     const inactive = clientsAnalysis.filter(c => c.status === 'inactive').length;
-    const noCa = clientsAnalysis.filter(c => c.status === 'no_ca').length;
     const orphan = clientsAnalysis.filter(c => c.status === 'orphan').length;
-    const inClientsOnly = clientsAnalysis.filter(c => c.status === 'in_clients_only').length;
-    const inAdherentsOnly = clientsAnalysis.filter(c => c.status === 'in_adherents_only').length;
+    const inClientsOnly = clientsAnalysis.filter(c => c.status === 'in_clients_only').length; // Table clients + Sans CA
+    const inAdherentsOnly = clientsAnalysis.filter(c => c.status === 'in_adherents_only').length; // Client en erreur
 
-    return { total, active, inactive, noCa, orphan, inClientsOnly, inAdherentsOnly };
+    return { total, active, inactive, orphan, inClientsOnly, inAdherentsOnly };
   }, [clientsAnalysis]);
 
   const getStatusColor = (status: ClientAnalysis['status']) => {
@@ -340,10 +364,9 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
     switch (status) {
       case 'active': return '✅ Actif';
       case 'inactive': return '⚠️ Inactif 2025';
-      case 'no_ca': return '📊 Pas de CA';
       case 'orphan': return '👤 Sans commercial';
-      case 'in_clients_only': return '📋 Table clients seulement';
-      case 'in_adherents_only': return '📊 Table adhérents seulement';
+      case 'in_clients_only': return '📋 Table clients + Sans CA';
+      case 'in_adherents_only': return '❌ Client en erreur';
       default: return '❓ Inconnu';
     }
   };
@@ -370,10 +393,6 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
           <div className="bg-yellow-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-yellow-600">{stats.inactive}</div>
             <div className="text-sm text-yellow-800">Inactifs 2025</div>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4 text-center">
-            <div className="text-2xl font-bold text-gray-600">{stats.noCa}</div>
-            <div className="text-sm text-gray-800">Sans CA</div>
           </div>
           <div className="bg-red-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-red-600">{stats.orphan}</div>
@@ -488,16 +507,6 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
             Inactifs 2025 ({stats.inactive})
           </button>
           <button
-            onClick={() => setFilterStatus('no_ca')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              filterStatus === 'no_ca' 
-                ? 'bg-gray-500 text-white' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Sans CA ({stats.noCa})
-          </button>
-          <button
             onClick={() => setFilterStatus('orphan')}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
               filterStatus === 'orphan' 
@@ -515,17 +524,17 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Table clients ({stats.inClientsOnly})
+            Table clients + Sans CA ({stats.inClientsOnly})
           </button>
           <button
             onClick={() => setFilterStatus('in_adherents_only')}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
               filterStatus === 'in_adherents_only' 
-                ? 'bg-purple-500 text-white' 
+                ? 'bg-red-500 text-white' 
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            Table adhérents ({stats.inAdherentsOnly})
+            Client en erreur ({stats.inAdherentsOnly})
           </button>
         </div>
       </div>

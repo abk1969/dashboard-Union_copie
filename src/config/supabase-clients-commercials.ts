@@ -155,6 +155,28 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
         assignedClients.includes(adherent.codeUnion)
       );
       
+      // Créer une liste complète des clients assignés (même sans données adherents)
+      const allAssignedClients = assignedClients.map((codeUnion: string) => {
+        const adherentData = adherents.find(a => a.codeUnion === codeUnion);
+        if (adherentData) {
+          return adherentData;
+        } else {
+          // Client assigné mais sans données adherents
+          return {
+            codeUnion,
+            raisonSociale: 'Client sans données adherents',
+            groupeClient: 'Inconnu',
+            regionCommerciale: 'Inconnue',
+            ca2024: 0,
+            ca2025: 0,
+            familles: new Set(),
+            marques: new Set(),
+            fournisseurs: new Set(),
+            regions: new Set()
+          };
+        }
+      });
+      
       console.log(`📊 Commercial ${commercial.nom}: ${assignedClients.length} clients assignés, ${commercialAdherents.length} clients trouvés dans adherents`);
 
       // Les données sont déjà agrégées par client, calculer directement
@@ -234,8 +256,8 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
       // Moyenne CA par client (utiliser les clients uniques réels)
       const moyenneCAparClient = clientsUniques > 0 ? (ca2024 + ca2025) / clientsUniques : 0;
 
-      // Calculer les données détaillées pour les modals
-      const clients = commercialAdherents.map(client => {
+      // Calculer les données détaillées pour les modals (inclure tous les clients assignés)
+      const clients = allAssignedClients.map((client: any) => {
         const clientProgression = client.ca2024 > 0 ? ((client.ca2025 - client.ca2024) / client.ca2024) * 100 : 0;
         const clientPourcentage = totalCA > 0 ? ((client.ca2024 + client.ca2025) / totalCA) * 100 : 0;
         return {
@@ -249,7 +271,7 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
           pourcentageTotal: Math.round(clientPourcentage * 10) / 10,
           derniereActivite: client.ca2025 > client.ca2024 ? '2025' : '2024'
         };
-      }).sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      }).sort((a: any, b: any) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
       // Calculer les familles
       const famillesMap = new Map<string, { ca2024: number; ca2025: number; clients: Set<string> }>();
@@ -276,7 +298,7 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
           pourcentageTotal: Math.round(pourcentage * 10) / 10,
           clients: data.clients.size
         };
-      }).sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      }).sort((a: any, b: any) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
       // Calculer les marques
       const marquesMap = new Map<string, { fournisseur: string; ca2024: number; ca2025: number; clients: Set<string> }>();
@@ -304,7 +326,7 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
           pourcentageTotal: Math.round(pourcentage * 10) / 10,
           clients: data.clients.size
         };
-      }).sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      }).sort((a: any, b: any) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
       // Calculer les fournisseurs
       const fournisseursMap = new Map<string, { ca2024: number; ca2025: number; clients: Set<string> }>();
@@ -331,7 +353,7 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
           pourcentageTotal: Math.round(pourcentage * 10) / 10,
           clients: data.clients.size
         };
-      }).sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      }).sort((a: any, b: any) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
       // Calculer les régions
       const regionsMap = new Map<string, { ca2024: number; ca2025: number; clients: Set<string> }>();
@@ -358,7 +380,7 @@ export async function fetchCommercialsWithClients(): Promise<CommercialPerforman
           pourcentageTotal: Math.round(pourcentage * 10) / 10,
           clients: data.clients.size
         };
-      }).sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
+      }).sort((a: any, b: any) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
       return {
         agentUnion: commercial.prenom + ' ' + commercial.nom,
