@@ -24,6 +24,7 @@ interface FournisseurClientData {
   ca2025: number;
   progression: number;
   pourcentageTotal: number;
+  agentUnion?: string; // Agent Union assigné
 }
 
 interface FournisseurMarqueData {
@@ -376,15 +377,16 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                          item.progression > 5 ? 'progression' : 
                          item.progression < -5 ? 'regression' : 'stable';
                        
-                       const clientSummary: AdherentSummary = {
-                         codeUnion: item.codeUnion,
-                         raisonSociale: item.raisonSociale,
-                         groupeClient: item.groupeClient,
-                         ca2024: item.ca2024,
-                         ca2025: item.ca2025,
-                         progression: item.progression,
-                         statut
-                       };
+                      const clientSummary: AdherentSummary = {
+                        codeUnion: item.codeUnion,
+                        raisonSociale: item.raisonSociale,
+                        groupeClient: item.groupeClient,
+                        ca2024: item.ca2024,
+                        ca2025: item.ca2025,
+                        progression: item.progression,
+                        statut,
+                        agentUnion: item.agentUnion // Inclure l'agent Union si disponible
+                      };
                        onClientClick(clientSummary);
                      }}
                    >
@@ -456,15 +458,16 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
                                  item.progression > 5 ? 'progression' : 
                                  item.progression < -5 ? 'regression' : 'stable';
                                
-                               const clientSummary: AdherentSummary = {
-                                 codeUnion: item.codeUnion,
-                                 raisonSociale: item.raisonSociale,
-                                 groupeClient: item.groupeClient,
-                                 ca2024: item.ca2024,
-                                 ca2025: item.ca2025,
-                                 progression: item.progression,
-                                 statut
-                               };
+                      const clientSummary: AdherentSummary = {
+                        codeUnion: item.codeUnion,
+                        raisonSociale: item.raisonSociale,
+                        groupeClient: item.groupeClient,
+                        ca2024: item.ca2024,
+                        ca2025: item.ca2025,
+                        progression: item.progression,
+                        statut,
+                        agentUnion: item.agentUnion // Inclure l'agent Union si disponible
+                      };
                                onClientClick(clientSummary);
                              }}
                            >

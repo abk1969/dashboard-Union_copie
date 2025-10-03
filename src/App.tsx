@@ -5,13 +5,14 @@ import { assignPlatformToData, filterDataByPlatforms } from './utils/platformUti
 import { calculateRankings } from './utils/rankingUtils';
 import { AdherentData, AdherentSummary, FournisseurPerformance, FamilleProduitPerformance, CommercialPerformance } from './types';
 import { fallbackData } from './data/defaultData';
-import { fetchAdherentsData } from './config/supabase';
+import { fetchAdherentsData, enrichAdherentsWithAgentUnion, enrichClientsWithCAData } from './config/supabase';
 import { fetchTasks, fetchUsers } from './config/supabase-users';
 import { fetchClients } from './config/supabase-clients';
 import './styles/onboarding.css';
 import AdherentsTable from './components/AdherentsTable';
 import ClientDetailModal from './components/ClientDetailModal';
 import ClientEditModal from './components/ClientEditModal';
+import CreateAdherentModal from './components/CreateAdherentModal';
 import FournisseurDetailModal from './components/FournisseurDetailModal';
 import FamilleDetailModalLegacy from './components/FamilleDetailModalLegacy';
 import MarquesSection from './components/MarquesSection';
@@ -177,6 +178,7 @@ function MainApp() {
   }, [activeTab, activeCategory]);
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
+  const [showCreateAdherentModal, setShowCreateAdherentModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
   const [showFournisseurModal, setShowFournisseurModal] = useState(false);
   const [autoOpenReportsForm, setAutoOpenReportsForm] = useState(false);
@@ -250,7 +252,8 @@ function MainApp() {
           ca2024: 0,
           ca2025: 0,
           progression: 0,
-          statut: 'stable'
+          statut: 'stable',
+          agentUnion: item.agentUnion // Inclure l'agent Union enrichi
         });
       }
       
@@ -503,26 +506,20 @@ function MainApp() {
   const loadSupabaseDataOnStartup = async () => {
     try {
       console.log('🚀 Tentative de chargement depuis Supabase...');
-      const supabaseData = await fetchAdherentsData();
       
-      if (supabaseData.length > 0) {
-        // Convertir les données Supabase vers le format AdherentData
-        const convertedData: AdherentData[] = supabaseData.map(item => ({
-          codeUnion: item.codeUnion,
-          raisonSociale: item.raisonSociale,
-          groupeClient: item.groupeClient,
-          regionCommerciale: item.regionCommerciale,
-          fournisseur: item.fournisseur,
-          marque: item.marque,
-          famille: item.famille,
-          sousFamille: item.sousFamille,
-          groupeFournisseur: item.groupeFournisseur,
-          annee: item.annee,
-          ca: item.ca
-        }));
+        // ANCIENNE ARCHITECTURE : Charger depuis adherents (qui fonctionne)
+        console.log('📋 Chargement des données depuis la table adherents...');
+        const adherentsData = await fetchAdherentsData();
         
-        console.log('✅ Données chargées depuis Supabase:', convertedData.length, 'enregistrements');
-        setAllAdherentData(convertedData);
+        if (adherentsData && adherentsData.length > 0) {
+          console.log(`✅ ${adherentsData.length} adhérents chargés depuis la table adherents`);
+          
+          // Enrichir avec agent_union depuis la table clients
+          console.log('🔄 Enrichissement avec agent_union...');
+          const enrichedData = await enrichAdherentsWithAgentUnion(adherentsData);
+          
+          console.log('✅ Données adhérents enrichies avec agent_union:', enrichedData.length, 'enregistrements');
+          setAllAdherentData(enrichedData);
         
         // Charger les tâches et utilisateurs pour le chatbot
         console.log('🔄 Chargement des tâches et utilisateurs...');
@@ -537,7 +534,9 @@ function MainApp() {
               return [];
             }),
             fetchCommercialsWithClients().catch(err => {
-              console.warn('⚠️ Erreur chargement commerciaux avec clients:', err);
+              console.error('❌ ERREUR chargement commerciaux avec clients:', err);
+              console.error('❌ Détails de l\'erreur:', err.message);
+              console.error('❌ Stack trace:', err.stack);
               return [];
             }),
             fetchCommercialsInfo().catch(err => {
@@ -579,6 +578,30 @@ function MainApp() {
       console.error('❌ Erreur lors du chargement depuis Supabase:', error);
       console.log('🔄 Utilisation des données de fallback');
       setAllAdherentData(fallbackData);
+    }
+  };
+
+  // Fonction pour rafraîchir les données après création d'adhérent
+  const refreshAdherentsData = async () => {
+    try {
+      console.log('🔄 Rafraîchissement des données après création d\'adhérent...');
+      
+      // ANCIENNE ARCHITECTURE : Recharger depuis adherents
+      console.log('📋 Rechargement des données depuis la table adherents...');
+      const adherentsData = await fetchAdherentsData();
+      
+      if (adherentsData && adherentsData.length > 0) {
+        console.log(`✅ ${adherentsData.length} adhérents rafraîchis avec succès`);
+        
+        // Enrichir avec agent_union depuis la table clients
+        console.log('🔄 Enrichissement avec agent_union...');
+        const enrichedData = await enrichAdherentsWithAgentUnion(adherentsData);
+        
+        setAllAdherentData(enrichedData);
+        console.log('✅ Données adhérents enrichies et rafraîchies avec succès:', enrichedData.length, 'enregistrements');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du rafraîchissement:', error);
     }
   };
 
@@ -1083,6 +1106,18 @@ function MainApp() {
 
             
 
+            {/* Bouton de création d'adhérent */}
+            <div className="mb-6 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">📋 Liste des Adhérents</h3>
+              <button
+                onClick={() => setShowCreateAdherentModal(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              >
+                <span>➕</span>
+                <span>Créer un Adhérent</span>
+              </button>
+            </div>
+
             {/* Table des adhérents */}
             <AdherentsTable
               data={currentAdherentsSummary}
@@ -1499,6 +1534,18 @@ function MainApp() {
         adherentData={allAdherentData}
         tasks={tasks}
         users={users}
+      />
+
+      {/* Modal de création d'adhérent */}
+      <CreateAdherentModal
+        isOpen={showCreateAdherentModal}
+        onClose={() => setShowCreateAdherentModal(false)}
+        onAdherentCreated={async (newAdherent) => {
+          // Rafraîchir les données après création
+          await refreshAdherentsData();
+          setShowCreateAdherentModal(false);
+        }}
+        existingAdherents={allAdherentData}
       />
 
       {/* Modal de profil utilisateur */}

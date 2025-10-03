@@ -108,6 +108,17 @@ const AdherentsTable: React.FC<AdherentsTableProps> = ({ data, onClientClick }) 
         },
       },
       {
+        Header: 'Commercial',
+        accessor: 'agentUnion',
+        Cell: ({ value }: { value: string | undefined }) => (
+          <div className="text-sm text-gray-700">
+            {value || 'Non assigné'}
+          </div>
+        ),
+        width: 120,
+        disableFilters: true,
+      },
+      {
         Header: 'Statut',
         accessor: 'statut',
         Cell: ({ value }: { value: string }) => {

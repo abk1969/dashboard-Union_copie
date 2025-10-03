@@ -11,6 +11,7 @@ export interface AdherentData {
   annee: number;
   ca: number;
   platform?: string; // Plateforme : 'acr', 'dca', 'exadis', 'alliance'
+  agentUnion?: string; // Agent Union assigné (enrichi depuis la table clients)
 }
 
 export interface AdherentSummary {
@@ -24,6 +25,7 @@ export interface AdherentSummary {
   classement2024?: number;
   classement2025?: number;
   evolutionClassement?: number;
+  agentUnion?: string; // Agent Union assigné (enrichi depuis la table clients)
 }
 
 export interface FournisseurPerformance {
