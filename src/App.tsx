@@ -19,6 +19,8 @@ import GroupeClientsSection from './components/GroupeClientsSection';
 import CommercialsSection from './components/CommercialsSection';
 import ClientsAnalysis from './components/ClientsAnalysis';
 import GeographicMap from './components/GeographicMap';
+import ClientAutocomplete from './components/ClientAutocomplete';
+import CommercialAutocomplete from './components/CommercialAutocomplete';
 import { fetchCommercialsWithClients, fetchCommercialsInfo } from './config/supabase-clients-commercials';
 import { debugCommercialsMapping } from './utils/debugCommercialsMapping';
 import DataImport from './components/DataImport';
@@ -36,6 +38,8 @@ import { NavigationProvider, useNavigation } from './contexts/NavigationContext'
 import UserPhotoUpload from './components/UserPhotoUpload';
 import UserProfileModal from './components/UserProfileModal';
 import GoogleCallback from './pages/GoogleCallback';
+import AutoConnectionScore from './components/AutoConnectionScore';
+import AutoPodium from './components/AutoPodium';
 
 import StartupScreen from './components/StartupScreen';
 import Logo from './components/Logo';
@@ -57,6 +61,8 @@ function MainApp() {
   const [commercialsInfo, setCommercialsInfo] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [editingClient, setEditingClient] = useState<any>(null);
+  const [clientFilter, setClientFilter] = useState<string>('');
+  const [commercialFilter, setCommercialFilter] = useState<string>('');
 
   // Appliquer automatiquement le filtre de plateforme selon l'utilisateur
   // Initialiser les plateformes autorisées au premier chargement de l'utilisateur
@@ -98,12 +104,36 @@ function MainApp() {
 
   // L'onboarding est maintenant géré par ProtectedRoute
   
-  // Données filtrées selon les plateformes actives et la région
+  // Données filtrées selon les plateformes actives, la région, le filtre client et commercial
   const filteredAdherentData = useMemo(() => {
     const dataWithPlatforms = assignPlatformToData(allAdherentData);
     const dataFilteredByPlatforms = filterDataByPlatforms(dataWithPlatforms, activePlatforms);
-    return filterDataByRegion(dataFilteredByPlatforms, selectedRegion);
-  }, [allAdherentData, activePlatforms, selectedRegion]);
+    const dataFilteredByRegion = filterDataByRegion(dataFilteredByPlatforms, selectedRegion);
+    
+    let filteredData = dataFilteredByRegion;
+    
+    // Appliquer le filtre de client si défini
+    if (clientFilter) {
+      filteredData = filteredData.filter(item => 
+        item.raisonSociale?.toLowerCase().includes(clientFilter.toLowerCase()) ||
+        item.codeUnion?.toLowerCase().includes(clientFilter.toLowerCase()) ||
+        item.regionCommerciale?.toLowerCase().includes(clientFilter.toLowerCase())
+      );
+    }
+    
+    // Appliquer le filtre commercial si défini
+    if (commercialFilter) {
+      filteredData = filteredData.filter(item => {
+        // Trouver le commercial assigné à ce client
+        const commercial = clientsWithCommercials.find(c => 
+          c.clients.some((client: any) => client.codeUnion === item.codeUnion)
+        );
+        return commercial?.agentUnion === commercialFilter;
+      });
+    }
+    
+    return filteredData;
+  }, [allAdherentData, activePlatforms, selectedRegion, clientFilter, commercialFilter, clientsWithCommercials]);
 
   // Mettre à jour les régions disponibles quand les données changent
   useEffect(() => {
@@ -111,6 +141,40 @@ function MainApp() {
     setAvailableRegions(regions);
   }, [allAdherentData, setAvailableRegions]);
   const [activeTab, setActiveTab] = useState<'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'geographic' | 'import' | 'todo' | 'users'>('adherents');
+  const [activeCategory, setActiveCategory] = useState<'donnees' | 'business' | 'gestion'>('donnees');
+  const [expandedCategory, setExpandedCategory] = useState<'donnees' | 'business' | 'gestion' | null>('donnees');
+
+  // Helper function pour mapper les onglets aux catégories
+  const getCategoryFromTab = (tabId: string): 'donnees' | 'business' | 'gestion' => {
+    const categoryMap = {
+      'adherents': 'donnees',
+      'fournisseurs': 'donnees', 
+      'marques': 'donnees',
+      'groupeClients': 'donnees',
+      'commercials': 'business',
+      'geographic': 'business',
+      'todo': 'business',
+      'import': 'gestion',
+      'users': 'gestion'
+    } as const;
+    return categoryMap[tabId as keyof typeof categoryMap] || 'donnees';
+  };
+
+  // Helper function pour changer d'onglet et ouvrir la catégorie
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId as any);
+    const tabCategory = getCategoryFromTab(tabId);
+    setActiveCategory(tabCategory);
+    setExpandedCategory(tabCategory);
+  };
+
+  // Synchroniser la catégorie active avec l'onglet sélectionné
+  useEffect(() => {
+    const newCategory = getCategoryFromTab(activeTab);
+    if (newCategory !== activeCategory) {
+      setActiveCategory(newCategory);
+    }
+  }, [activeTab, activeCategory]);
   const [selectedClient, setSelectedClient] = useState<AdherentSummary | null>(null);
   const [showClientModal, setShowClientModal] = useState(false);
   const [selectedFournisseur, setSelectedFournisseur] = useState<FournisseurPerformance | null>(null);
@@ -598,126 +662,151 @@ function MainApp() {
           </div>
         </header>
 
-        {/* Navigation - Desktop seulement - Style compact et coloré */}
+        {/* Navigation par catégories - Desktop */}
         <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex justify-between items-center mb-3">
-            {/* Onglets principaux - Style compact */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setActiveTab('adherents')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'adherents'
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl shadow-blue-200'
-                    : 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200 hover:from-blue-100 hover:to-blue-200 hover:border-blue-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">👥</span>Adhérents
-              </button>
+            {/* Navigation par catégories */}
+            <div className="flex flex-col space-y-3 w-full">
+              {/* Catégories principales */}
+              <div className="flex gap-4">
+                {[
+                  { id: 'donnees', label: '📊 DONNÉES', color: 'blue', tabs: ['adherents', 'fournisseurs', 'marques', 'groupeClients'] },
+                  { id: 'business', label: '💼 BUSINESS', color: 'green', tabs: ['commercials', 'geographic', 'todo'] },
+                  { id: 'gestion', label: '⚙️ GESTION', color: 'purple', tabs: ['import', 'users'] }
+                ].map(category => {
+                  const isActive = category.tabs.includes(activeTab);
+                  const isExpanded = expandedCategory === category.id;
+                  
+                  return (
+                    <button
+                      key={category.id}
+                      onClick={() => {
+                        setActiveCategory(category.id as any);
+                        // Basculer l'expansion : si c'est déjà ouvert, fermer, sinon ouvrir
+                        if (isExpanded) {
+                          setExpandedCategory(null);
+                        } else {
+                          setExpandedCategory(category.id as any);
+                        }
+                      }}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-300 transform hover:scale-105 ${
+                        isActive
+                          ? category.color === 'blue' 
+                            ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-xl shadow-blue-200'
+                            : category.color === 'green'
+                            ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl shadow-green-200'
+                            : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl shadow-purple-200'
+                          : category.color === 'blue'
+                          ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200 hover:from-blue-100 hover:to-blue-200 hover:border-blue-300 hover:shadow-md'
+                          : category.color === 'green'
+                          ? 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200 hover:from-green-100 hover:to-green-200 hover:border-green-300 hover:shadow-md'
+                          : 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border border-purple-200 hover:from-purple-100 hover:to-purple-200 hover:border-purple-300 hover:shadow-md'
+                      }`}
+                    >
+                      {category.label} {isExpanded ? '▼' : '▶'}
+                    </button>
+                  );
+                })}
+                
+                {/* Séparateur */}
+                <div className="w-px h-8 bg-gray-300 mx-2"></div>
+                
+                {/* Bouton Note Rapide */}
+                <button
+                  onClick={() => {
+                    handleTabChange('todo');
+                    setTimeout(() => {
+                      window.dispatchEvent(new CustomEvent('openQuickNote'));
+                    }, 100);
+                  }}
+                  className="px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-700"
+                >
+                  <span className="text-lg mr-1">📝</span>Note Rapide
+                </button>
+              </div>
               
-              <button
-                onClick={() => setActiveTab('fournisseurs')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'fournisseurs'
-                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl shadow-green-200'
-                    : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200 hover:from-green-100 hover:to-green-200 hover:border-green-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">🏢</span>Fournisseurs
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('marques')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'marques'
-                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-xl shadow-orange-200'
-                    : 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-700 border border-orange-200 hover:from-orange-100 hover:to-orange-200 hover:border-orange-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">🏷️</span>Marques
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('groupeClients')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'groupeClients'
-                    ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-xl shadow-indigo-200'
-                    : 'bg-gradient-to-r from-indigo-50 to-indigo-100 text-indigo-700 border border-indigo-200 hover:from-indigo-100 hover:to-indigo-200 hover:border-indigo-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">👥</span>Clients
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('commercials')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'commercials'
-                    ? 'bg-gradient-to-r from-cyan-500 to-cyan-600 text-white shadow-xl shadow-cyan-200'
-                    : 'bg-gradient-to-r from-cyan-50 to-cyan-100 text-cyan-700 border border-cyan-200 hover:from-cyan-100 hover:to-cyan-200 hover:border-cyan-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">💼</span>Commerciaux
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('geographic')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'geographic'
-                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-xl shadow-green-200'
-                    : 'bg-gradient-to-r from-green-50 to-green-100 text-green-700 border border-green-200 hover:from-green-100 hover:to-green-200 hover:border-green-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">🗺️</span>Géographie
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('import')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'import'
-                    ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-xl shadow-red-200'
-                    : 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200 hover:from-red-100 hover:to-red-200 hover:border-red-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">📥</span>Import
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('todo')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'todo'
-                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-xl shadow-purple-200'
-                    : 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-700 border border-purple-200 hover:from-purple-100 hover:to-purple-200 hover:border-purple-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">📋</span>To-Do
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`px-3 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
-                  activeTab === 'users'
-                    ? 'bg-gradient-to-r from-teal-500 to-teal-600 text-white shadow-xl shadow-teal-200'
-                    : 'bg-gradient-to-r from-teal-50 to-teal-100 text-teal-700 border border-teal-200 hover:from-teal-100 hover:to-teal-200 hover:border-teal-300 hover:shadow-md'
-                }`}
-              >
-                <span className="text-lg mr-1">👥</span>Utilisateurs
-              </button>
-              
-              {/* Séparateur */}
-              <div className="w-px h-8 bg-gray-300 mx-3"></div>
-              
-              {/* Bouton Note Rapide */}
-              <button
-                onClick={() => {
-                  setActiveTab('todo');
-                  // Ouvrir directement la note simple
-                  setTimeout(() => {
-                    window.dispatchEvent(new CustomEvent('openQuickNote'));
-                  }, 100);
-                }}
-                className="px-4 py-2 rounded-xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl shadow-emerald-200 hover:from-emerald-600 hover:to-emerald-700"
-              >
-                <span className="text-lg mr-1">📝</span>Note Rapide
-              </button>
+              {/* Sous-onglets de la catégorie active */}
+              {expandedCategory && (
+                <div className="flex flex-wrap gap-2 pl-4 border-l-4 border-gray-200 animate-fadeIn">
+                  {expandedCategory === 'donnees' && [
+                    { id: 'adherents', label: '👥 Adhérents', color: 'blue' },
+                    { id: 'fournisseurs', label: '🏢 Fournisseurs', color: 'green' },
+                    { id: 'marques', label: '🏷️ Marques', color: 'orange' },
+                    { id: 'groupeClients', label: '👥 Clients', color: 'indigo' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={`px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? tab.color === 'blue' 
+                            ? 'bg-blue-500 text-white shadow-lg'
+                            : tab.color === 'green'
+                            ? 'bg-green-500 text-white shadow-lg'
+                            : tab.color === 'orange'
+                            ? 'bg-orange-500 text-white shadow-lg'
+                            : 'bg-indigo-500 text-white shadow-lg'
+                          : tab.color === 'blue'
+                          ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                          : tab.color === 'green'
+                          ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                          : tab.color === 'orange'
+                          ? 'bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200'
+                          : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  
+                  {expandedCategory === 'business' && [
+                    { id: 'commercials', label: '💼 Commerciaux', color: 'cyan' },
+                    { id: 'geographic', label: '🗺️ Géographie', color: 'green' },
+                    { id: 'todo', label: '📋 To-Do', color: 'purple' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={`px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? tab.color === 'cyan' 
+                            ? 'bg-cyan-500 text-white shadow-lg'
+                            : tab.color === 'green'
+                            ? 'bg-green-500 text-white shadow-lg'
+                            : 'bg-purple-500 text-white shadow-lg'
+                          : tab.color === 'cyan'
+                          ? 'bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200'
+                          : tab.color === 'green'
+                          ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-200'
+                          : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                  
+                  {expandedCategory === 'gestion' && [
+                    { id: 'import', label: '📥 Import', color: 'red' },
+                    { id: 'users', label: '👥 Utilisateurs', color: 'teal' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={`px-3 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                        activeTab === tab.id
+                          ? tab.color === 'red' 
+                            ? 'bg-red-500 text-white shadow-lg'
+                            : 'bg-teal-500 text-white shadow-lg'
+                          : tab.color === 'red'
+                          ? 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+                          : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             
             {/* Bouton de profil utilisateur intégré */}
@@ -792,6 +881,74 @@ function MainApp() {
               <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
                 {currentAdherentsSummary.length} adhérents
               </div>
+            </div>
+
+            {/* Filtres de recherche */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Filtre de recherche de client */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🔍 Rechercher un client
+                  </label>
+                  <ClientAutocomplete
+                    value={clientFilter}
+                    onChange={setClientFilter}
+                    onSelect={(client) => {
+                      setClientFilter(client.raisonSociale);
+                    }}
+                    adherentData={allAdherentData}
+                    placeholder="Tapez le nom, code Union ou ville d'un client..."
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Filtre par commercial */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    👤 Filtrer par commercial
+                  </label>
+                  <CommercialAutocomplete
+                    value={commercialFilter}
+                    onChange={setCommercialFilter}
+                    onSelect={setCommercialFilter}
+                    commercialsPerformance={clientsWithCommercials}
+                    placeholder="Sélectionner un commercial..."
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Boutons de réinitialisation */}
+              {(clientFilter || commercialFilter) && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {clientFilter && (
+                    <button
+                      onClick={() => setClientFilter('')}
+                      className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      ✕ Client
+                    </button>
+                  )}
+                  {commercialFilter && (
+                    <button
+                      onClick={() => setCommercialFilter('')}
+                      className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                    >
+                      ✕ Commercial
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Résultats de recherche */}
+              {(clientFilter || commercialFilter) && (
+                <div className="mt-2 text-sm text-gray-600">
+                  {filteredAdherentData.length} résultat(s) trouvé(s)
+                  {clientFilter && ` pour "${clientFilter}"`}
+                  {commercialFilter && ` avec le commercial "${commercialFilter}"`}
+                </div>
+              )}
             </div>
 
                          
@@ -931,6 +1088,12 @@ function MainApp() {
               data={currentAdherentsSummary}
               onClientClick={handleClientClick}
             />
+
+            {/* Score de connexion et Podium */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AutoConnectionScore />
+              <AutoPodium />
+            </div>
 
             {/* Analyse des clients */}
             <ClientsAnalysis 

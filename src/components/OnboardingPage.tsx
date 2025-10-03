@@ -7,6 +7,9 @@ import { getMauriceData } from '../services/gmailService';
 import MauriceTyping from './MauriceTyping';
 import GoogleAuthButton from './GoogleAuthButton';
 import BreathingExercise from './BreathingExercise';
+import { AutoConnectionService } from '../services/autoConnectionService';
+import { useWelcomeSound } from '../hooks/useWelcomeSound';
+import '../styles/premium-onboarding.css';
 
 // Service pour générer des messages motivants avec l'IA
 const generateMotivationalMessage = async (userName: string, weatherData?: any, recentTasks?: any[]): Promise<string> => {
@@ -198,6 +201,23 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
   // États pour l'exercice de respiration
   const [showBreathingExercise, setShowBreathingExercise] = useState<boolean>(false);
   const [breathingCompleted, setBreathingCompleted] = useState<boolean>(false);
+  
+  // États pour les scores de connexion
+  const [connectionScores, setConnectionScores] = useState<{
+    total_points: number;
+    connection_days: number;
+    current_streak: number;
+  }>({ total_points: 0, connection_days: 0, current_streak: 0 });
+  const [scoresLoading, setScoresLoading] = useState<boolean>(true);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [userRank, setUserRank] = useState<number>(0);
+
+  // Son d'accueil moderne
+  const { playSound: playWelcomeSound, isPlaying: isWelcomePlaying, canPlay: canPlayWelcome } = useWelcomeSound({
+    autoPlay: true,
+    volume: 0.3, // Volume légèrement augmenté pour le son plus long
+    delay: 2000 // Délai légèrement augmenté pour la nouvelle expérience
+  });
 
   // Mise à jour de la date et heure
   useEffect(() => {
@@ -354,6 +374,42 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
     window.location.reload();
   };
 
+  // Charger les scores de connexion
+  useEffect(() => {
+    const loadConnectionScores = async () => {
+      try {
+        setScoresLoading(true);
+        const connectionService = AutoConnectionService.getInstance();
+        
+        // Initialiser l'utilisateur dans le service
+        await connectionService.recordConnection();
+        
+        // Récupérer les scores de l'utilisateur
+        const userScores = await connectionService.getCurrentUserScore();
+        setConnectionScores(userScores);
+        
+        // Récupérer le classement mensuel
+        const monthlyRanking = await connectionService.getMonthlyRanking();
+        setRanking(monthlyRanking);
+        
+        // Trouver le rang de l'utilisateur actuel
+        const currentUserRank = monthlyRanking.findIndex(user => 
+          user.user_name === userName || user.user_id === userEmail
+        );
+        setUserRank(currentUserRank >= 0 ? currentUserRank + 1 : 0);
+        
+      } catch (error) {
+        console.error('Erreur chargement scores connexion:', error);
+      } finally {
+        setScoresLoading(false);
+      }
+    };
+
+    if (userName) {
+      loadConnectionScores();
+    }
+  }, [userName, userEmail]);
+
   // Charger les messages inspirants avec IA
   useEffect(() => {
     const loadInspirationalContent = async () => {
@@ -462,43 +518,170 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-blue-50 to-indigo-100 animate-gradient">
-      {/* Header avec salutation bienveillante */}
-      <div className="bg-white/90 backdrop-blur-sm shadow-xl border-b border-rose-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div className="space-y-4">
-              <div className="animate-fade-in flex items-center justify-between">
-                <div className="flex items-center space-x-6">
-                  <UserPhotoUpload size="lg" showUploadButton={true} />
-                  <div>
-                    <h1 className="text-5xl font-light text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
-                      Bonjour {userName} ✨
-                    </h1>
-                    <p className="text-lg text-gray-600 mt-2 font-light">
-                      {currentDate} • {currentTime}
-                    </p>
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-blue-50 to-indigo-100 animate-gradient relative overflow-hidden">
+        {/* Particules flottantes premium */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+          <div className="particle"></div>
+        </div>
+        {/* Header premium avec salutation et scores de connexion */}
+        <div className="bg-gradient-to-r from-white via-indigo-50/30 to-purple-50/30 backdrop-blur-sm shadow-2xl border-b border-indigo-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Ligne principale : Photo, salutation, météo, déconnexion */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-6">
+              <div className="relative group">
+                <UserPhotoUpload size="lg" showUploadButton={true} />
+                {/* Badge de performance */}
+                {!scoresLoading && connectionScores.total_points > 0 && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-xs font-bold text-white animate-pulse">
+                    {userRank <= 3 ? userRank : '★'}
                   </div>
+                )}
+              </div>
+              <div>
+                <h1 className="text-4xl font-light text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 animate-gradient">
+                  Bonjour {userName} ✨
+                </h1>
+                <p className="text-lg text-gray-600 mt-1 font-light">
+                  {currentDate} • {currentTime}
+                </p>
+                {!scoresLoading && connectionScores.total_points > 0 && (
+                  <p className="text-sm text-indigo-600 font-medium mt-1">
+                    {userRank > 0 ? `Rang ${userRank} de l'équipe` : 'Bienvenue dans l\'équipe !'}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {/* Météo compacte avec style premium */}
+              <div className="text-center animate-float bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-indigo-100">
+                <div className="text-3xl mb-1 filter drop-shadow-sm">
+                  {weatherLoading ? '⏳' : weatherIcon}
                 </div>
-                
-                {/* Bouton de déconnexion */}
-                <button
-                  onClick={handleLogout}
-                  className="px-4 py-2 text-sm font-medium text-red-600 bg-red-100 hover:bg-red-200 rounded-lg transition-colors flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  <span>Se déconnecter</span>
-                </button>
+                <p className="text-lg font-semibold text-gray-700">
+                  {weatherLoading ? '...' : `${temperature}°C`}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {weatherLoading ? 'Chargement...' : weatherDescription}
+                </p>
               </div>
               
-              {/* Messages motivants et exercice de respiration */}
-              <div className="flex gap-6 items-start">
-                {/* Messages motivants */}
-                <div className="flex-1 space-y-4">
-                  {/* Message motivant généré par IA */}
-                  {motivationalMessage && (
+              {/* Bouton son d'accueil */}
+              {canPlayWelcome && (
+                <button
+                  onClick={playWelcomeSound}
+                  disabled={isWelcomePlaying}
+                  className={`px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200 flex items-center space-x-2 hover:scale-105 hover:shadow-md border disabled:cursor-not-allowed ${
+                    isWelcomePlaying 
+                      ? 'text-green-600 bg-green-50 border-green-200 animate-pulse' 
+                      : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-200'
+                  }`}
+                  title={isWelcomePlaying ? "Son d'accueil en cours..." : "Rejouer le son d'accueil"}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {isWelcomePlaying ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M9 9a2 2 0 012-2h1a1 1 0 011 1v8a1 1 0 01-1 1h-1a2 2 0 01-2-2V9z" />
+                    )}
+                  </svg>
+                  <span className="text-xs">
+                    {isWelcomePlaying ? 'Lecture...' : 'Son d\'accueil'}
+                  </span>
+                </button>
+              )}
+
+              {/* Bouton de déconnexion premium */}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-all duration-200 flex items-center space-x-2 hover:scale-105 hover:shadow-md border border-red-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Se déconnecter</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Ligne des scores de connexion premium */}
+          <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 rounded-2xl p-6 border border-indigo-100 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-8">
+                {/* Score Global */}
+                <div className="text-center group">
+                  <div className="relative">
+                    <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 animate-pulse">
+                      {scoresLoading ? '⏳' : connectionScores.total_points}
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full animate-bounce"></div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mt-1">Points Total</div>
+                  <div className="text-xs text-gray-500">Ce mois</div>
+                </div>
+
+                {/* Jours de connexion */}
+                <div className="text-center group">
+                  <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600">
+                    {scoresLoading ? '⏳' : connectionScores.connection_days}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mt-1">Jours Connectés</div>
+                  <div className="text-xs text-gray-500">Série actuelle</div>
+                </div>
+
+                {/* Rang dans l'équipe */}
+                <div className="text-center group">
+                  <div className="relative">
+                    <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-pink-600">
+                      {scoresLoading ? '⏳' : userRank || '--'}
+                    </div>
+                    {userRank > 0 && userRank <= 3 && (
+                      <div className="absolute -top-2 -right-2 text-lg">
+                        {userRank === 1 ? '🥇' : userRank === 2 ? '🥈' : '🥉'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mt-1">Rang Équipe</div>
+                  <div className="text-xs text-gray-500">Ce mois</div>
+                </div>
+
+                {/* Streak actuel */}
+                <div className="text-center group">
+                  <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-orange-600">
+                    {scoresLoading ? '⏳' : connectionScores.current_streak}
+                  </div>
+                  <div className="text-sm font-medium text-gray-700 mt-1">Série Actuelle</div>
+                  <div className="text-xs text-gray-500">Jours consécutifs</div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full animate-pulse"></div>
+                  <div className="text-sm font-semibold text-gray-700">Vos Performances</div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  {scoresLoading ? 'Chargement...' : 'Mise à jour en temps réel'}
+                </div>
+              </div>
+            </div>
+          </div>
+              
+          {/* Messages motivants et exercice de respiration */}
+          <div className="flex gap-6 items-start">
+            {/* Messages motivants */}
+            <div className="flex-1 space-y-4">
+              {/* Message motivant généré par IA */}
+              {motivationalMessage && (
                     <div className="animate-slide-up bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
                       <div className="flex items-start gap-3">
                         <span className="text-2xl animate-pulse">💫</span>
@@ -581,22 +764,34 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Contenu principal */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Maurice au centre */}
-          <div className="lg:col-span-2">
-            {/* Widget Maurice - Message personnalisé */}
-            {!mauriceLoading && mauriceMessage && (
-              <MauriceTyping 
-                message={mauriceMessage}
-                onComplete={() => {}}
-                speed={30}
-              />
-            )}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
+          {/* Contenu principal premium */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Maurice au centre - Widget premium */}
+            <div className="lg:col-span-2">
+              {/* Widget Maurice - Message personnalisé premium */}
+              <div className="card-premium rounded-2xl p-8 mb-6 animate-slide-up animate-delay-200">
+              <div className="flex items-center space-x-4 mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-2xl animate-pulse-glow">
+                  🤖
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gradient-premium">Maurice, votre assistant IA</h2>
+                  <p className="text-gray-600">Votre partenaire intelligent pour une journée productive</p>
+                </div>
+              </div>
+              
+              {!mauriceLoading && mauriceMessage && (
+                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
+                  <MauriceTyping 
+                    message={mauriceMessage}
+                    onComplete={() => {}}
+                    speed={30}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Bouton d'authentification Google si pas connecté */}
             {!googleAuthenticated && (
@@ -609,14 +804,14 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
             )}
           </div>
 
-          {/* Widgets latéraux */}
-          <div className="space-y-4">
+          {/* Widgets latéraux premium */}
+          <div className="space-y-6">
             
             
 
-            {/* Widget Calendrier - FORCÉ POUR TEST */}
+            {/* Widget Calendrier premium */}
             {googleAuthenticated && mauriceData && mauriceData.upcomingMeetings && (
-              <div className="bg-white rounded-lg shadow-md p-4">
+              <div className="card-premium rounded-2xl p-6 animate-slide-up animate-delay-300 hover-lift">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     📅 Prochains rendez-vous ({mauriceData.upcomingMeetings.length})
@@ -724,104 +919,104 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
               </div>
             )}
 
-            {/* Widget statistiques rapides - plus compact */}
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">📊 Aperçu</h3>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Tâches</span>
-                  <span className="font-semibold text-blue-600">{recentTasks.length}</span>
+
+
+
+
+            {/* Widget Classement de l'équipe premium */}
+            <div className="card-premium rounded-2xl p-6 animate-slide-up animate-delay-400 hover-lift">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-xl animate-heartbeat">
+                  🏆
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">En cours</span>
-                  <span className="font-semibold text-orange-600">
-                    {recentTasks.filter(t => t.status === 'in_progress').length}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Terminées</span>
-                  <span className="font-semibold text-green-600">
-                    {recentTasks.filter(t => t.status === 'completed').length}
-                  </span>
+                <div>
+                  <h3 className="text-xl font-bold text-gradient-premium">Classement Équipe</h3>
+                  <p className="text-sm text-gray-600">Vos performances ce mois</p>
                 </div>
               </div>
-            </div>
 
-
-            {/* Debug : Forcer l'affichage du bouton Google */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <div className="text-center">
-                <h3 className="text-sm font-bold text-yellow-800 mb-2">
-                  🔧 Debug Google Auth
-                </h3>
-                <p className="text-yellow-700 text-xs mb-2">
-                  État: {googleAuthenticated ? 'Connecté' : 'Non connecté'}
-                </p>
-                <button
-                  onClick={() => setGoogleAuthenticated(false)}
-                  className="px-3 py-1 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-xs"
-                >
-                  Forcer l'affichage
-                </button>
-              </div>
-            </div>
-
-            {/* Debug : État de l'agenda */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="text-center">
-                <h3 className="text-sm font-bold text-blue-800 mb-2">
-                  📅 Debug Agenda
-                </h3>
-                <p className="text-blue-700 text-xs mb-1">
-                  Google: {googleAuthenticated ? '✅' : '❌'}
-                </p>
-                <p className="text-blue-700 text-xs mb-1">
-                  Maurice: {mauriceData ? '✅' : '❌'}
-                </p>
-                <p className="text-blue-700 text-xs mb-1">
-                  Rendez-vous: {mauriceData?.upcomingMeetings?.length || 0}
-                </p>
-                <button
-                  onClick={() => {
-                    console.log('🔍 Debug complet:', {
-                      googleAuthenticated,
-                      mauriceData,
-                      upcomingMeetings: mauriceData?.upcomingMeetings
-                    });
-                  }}
-                  className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
-                >
-                  Log Debug
-                </button>
-              </div>
-            </div>
-
-            {/* Test de rendu forcé de l'agenda */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <div className="text-center">
-                <h3 className="text-sm font-bold text-green-800 mb-2">
-                  🧪 Test Agenda Forcé
-                </h3>
-                <p className="text-green-700 text-xs mb-2">
-                  Affichage forcé de l'agenda pour test
-                </p>
-                <div className="bg-white rounded-lg shadow-md p-3 text-left">
-                  <h4 className="text-sm font-bold text-gray-900 mb-2">📅 Test Agenda</h4>
-                  <p className="text-xs text-gray-600">
-                    Rendez-vous: {mauriceData?.upcomingMeetings?.length || 0}
-                  </p>
-                  {mauriceData?.upcomingMeetings?.slice(0, 3).map((meeting: any, index: number) => (
-                    <div key={index} className="text-xs text-gray-500 mt-1">
-                      • {meeting.summary || 'Rendez-vous'}
+              {scoresLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Chargement du classement...</p>
+                </div>
+              ) : ranking.length > 0 ? (
+                <div className="space-y-3">
+                  {ranking.slice(0, 5).map((user, index) => (
+                    <div 
+                      key={user.user_id}
+                      className={`flex items-center space-x-3 p-3 rounded-xl transition-all duration-200 ${
+                        user.user_name === userName 
+                          ? 'bg-gradient-to-r from-indigo-100 to-purple-100 border-2 border-indigo-200 animate-pulse-glow' 
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="flex-shrink-0">
+                        {index < 3 ? (
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            index === 0 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' :
+                            index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-400 text-white' :
+                            'bg-gradient-to-r from-amber-600 to-orange-700 text-white'
+                          }`}>
+                            {index + 1}
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-600">
+                            {index + 1}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <p className={`font-medium truncate ${
+                            user.user_name === userName ? 'text-indigo-700' : 'text-gray-700'
+                          }`}>
+                            {user.user_name}
+                            {user.user_name === userName && (
+                              <span className="ml-2 text-xs bg-indigo-200 text-indigo-800 px-2 py-1 rounded-full">
+                                Vous
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <span>{user.total_points} pts</span>
+                          <span>•</span>
+                          <span>{user.connection_days} jours</span>
+                        </div>
+                      </div>
+                      
+                      {user.user_name === userName && (
+                        <div className="text-right">
+                          <div className="text-lg">
+                            {userRank === 1 ? '🥇' : userRank === 2 ? '🥈' : userRank === 3 ? '🥉' : '⭐'}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
+                  
+                  {ranking.length > 5 && (
+                    <div className="text-center pt-2">
+                      <p className="text-xs text-gray-400">
+                        +{ranking.length - 5} autres membres
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">📊</div>
+                  <p className="text-gray-500">Aucun classement disponible</p>
+                </div>
+              )}
             </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

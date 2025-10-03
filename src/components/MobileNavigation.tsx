@@ -7,17 +7,39 @@ interface MobileNavigationProps {
 
 const MobileNavigation: React.FC<MobileNavigationProps> = ({ activeTab, onTabChange }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [expandedCategory, setExpandedCategory] = useState<'donnees' | 'business' | 'gestion' | null>('donnees');
 
-  const tabs = [
-    { id: 'adherents', label: '👥 Adhérents', icon: '👥' },
-    { id: 'fournisseurs', label: '🏢 Fournisseurs', icon: '🏢' },
-    { id: 'marques', label: '🏷️ Marques', icon: '🏷️' },
-    { id: 'groupeClients', label: '👥 Groupe Clients', icon: '👥' },
-    { id: 'commercials', label: '💼 Commerciaux', icon: '💼' },
-    { id: 'geographic', label: '🗺️ Géographie', icon: '🗺️' },
-    { id: 'import', label: '📥 Import', icon: '📥' },
-    { id: 'todo', label: '📋 To-Do List', icon: '📋' },
-    { id: 'users', label: '👥 Utilisateurs', icon: '👥' }
+  const categories = [
+    {
+      id: 'donnees',
+      label: '📊 DONNÉES',
+      color: 'blue',
+      tabs: [
+        { id: 'adherents', label: '👥 Adhérents', icon: '👥' },
+        { id: 'fournisseurs', label: '🏢 Fournisseurs', icon: '🏢' },
+        { id: 'marques', label: '🏷️ Marques', icon: '🏷️' },
+        { id: 'groupeClients', label: '👥 Groupe Clients', icon: '👥' }
+      ]
+    },
+    {
+      id: 'business',
+      label: '💼 BUSINESS',
+      color: 'green',
+      tabs: [
+        { id: 'commercials', label: '💼 Commerciaux', icon: '💼' },
+        { id: 'geographic', label: '🗺️ Géographie', icon: '🗺️' },
+        { id: 'todo', label: '📋 To-Do List', icon: '📋' }
+      ]
+    },
+    {
+      id: 'gestion',
+      label: '⚙️ GESTION',
+      color: 'purple',
+      tabs: [
+        { id: 'import', label: '📥 Import', icon: '📥' },
+        { id: 'users', label: '👥 Utilisateurs', icon: '👥' }
+      ]
+    }
   ];
 
   const handleTabClick = (tabId: 'adherents' | 'fournisseurs' | 'marques' | 'groupeClients' | 'commercials' | 'geographic' | 'import' | 'todo' | 'users' | 'chatbot') => {
@@ -55,23 +77,52 @@ const MobileNavigation: React.FC<MobileNavigationProps> = ({ activeTab, onTabCha
               Menu Principal
             </h2>
             
-            <nav className="space-y-4">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id as any)}
-                  className={`w-full p-4 rounded-xl text-left transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-groupement-orange text-white shadow-lg scale-105'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 hover:scale-102'
-                  }`}
-                >
-                  <div className="flex items-center space-x-4">
-                    <span className="text-2xl">{tab.icon}</span>
-                    <span className="text-lg font-medium">{tab.label}</span>
+            <nav className="space-y-6">
+              {categories.map((category) => {
+                const isExpanded = expandedCategory === category.id;
+                const hasActiveTab = category.tabs.some(tab => tab.id === activeTab);
+                
+                return (
+                  <div key={category.id} className="space-y-2">
+                    {/* Catégorie principale */}
+                    <button
+                      onClick={() => setExpandedCategory(isExpanded ? null : category.id as any)}
+                      className={`w-full p-3 rounded-xl text-left transition-all duration-200 ${
+                        hasActiveTab
+                          ? 'bg-groupement-orange text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold">{category.label}</span>
+                        <span className="text-sm">{isExpanded ? '▼' : '▶'}</span>
+                      </div>
+                    </button>
+                    
+                    {/* Sous-onglets */}
+                    {isExpanded && (
+                      <div className="pl-4 space-y-2 border-l-4 border-gray-200">
+                        {category.tabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            onClick={() => handleTabClick(tab.id as any)}
+                            className={`w-full p-3 rounded-lg text-left transition-all duration-200 ${
+                              activeTab === tab.id
+                                ? 'bg-blue-500 text-white shadow-md scale-105'
+                                : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <span className="text-xl">{tab.icon}</span>
+                              <span className="text-base font-medium">{tab.label}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </nav>
             
             <div className="mt-8 pt-6 border-t border-gray-200">

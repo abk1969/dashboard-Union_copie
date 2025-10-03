@@ -4,6 +4,8 @@ import CloseButton from './CloseButton';
 import InteractionTracker from './InteractionTracker';
 import MarqueModal from './MarqueModal';
 import FamilleDetailModal from './FamilleDetailModal';
+import MarqueAutocomplete from './MarqueAutocomplete';
+import FamilleAutocomplete from './FamilleAutocomplete';
 
 interface FournisseurDetailModalProps {
   fournisseur: FournisseurPerformance | null;
@@ -49,6 +51,9 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
   onMarqueClick
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'clients' | 'marques' | 'familles' | 'geographie' | 'interactions'>('overview');
+  const [marqueFilter, setMarqueFilter] = useState<string>('');
+  const [familleFilter, setFamilleFilter] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [selectedMarque, setSelectedMarque] = useState<string | null>(null);
   const [selectedFamille, setSelectedFamille] = useState<string | null>(null);
 
@@ -227,6 +232,79 @@ const FournisseurDetailModal: React.FC<FournisseurDetailModalProps> = ({
             </button>
           ))}
         </nav>
+
+        {/* Filtres de recherche */}
+        <div className="bg-white border-b border-gray-200 p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Recherche globale */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">🔍 Recherche</label>
+              <input
+                type="text"
+                placeholder="Client, marque ou famille..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            {/* Filtre par marque */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Marque</label>
+              <MarqueAutocomplete
+                value={marqueFilter}
+                onChange={setMarqueFilter}
+                onSelect={setMarqueFilter}
+                adherentData={allAdherentData}
+                placeholder="Rechercher une marque..."
+                className="w-full"
+              />
+            </div>
+
+            {/* Filtre par famille */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">📦 Famille</label>
+              <FamilleAutocomplete
+                value={familleFilter}
+                onChange={setFamilleFilter}
+                onSelect={setFamilleFilter}
+                adherentData={allAdherentData}
+                placeholder="Rechercher une famille..."
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Boutons de réinitialisation */}
+          {(searchTerm || marqueFilter || familleFilter) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                >
+                  ✕ Recherche
+                </button>
+              )}
+              {marqueFilter && (
+                <button
+                  onClick={() => setMarqueFilter('')}
+                  className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                >
+                  ✕ Marque
+                </button>
+              )}
+              {familleFilter && (
+                <button
+                  onClick={() => setFamilleFilter('')}
+                  className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm hover:bg-gray-200 transition-colors"
+                >
+                  ✕ Famille
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Content */}
         <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-200px)]">

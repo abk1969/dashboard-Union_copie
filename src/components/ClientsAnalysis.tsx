@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { AdherentData, CommercialPerformance } from '../types';
 import { fetchClients, Client } from '../config/supabase-clients';
 import ClientEditModal from './ClientEditModal';
+import CommercialAutocomplete from './CommercialAutocomplete';
 
 interface ClientsAnalysisProps {
   adherentData: AdherentData[];
@@ -451,25 +452,34 @@ const ClientsAnalysis: React.FC<ClientsAnalysisProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 👤 Commercial
               </label>
-              <select
-                value={selectedCommercial}
-                onChange={handleCommercialChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">Tous les commerciaux</option>
-                {commercialsPerformance.map(commercial => (
-                  <option key={commercial.agentUnion} value={commercial.agentUnion}>
-                    {commercial.agentUnion}
-                  </option>
-                ))}
-              </select>
+              <CommercialAutocomplete
+                value={selectedCommercial === 'all' ? '' : selectedCommercial}
+                onChange={(value) => setSelectedCommercial(value || 'all')}
+                onSelect={(commercial) => setSelectedCommercial(commercial)}
+                commercialsPerformance={commercialsPerformance}
+                placeholder="Rechercher un commercial..."
+                className="w-full"
+              />
             </div>
           </div>
 
           {/* Résultats de recherche */}
-          {searchTerm && (
+          {(searchTerm || selectedCommercial !== 'all') && (
             <div className="text-sm text-gray-600">
-              {filteredClients.length} résultat(s) trouvé(s) pour "{searchTerm}"
+              {searchTerm && (
+                <div>{filteredClients.length} résultat(s) trouvé(s) pour "{searchTerm}"</div>
+              )}
+              {selectedCommercial !== 'all' && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span>Filtré par commercial: <strong>{selectedCommercial}</strong></span>
+                  <button
+                    onClick={() => setSelectedCommercial('all')}
+                    className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200 transition-colors"
+                  >
+                    ✕ Effacer
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

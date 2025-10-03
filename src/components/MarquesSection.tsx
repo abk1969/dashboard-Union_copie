@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AdherentData } from '../types';
 import { formatCurrency, formatPercentageDirect, formatProgression } from '../utils/formatters';
+import MarqueAutocomplete from './MarqueAutocomplete';
 
 interface MarquesSectionProps {
   adherentsData: AdherentData[];
@@ -43,6 +44,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
   const famillesPerPage = 20;
   const [selectedMarqueDetails, setSelectedMarqueDetails] = useState<string | null>(null);
   const [selectedFamilleDetails, setSelectedFamilleDetails] = useState<string | null>(null);
+  const [marqueFilter, setMarqueFilter] = useState<string>('');
 
   // Fonction pour gérer l'expansion des familles
   const toggleFamilleExpansion = (famille: string) => {
@@ -77,6 +79,11 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
     adherentsData.forEach(adherent => {
       const marque = adherent.marque;
       if (!marque) return;
+
+      // Appliquer le filtre de marque
+      if (marqueFilter && !marque.toLowerCase().includes(marqueFilter.toLowerCase())) {
+        return;
+      }
 
       if (!marquesMap.has(marque)) {
         marquesMap.set(marque, {
@@ -148,7 +155,7 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
     });
 
     return marques;
-  }, [adherentsData]);
+  }, [adherentsData, marqueFilter]);
 
   // Grouper les marques par famille (vraie colonne famille) puis par sous-famille
   const marquesByFamille = useMemo(() => {
@@ -371,6 +378,38 @@ const MarquesSection: React.FC<MarquesSectionProps> = ({ adherentsData, familles
             <p className="text-green-100">CA Total 2025</p>
           </div>
         </div>
+      </div>
+
+      {/* Filtre de recherche de marque */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              🔍 Rechercher une marque
+            </label>
+            <MarqueAutocomplete
+              value={marqueFilter}
+              onChange={setMarqueFilter}
+              onSelect={setMarqueFilter}
+              adherentData={adherentsData}
+              placeholder="Tapez le nom d'une marque..."
+              className="w-full"
+            />
+          </div>
+          {marqueFilter && (
+            <button
+              onClick={() => setMarqueFilter('')}
+              className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              ✕ Effacer
+            </button>
+          )}
+        </div>
+        {marqueFilter && (
+          <div className="mt-2 text-sm text-gray-600">
+            {sortedMarques.length} marque(s) trouvée(s) pour "{marqueFilter}"
+          </div>
+        )}
       </div>
 
       {/* Statistiques globales */}

@@ -22,6 +22,9 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
   const [selectedTask, setSelectedTask] = useState<TodoTask | null>(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [authorPhotos, setAuthorPhotos] = useState<{[key: string]: string}>({});
+  // Variables pour le résumé IA
+  const [summaries, setSummaries] = useState<{[key: string]: string}>({});
+  const [loadingSummaries, setLoadingSummaries] = useState<{[key: string]: boolean}>({});
   // Variables supprimées car non utilisées
 
   // Charger les tâches et notes du client
@@ -95,6 +98,7 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
           createdAt: new Date(note.createdAt)
         }));
         setNotes(convertedNotes);
+        console.log('📝 Notes chargées:', convertedNotes.length, convertedNotes);
 
         // Charger les photos des auteurs en utilisant le mapping local
         const allAuthors = convertedNotes.map(note => note.auteur);
@@ -228,6 +232,52 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
       case 'admin': return '📋';
       default: return '📝';
     }
+  };
+
+  // Fonction pour générer un résumé IA d'une note
+  const generateSummary = async (noteId: string, noteText: string | undefined) => {
+    if (!noteText || summaries[noteId] || loadingSummaries[noteId]) return;
+    
+    setLoadingSummaries(prev => ({ ...prev, [noteId]: true }));
+    
+    try {
+      // Simulation d'un appel IA (remplacer par une vraie API)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Résumé simulé basé sur la longueur et le contenu
+      let summary = '';
+      if (noteText.length > 200) {
+        const sentences = noteText.split(/[.!?]+/).filter(s => s.trim().length > 0);
+        const keySentences = sentences.slice(0, 2);
+        summary = keySentences.join('. ').trim() + '...';
+        
+        // Ajouter des points clés détectés
+        const keywords = ['client', 'prospect', 'rencontre', 'appel', 'email', 'devis', 'commande', 'problème', 'solution'];
+        const foundKeywords = keywords.filter(keyword => 
+          noteText.toLowerCase().includes(keyword)
+        );
+        
+        if (foundKeywords.length > 0) {
+          summary += `\n\n🔑 Points clés: ${foundKeywords.join(', ')}`;
+        }
+      } else {
+        summary = noteText; // Note courte, pas besoin de résumé
+      }
+      
+      setSummaries(prev => ({ ...prev, [noteId]: summary }));
+    } catch (error) {
+      console.error('Erreur lors de la génération du résumé:', error);
+      setSummaries(prev => ({ ...prev, [noteId]: 'Erreur lors de la génération du résumé' }));
+    } finally {
+      setLoadingSummaries(prev => ({ ...prev, [noteId]: false }));
+    }
+  };
+
+  // Fonction pour déterminer si une note est "longue"
+  const isLongNote = (text: string | undefined) => {
+    const isLong = text && text.length > 150;
+    console.log('🔍 isLongNote check:', { text: text?.substring(0, 50) + '...', length: text?.length, isLong });
+    return isLong;
   };
 
   if (loading) {
@@ -380,6 +430,27 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
               <div className="text-4xl mb-2">📝</div>
               <p>Aucune note pour ce client</p>
               <p className="text-sm">Les notes apparaîtront ici une fois créées</p>
+              <button
+                onClick={() => {
+                  // Créer une note de test
+                  const testNote: NoteClient = {
+                    idNote: 'test-' + Date.now(),
+                    codeUnion: clientCode,
+                    typeNote: 'NOTE SIMPLE',
+                    noteSimple: 'Ceci est une note de test très longue pour vérifier que le système de résumé IA fonctionne correctement. Cette note contient beaucoup de texte pour tester la détection des notes longues et l\'affichage du bouton résumé IA. Elle devrait déclencher l\'affichage du badge "Longue" et du bouton "Résumé IA".',
+                    dateCreation: new Date(),
+                    auteur: 'Test User',
+                    traite: false,
+                    statutTache: 'EN COURS',
+                    priorite: 'NORMALE',
+                    createdAt: new Date()
+                  };
+                  setNotes([testNote]);
+                }}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                🧪 Créer une note de test
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -390,16 +461,64 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
                       <div className="flex items-center space-x-2 mb-2">
                         <span className="text-lg">📝</span>
                         <h4 className="font-semibold text-gray-900">
-                          Note
+                          Note pour {clientName}
                         </h4>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(note.priorite.toLowerCase())}`}>
                           {note.priorite}
                         </span>
+                        {isLongNote(note.noteSimple) && (
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            📄 Longue
+                          </span>
+                        )}
                       </div>
                       
-                      <p className="text-gray-600 text-sm mb-3">
-                        {note.noteSimple}
-                      </p>
+                      {/* Affichage du contenu de la note */}
+                      <div className="mb-3">
+                        {summaries[note.idNote] ? (
+                          <div className="space-y-2">
+                            <p className="text-gray-600 text-sm font-medium bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                              🤖 Résumé IA:
+                            </p>
+                            <p className="text-gray-700 text-sm whitespace-pre-line">
+                              {summaries[note.idNote]}
+                            </p>
+                            <details className="text-xs text-gray-500">
+                              <summary className="cursor-pointer hover:text-gray-700">Voir le texte complet</summary>
+                              <p className="mt-2 text-gray-600 text-sm whitespace-pre-line">
+                                {note.noteSimple || 'Aucun contenu'}
+                              </p>
+                            </details>
+                          </div>
+                        ) : (
+                          <p className="text-gray-600 text-sm whitespace-pre-line">
+                            {note.noteSimple || 'Aucun contenu'}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Bouton Résumé IA pour les notes longues */}
+                      {isLongNote(note.noteSimple) && !summaries[note.idNote] && (
+                        <div className="mb-3">
+                          <button
+                            onClick={() => generateSummary(note.idNote, note.noteSimple)}
+                            disabled={loadingSummaries[note.idNote]}
+                            className="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+                          >
+                            {loadingSummaries[note.idNote] ? (
+                              <>
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>Génération...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>🤖</span>
+                                <span>Résumé IA</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
                       
                       <div className="flex items-center space-x-4 text-xs text-gray-500">
                         <div className="flex items-center space-x-2">
@@ -417,6 +536,8 @@ const ClientNotesTasks: React.FC<ClientNotesTasksProps> = ({ clientCode, clientN
                           <span>{note.auteur}</span>
                         </div>
                         <span>📅 {new Date(note.dateCreation).toLocaleDateString('fr-FR')}</span>
+                        <span className="text-gray-400">•</span>
+                        <span>Client: {clientCode}</span>
                       </div>
                     </div>
                     

@@ -9,6 +9,8 @@ import { SupabaseDocumentUploader } from './SupabaseDocumentUploader';
 import PDFViewer from './PDFViewer';
 import { fetchClients } from '../config/supabase-clients';
 import ClientNotesTasks from './ClientNotesTasks';
+import MarqueAutocomplete from './MarqueAutocomplete';
+import FournisseurAutocomplete from './FournisseurAutocomplete';
 // import { getNotesByCodeUnion } from '../data/notesData';
 // import { NoteModal } from './NoteModal';
 
@@ -76,6 +78,9 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [performanceFilter, setPerformanceFilter] = useState('all');
   const [caMin, setCaMin] = useState('');
   const [caMax, setCaMax] = useState('');
+
+  const [selectedPlatformMarques, setSelectedPlatformMarques] = useState<string>('all');
+
 
   // États pour les documents
   const [clientDocuments, setClientDocuments] = useState<Document[]>([]);
@@ -323,9 +328,14 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       })
       .sort((a, b) => (b.ca2024 + b.ca2025) - (a.ca2024 + a.ca2025));
 
-    // Performance par marque
+    // Filtrer par plateforme si necessaire
+    const filteredClientDataMarques = selectedPlatformMarques === 'all' 
+      ? clientData 
+      : clientData.filter(item => item.platform === selectedPlatformMarques);
+
+    // Performance par marque (avec filtre)
     const marquesMap = new Map<string, { ca2024: number; ca2025: number; fournisseurs: Set<string> }>();
-    clientData.forEach(item => {
+    filteredClientDataMarques.forEach(item => {
       if (!marquesMap.has(item.marque)) {
         marquesMap.set(item.marque, { ca2024: 0, ca2025: 0, fournisseurs: new Set() });
       }
@@ -426,7 +436,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       uniqueMarques: marquesMap.size,
       uniqueFamilles: famillesMap.size
     };
-  }, [client, allAdherentData]);
+  }, [client, allAdherentData, selectedPlatformMarques]);
 
   // Détails d'une marque sélectionnée (familles associées pour ce client)
   const marqueDetails = useMemo(() => {
@@ -782,7 +792,22 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
           {/* Marques - Mobile Optimized */}
           {activeTab === 'marques' && (
             <div className="space-y-4 sm:space-y-6">
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6">🏷️ Performance par Marque</h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-800">🏷️ Performance par Marque</h3>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-gray-700">Plateforme:</label>
+                  <select
+                    value={selectedPlatformMarques}
+                    onChange={(e) => setSelectedPlatformMarques(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                    <option value="all">Toutes</option>
+                    <option value="acr">ACR</option>
+                    <option value="dca">DCA</option>
+                    <option value="exadis">EXADIS</option>
+                    <option value="alliance">ALLIANCE</option>
+                  </select>
+                </div>
+              </div>
               
               {/* Mode Carte pour Mobile */}
               <div className="space-y-3 sm:hidden">
@@ -911,22 +936,17 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     />
                   </div>
                   
-                  {/* Filtre par marque */}
+                  {/* Filtre par marque avec autocomplétion */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Marque</label>
-                    <select
+                    <MarqueAutocomplete
                       value={selectedMarque}
-                      onChange={(e) => setSelectedMarque(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Toutes les marques</option>
-                      {(() => {
-                        const marquesUniques = Array.from(new Set(clientData.marquesMultiFournisseurs.map(item => item.marque))).sort();
-                        return marquesUniques.map(marque => (
-                          <option key={marque} value={marque}>{marque}</option>
-                        ));
-                      })()}
-                    </select>
+                      onChange={setSelectedMarque}
+                      onSelect={setSelectedMarque}
+                      adherentData={allAdherentData}
+                      placeholder="Rechercher une marque..."
+                      className="w-full"
+                    />
                   </div>
                 </div>
                 
@@ -944,40 +964,30 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     />
                   </div>
 
-                  {/* Filtre par marque */}
+                  {/* Filtre par marque avec autocomplétion */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Marque</label>
-                    <select
+                    <MarqueAutocomplete
                       value={selectedMarque}
-                      onChange={(e) => setSelectedMarque(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Toutes les marques</option>
-                      {(() => {
-                        const marquesUniques = Array.from(new Set(clientData.marquesMultiFournisseurs.map(item => item.marque))).sort();
-                        return marquesUniques.map(marque => (
-                          <option key={marque} value={marque}>{marque}</option>
-                        ));
-                      })()}
-                    </select>
+                      onChange={setSelectedMarque}
+                      onSelect={setSelectedMarque}
+                      adherentData={allAdherentData}
+                      placeholder="Rechercher une marque..."
+                      className="w-full"
+                    />
                   </div>
 
-                  {/* Filtre par fournisseur */}
+                  {/* Filtre par fournisseur avec autocomplétion */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">🏢 Fournisseur</label>
-                    <select
+                    <FournisseurAutocomplete
                       value={selectedFournisseur}
-                      onChange={(e) => setSelectedFournisseur(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Tous les fournisseurs</option>
-                      {(() => {
-                        const fournisseursUniques = Array.from(new Set(clientData.marquesMultiFournisseurs.map(item => item.fournisseur))).sort();
-                        return fournisseursUniques.map(fournisseur => (
-                          <option key={fournisseur} value={fournisseur}>{fournisseur}</option>
-                        ));
-                      })()}
-                    </select>
+                      onChange={setSelectedFournisseur}
+                      onSelect={setSelectedFournisseur}
+                      adherentData={allAdherentData}
+                      placeholder="Rechercher un fournisseur..."
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Filtre par performance */}
