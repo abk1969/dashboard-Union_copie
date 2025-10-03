@@ -442,7 +442,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const marqueDetails = useMemo(() => {
     if (!selectedMarqueDetails || !client) return null;
     
-    const marqueData = allAdherentData.filter(adherent => 
+    // Appliquer le filtre de plateforme
+    const filteredDataForMarqueDetails = selectedPlatformMarques === 'all' 
+      ? allAdherentData 
+      : allAdherentData.filter(item => item.platform === selectedPlatformMarques);
+    
+    const marqueData = filteredDataForMarqueDetails.filter(adherent => 
       adherent.codeUnion === client.codeUnion && adherent.marque === selectedMarqueDetails
     );
     const famillesMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
@@ -473,7 +478,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         ...data
       })).sort((a, b) => b.ca2025 - a.ca2025)
     };
-  }, [selectedMarqueDetails, client, allAdherentData]);
+  }, [selectedMarqueDetails, client, allAdherentData, selectedPlatformMarques]);
 
   // Détails d'une famille sélectionnée (marques associées pour ce client)
   const familleDetails = useMemo(() => {

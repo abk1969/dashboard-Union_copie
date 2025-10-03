@@ -1431,7 +1431,7 @@ function MainApp() {
       {/* Modal de détails client */}
       <ClientDetailModal
         client={selectedClient}
-        allAdherentData={filteredAdherentData}
+        allAdherentData={assignPlatformToData(allAdherentData)}
         isOpen={showClientModal}
         onClose={() => {
           setShowClientModal(false);
@@ -1457,7 +1457,7 @@ function MainApp() {
       {/* Modal de détails fournisseur */}
       <FournisseurDetailModal
         fournisseur={selectedFournisseur}
-        allAdherentData={filteredAdherentData}
+        allAdherentData={assignPlatformToData(allAdherentData)}
         isOpen={showFournisseurModal}
         onClose={() => {
           setShowFournisseurModal(false);
@@ -1469,7 +1469,7 @@ function MainApp() {
       {/* Modal de détails famille de produits */}
       <FamilleDetailModalLegacy
         famille={selectedFamille}
-        allAdherentData={filteredAdherentData}
+        allAdherentData={assignPlatformToData(allAdherentData)}
         isOpen={showFamilleModal}
         onClose={() => {
           setShowFamilleModal(false);
