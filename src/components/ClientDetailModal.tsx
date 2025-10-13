@@ -80,6 +80,9 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const [caMax, setCaMax] = useState('');
 
   const [selectedPlatformMarques, setSelectedPlatformMarques] = useState<string>('all');
+  
+  // Filtre fournisseur global pour tous les onglets
+  const [globalFournisseurFilter, setGlobalFournisseurFilter] = useState<string>('all');
 
 
   // États pour les documents
@@ -291,7 +294,12 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
   const clientData = useMemo(() => {
     if (!client) return null;
 
-    const clientData = allAdherentData.filter(item => item.codeUnion === client.codeUnion);
+    let clientData = allAdherentData.filter(item => item.codeUnion === client.codeUnion);
+    
+    // Appliquer le filtre fournisseur global si sélectionné
+    if (globalFournisseurFilter !== 'all') {
+      clientData = clientData.filter(item => item.fournisseur === globalFournisseurFilter);
+    }
     
     // Performance par fournisseur
     const fournisseursMap = new Map<string, { ca2024: number; ca2025: number }>();
@@ -362,10 +370,10 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
     // Performance par famille
     const famillesMap = new Map<string, { ca2024: number; ca2025: number }>();
     clientData.forEach(item => {
-      if (!famillesMap.has(item.sousFamille)) {
-        famillesMap.set(item.sousFamille, { ca2024: 0, ca2025: 0 });
+      if (!famillesMap.has(item.famille)) {
+        famillesMap.set(item.famille, { ca2024: 0, ca2025: 0 });
       }
-      const famille = famillesMap.get(item.sousFamille)!;
+      const famille = famillesMap.get(item.famille)!;
       if (item.annee === 2024) famille.ca2024 += item.ca;
       if (item.annee === 2025) famille.ca2025 += item.ca;
     });
@@ -436,16 +444,21 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       uniqueMarques: marquesMap.size,
       uniqueFamilles: famillesMap.size
     };
-  }, [client, allAdherentData, selectedPlatformMarques]);
+  }, [client, allAdherentData, selectedPlatformMarques, globalFournisseurFilter]);
 
   // Détails d'une marque sélectionnée (familles associées pour ce client)
   const marqueDetails = useMemo(() => {
     if (!selectedMarqueDetails || !client) return null;
     
     // Appliquer le filtre de plateforme
-    const filteredDataForMarqueDetails = selectedPlatformMarques === 'all' 
+    let filteredDataForMarqueDetails = selectedPlatformMarques === 'all' 
       ? allAdherentData 
       : allAdherentData.filter(item => item.platform === selectedPlatformMarques);
+    
+    // Appliquer le filtre fournisseur global
+    if (globalFournisseurFilter !== 'all') {
+      filteredDataForMarqueDetails = filteredDataForMarqueDetails.filter(item => item.fournisseur === globalFournisseurFilter);
+    }
     
     const marqueData = filteredDataForMarqueDetails.filter(adherent => 
       adherent.codeUnion === client.codeUnion && adherent.marque === selectedMarqueDetails
@@ -478,15 +491,20 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         ...data
       })).sort((a, b) => b.ca2025 - a.ca2025)
     };
-  }, [selectedMarqueDetails, client, allAdherentData, selectedPlatformMarques]);
+  }, [selectedMarqueDetails, client, allAdherentData, selectedPlatformMarques, globalFournisseurFilter]);
 
   // Détails d'une famille sélectionnée (marques associées pour ce client)
   const familleDetails = useMemo(() => {
     if (!selectedFamilleDetails || !client) return null;
     
-    const familleData = allAdherentData.filter(adherent => 
-      adherent.codeUnion === client.codeUnion && adherent.sousFamille === selectedFamilleDetails
+    let familleData = allAdherentData.filter(adherent => 
+      adherent.codeUnion === client.codeUnion && adherent.famille === selectedFamilleDetails
     );
+    
+    // Appliquer le filtre fournisseur global
+    if (globalFournisseurFilter !== 'all') {
+      familleData = familleData.filter(adherent => adherent.fournisseur === globalFournisseurFilter);
+    }
     const marquesMap = new Map<string, { ca2024: number; ca2025: number; progression: number }>();
     
     familleData.forEach(adherent => {
@@ -515,7 +533,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
         ...data
       })).sort((a, b) => b.ca2025 - a.ca2025)
     };
-  }, [selectedFamilleDetails, client, allAdherentData]);
+  }, [selectedFamilleDetails, client, allAdherentData, globalFournisseurFilter]);
 
   if (!isOpen || !client || !clientData) return null;
 
@@ -630,6 +648,71 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
                     {clientData.totalTransactions}
                   </div>
                   <div className="text-orange-600 font-medium">Transactions</div>
+                </div>
+              </div>
+
+              {/* Filtre fournisseur global */}
+              <div className="bg-white rounded-xl border border-gray-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-800">🔍 Filtre Fournisseur</h3>
+                  <div className="flex items-center gap-2">
+                    {globalFournisseurFilter !== 'all' && (
+                      <>
+                        <span className="text-sm text-gray-500">Filtré par:</span>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                          {globalFournisseurFilter}
+                        </span>
+                        <button
+                          onClick={() => setGlobalFournisseurFilter('all')}
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                          title="Effacer le filtre"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setGlobalFournisseurFilter('all')}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                        globalFournisseurFilter === 'all'
+                          ? 'bg-blue-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Tous
+                    </button>
+                    <div className="w-px h-6 bg-gray-300"></div>
+                    <span className="text-sm text-gray-500">ou sélectionnez:</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1.5">
+                    {clientData && Array.from(new Set(clientData.fournisseursPerformance.map(f => f.fournisseur)))
+                      .sort()
+                      .slice(0, 8) // Limiter à 8 fournisseurs pour éviter l'encombrement
+                      .map(fournisseur => (
+                        <button
+                          key={fournisseur}
+                          onClick={() => setGlobalFournisseurFilter(fournisseur)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            globalFournisseurFilter === fournisseur
+                              ? 'bg-blue-500 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-800'
+                          }`}
+                        >
+                          {fournisseur}
+                        </button>
+                      ))}
+                    {clientData && Array.from(new Set(clientData.fournisseursPerformance.map(f => f.fournisseur))).length > 8 && (
+                      <span className="px-3 py-1.5 text-sm text-gray-400">
+                        +{Array.from(new Set(clientData.fournisseursPerformance.map(f => f.fournisseur))).length - 8} autres
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 

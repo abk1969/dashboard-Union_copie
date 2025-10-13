@@ -79,14 +79,14 @@ export const isTokenExpired = (token: string): boolean => {
 };
 
 export const authenticateUser = (username: string, password: string): UserProfile | null => {
-  const user = SECURITY_CONFIG.USERS.find(u => u.username === username && u.password === password);
+  const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username && u.password === password);
   return user || null;
 };
 
 export const getUserFromToken = (token: string): UserProfile | null => {
   try {
     const username = token.split('-')[2];
-    const user = SECURITY_CONFIG.USERS.find(u => u.username === username);
+    const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username);
     return user || null;
   } catch {
     return null;
