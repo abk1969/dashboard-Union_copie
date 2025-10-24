@@ -16,34 +16,10 @@ export interface UserProfile {
   };
 }
 
+import { USERS_CONFIG } from './security';
+
 export const SECURITY_CONFIG = {
-  USERS: [
-    {
-      username: 'admin',
-      password: 'password123',
-      role: 'admin',
-      displayName: 'Administrateur Union',
-      allowedPlatforms: ['acr', 'dca', 'exadis', 'alliance'],
-      theme: {
-        primaryColor: '#3B82F6',
-        secondaryColor: '#1E40AF',
-        brandName: 'Dashboard Union'
-      }
-    },
-    {
-      username: 'alliance',
-      password: 'alliance2025',
-      role: 'alliance',
-      displayName: 'Utilisateur Alliance',
-      allowedPlatforms: ['alliance'],
-      theme: {
-        primaryColor: '#003f7f',
-        secondaryColor: '#0056b3',
-        logo: '/image/alliance-logo.png.png',
-        brandName: 'Alliance Vision 360°'
-      }
-    }
-  ] as UserProfile[],
+  USERS: USERS_CONFIG,
   SESSION: {
     duration: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     maxLoginAttempts: 5,
