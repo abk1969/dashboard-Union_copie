@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 import { User } from '../types/user';
 import { generateUUIDFromEmail } from '../utils/uuidGenerator';
+import { isTokenExpired, getUserFromToken, UserProfile } from './securityPublic';
 
 export interface LoginResponse {
   success: boolean;
@@ -111,33 +112,48 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
 };
 
 // Fonction pour valider une session
-export const validateSession = async (): Promise<{ user: User | null; error: string | null }> => {
-  try {
-    const sessionToken = localStorage.getItem('sessionToken');
-    
-    if (!sessionToken) {
-      return { user: null, error: 'Aucune session trouvée' };
-    }
 
-    // Mode de débogage : session admin temporaire
-    if (sessionToken === 'admin-temp-token') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
+import { isTokenExpired, getUserFromToken, UserProfile } from './securityPublic';
+
+// ... (gardez le reste du code du fichier)
+
+// Fonction pour valider une session
+export const validateSession = async (): Promise<{ user: User | null; error: string | null }> => {
+  const token = localStorage.getItem('authToken');
+
+  if (!token) {
+    return { user: null, error: 'No token found' };
+  }
+
+  const expired = await isTokenExpired(token);
+  if (expired) {
+    localStorage.removeItem('authToken');
+    return { user: null, error: 'Token expired' };
+  }
+
+  const userProfile = await getUserFromToken(token);
+  if (userProfile) {
+    // Convert UserProfile to User
+    const user: User = {
+        id: userProfile.username, // Ou générer un ID plus robuste
+        email: userProfile.username,
+        nom: userProfile.displayName,
+        prenom: '',
+        roles: [userProfile.role],
+        equipe: '',
         actif: true,
-        avatarUrl: undefined,
+        avatarUrl: userProfile.theme.logo,
         dateCreation: new Date().toISOString(),
         derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
+        plateformesAutorisees: userProfile.allowedPlatforms,
+        regionCommerciale: ''
+    };
+    return { user, error: null };
+  }
 
-      return { user: mockAdmin, error: null };
-    }
+  return { user: null, error: 'Invalid token' };
+};
+
 
     // Pour l'authentification simple, on utilise juste le localStorage
     // En production, on aurait un système de tokens avec expiration côté serveur
@@ -249,3 +265,4 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
     };
   }
 };
+
