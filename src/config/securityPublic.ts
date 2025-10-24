@@ -37,18 +37,31 @@ export const validatePasswordStrength = (password: string): boolean => {
   return password.length >= SECURITY_CONFIG.SECURITY.passwordMinLength;
 };
 
-export const generateSecureToken = (username?: string): string => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2);
-  const user = username || 'user';
-  return `${timestamp}-${random}-${user}`;
+import * as jose from 'jose';
+
+const secret = new TextEncoder().encode(
+  process.env.REACT_APP_JWT_SECRET || 'super-secret-secret-that-is-long-enough',
+);
+
+export const generateSecureToken = async (username: string): Promise<string> => {
+  const alg = 'HS256';
+  const jwt = await new jose.SignJWT({ 'urn:example:claim': true, 'username': username })
+    .setProtectedHeader({ alg })
+    .setIssuedAt()
+    .setIssuer('urn:example:issuer')
+    .setAudience('urn:example:audience')
+    .setExpirationTime('24h')
+    .sign(secret);
+  return jwt;
 };
 
-export const isTokenExpired = (token: string): boolean => {
+export const isTokenExpired = async (token: string): Promise<boolean> => {
   try {
-    const timestamp = parseInt(token.split('-')[0]);
-    const now = Date.now();
-    return (now - timestamp) > SECURITY_CONFIG.SESSION.duration;
+    await jose.jwtVerify(token, secret, {
+      issuer: 'urn:example:issuer',
+      audience: 'urn:example:audience',
+    });
+    return false;
   } catch {
     return true;
   }
@@ -59,9 +72,13 @@ export const authenticateUser = (username: string, password: string): UserProfil
   return user || null;
 };
 
-export const getUserFromToken = (token: string): UserProfile | null => {
+export const getUserFromToken = async (token: string): Promise<UserProfile | null> => {
   try {
-    const username = token.split('-')[2];
+    const { payload } = await jose.jwtVerify(token, secret, {
+      issuer: 'urn:example:issuer',
+      audience: 'urn:example:audience',
+    });
+    const username = payload.username as string;
     const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username);
     return user || null;
   } catch {

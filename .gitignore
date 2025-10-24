@@ -63,6 +63,7 @@ jspm_packages/
 
 # Security files (NE JAMAIS COMMITER)
 src/config/security.ts
+src/config/supabaseEnv.ts
 security.config.js
 auth.config.js
 

@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { AdherentData } from '../types';
 
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseEnv';
+
 // Configuration Supabase
 export const SUPABASE_CONFIG = {
-  url: 'https://ybzajzcwxcgoxtqsimol.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI4ODA4NywiZXhwIjoyMDcxODY0MDg3fQ.t6KhbnUmh5Ix3CWlYM5HxjR58GNxtug-h_GMzE9VIio',
+  url: SUPABASE_URL,
+  anonKey: SUPABASE_ANON_KEY,
 };
 
 // Créer le client Supabase
