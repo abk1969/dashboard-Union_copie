@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import UserPhotoUpload from './UserPhotoUpload';
+import { deleteUser } from '../config/simple-auth';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -8,7 +9,7 @@ interface UserProfileModalProps {
 }
 
 const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, setCurrentUser } = useUser();
+  const { currentUser, setCurrentUser, handleUserDeletion } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     prenom: '',
@@ -37,10 +38,10 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
         ...formData
       };
       setCurrentUser(updatedUser);
-      
+
       // Sauvegarder dans localStorage
       localStorage.setItem('userProfile', JSON.stringify(updatedUser));
-      
+
       setIsEditing(false);
     }
   };
@@ -56,6 +57,19 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
       });
     }
     setIsEditing(false);
+  };
+
+  const handleDelete = async () => {
+    if (currentUser && window.confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
+      const { success, error } = await deleteUser(currentUser.id);
+      if (success) {
+        alert('Compte supprimé avec succès.');
+        handleUserDeletion();
+        onClose();
+      } else {
+        alert(`Erreur lors de la suppression du compte : ${error}`);
+      }
+    }
   };
 
   if (!isOpen || !currentUser) return null;
@@ -100,7 +114,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
                   <p className="text-gray-900 font-medium">{currentUser.prenom}</p>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nom
@@ -166,30 +180,38 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
           </div>
 
           {/* Boutons d'action */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            {isEditing ? (
-              <>
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <button
+              onClick={handleDelete}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+            >
+              Supprimer mon compte
+            </button>
+            <div className="flex space-x-3">
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
+                  >
+                    Sauvegarder
+                  </button>
+                </>
+              ) : (
                 <button
-                  onClick={handleCancel}
-                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleSave}
+                  onClick={() => setIsEditing(true)}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
                 >
-                  Sauvegarder
+                  Modifier le profil
                 </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium"
-              >
-                Modifier le profil
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

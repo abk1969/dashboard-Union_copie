@@ -116,3 +116,26 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
     };
   }
 };
+
+// Fonction pour supprimer un utilisateur (Droit à l'effacement)
+export const deleteUser = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur inattendue lors de la suppression:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};

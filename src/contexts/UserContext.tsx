@@ -12,6 +12,7 @@ interface UserContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
+  handleUserDeletion: () => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -73,6 +74,10 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     setCurrentUser(null);
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser'); // Nettoyer aussi l'ancien currentUser
+  };
+
+  const handleUserDeletion = () => {
+    logout();
   };
 
   // Fonction pour normaliser l'utilisateur avec le service centralisé
@@ -137,7 +142,8 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     isAdmin: currentUser?.roles?.includes('direction_generale') || false,
     login,
     logout,
-    loading
+    loading,
+    handleUserDeletion
   };
 
   return (
