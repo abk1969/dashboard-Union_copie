@@ -10,12 +10,12 @@ export const SUPABASE_CONFIG = {
 };
 
 // Créer le client Supabase
-export const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+export const supabase = createClient(SUPABASE_CONFIG.url!, SUPABASE_CONFIG.anonKey!);
 
 // Headers par défaut pour les requêtes Supabase
-export const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_CONFIG.anonKey,
-  'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`,
+export const getSupabaseHeaders = (): Record<string, string> => ({
+  'apikey': SUPABASE_CONFIG.anonKey || '',
+  'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey || ''}`,
   'Content-Type': 'application/json',
 });
 

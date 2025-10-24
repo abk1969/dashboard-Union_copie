@@ -29,6 +29,11 @@ REACT_APP_GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 VERCEL=1
 ```
 
+### 6. Chiffrement
+```
+REACT_APP_ENCRYPTION_KEY=your_encryption_key_here
+```
+
 ## Comment configurer dans Vercel
 
 1. Allez sur votre projet Vercel

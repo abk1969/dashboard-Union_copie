@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/user';
-import { simpleLogin, validateSession, simpleLogout } from '../config/simple-auth';
+import { validateSession } from '../config/simple-auth';
+import { authenticateUser, generateSecureToken } from '../config/securityPublic';
 import { UserService } from '../services/userService';
 
 interface UserContextType {
@@ -35,40 +36,43 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      
-      const response = await simpleLogin(email, password);
-      
-      if (!response.success) {
-        console.error('Erreur de connexion:', response.message);
-        return false;
-      }
-      
-      if (response.user) {
-        setCurrentUser(response.user);
-        localStorage.setItem('currentUser', JSON.stringify(response.user));
+      const userProfile = authenticateUser(email, password);
+
+      if (userProfile) {
+        const token = await generateSecureToken(userProfile.username);
+        localStorage.setItem('authToken', token);
+        // La session sera validée par validateSession au rechargement
+        // Pour une expérience utilisateur fluide, on peut pré-remplir le contexte
+        const user: User = {
+            id: userProfile.username,
+            email: userProfile.username,
+            nom: userProfile.displayName,
+            prenom: '',
+            roles: [userProfile.role] as any,
+            equipe: '',
+            actif: true,
+            avatarUrl: userProfile.theme.logo,
+            dateCreation: new Date().toISOString(),
+            derniereConnexion: new Date().toISOString(),
+            plateformesAutorisees: userProfile.allowedPlatforms,
+            regionCommerciale: ''
+        };
+        setCurrentUser(user);
         return true;
       }
-      
       return false;
     } catch (error) {
-      console.error('Erreur de connexion:', error);
+      console.error('Login error:', error);
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      await simpleLogout();
-      setCurrentUser(null);
-      localStorage.removeItem('currentUser');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
-      // Déconnecter quand même localement
-      setCurrentUser(null);
-      localStorage.removeItem('currentUser');
-    }
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser'); // Nettoyer aussi l'ancien currentUser
   };
 
   // Fonction pour normaliser l'utilisateur avec le service centralisé

@@ -2,6 +2,10 @@
 // ⚠️ ATTENTION : Ce fichier contient des identifiants de test
 // Pour la production, utilisez des variables d'environnement
 
+import { USERS_CONFIG } from './security';
+import bcrypt from 'bcryptjs';
+import * as jose from 'jose';
+
 export interface UserProfile {
   username: string;
   password: string;
@@ -15,8 +19,6 @@ export interface UserProfile {
     brandName: string;
   };
 }
-
-import { USERS_CONFIG } from './security';
 
 export const SECURITY_CONFIG = {
   USERS: USERS_CONFIG,
@@ -36,8 +38,6 @@ export const SECURITY_CONFIG = {
 export const validatePasswordStrength = (password: string): boolean => {
   return password.length >= SECURITY_CONFIG.SECURITY.passwordMinLength;
 };
-
-import * as jose from 'jose';
 
 const secret = new TextEncoder().encode(
   process.env.REACT_APP_JWT_SECRET || 'super-secret-secret-that-is-long-enough',
@@ -68,8 +68,11 @@ export const isTokenExpired = async (token: string): Promise<boolean> => {
 };
 
 export const authenticateUser = (username: string, password: string): UserProfile | null => {
-  const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username && u.password === password);
-  return user || null;
+  const user = SECURITY_CONFIG.USERS.find(u => u.username === username);
+  if (user && bcrypt.compareSync(password, user.password)) {
+    return user;
+  }
+  return null;
 };
 
 export const getUserFromToken = async (token: string): Promise<UserProfile | null> => {
