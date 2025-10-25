@@ -1,10 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { AdherentData } from '../types';
 
-// Configuration Supabase
+// Configuration Supabase depuis les variables d'environnement
+// Pour Create React App, utiliser process.env.REACT_APP_* au lieu de import.meta.env.VITE_*
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+
+// Fallback vers les valeurs hardcodées si les variables d'environnement ne sont pas définies
 export const SUPABASE_CONFIG = {
-  url: 'https://ybzajzcwxcgoxtqsimol.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI4ODA4NywiZXhwIjoyMDcxODY0MDg3fQ.t6KhbnUmh5Ix3CWlYM5HxjR58GNxtug-h_GMzE9VIio',
+  url: supabaseUrl || 'https://ybzajzcwxcgoxtqsimol.supabase.co',
+  anonKey: supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI4ODA4NywiZXhwIjoyMDcxODY0MDg3fQ.t6KhbnUmh5Ix3CWlYM5HxjR58GNxtug-h_GMzE9VIio',
 };
 
 // Créer le client Supabase
