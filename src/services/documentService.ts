@@ -1,6 +1,6 @@
 import { Document } from '../types';
 import { getSupabaseHeaders, getSupabaseRestUrl } from '../config/supabase';
-import { encrypt, decrypt } from '../utils/encryption';
+import { encrypt, decrypt } from '../utils/cryptoUtils';
 
 interface SupabaseDocument {
   id: number;
@@ -133,6 +133,16 @@ export class DocumentService {
    */
   static async updateDocument(id: number, updates: Partial<Document>): Promise<Document | null> {
     try {
+      const encryptedUpdates: { [key: string]: any } = { ...updates };
+
+      if (updates.nomFichier) {
+        encryptedUpdates.nom_fichier = encrypt(updates.nomFichier);
+        delete encryptedUpdates.nomFichier; // Use the correct column name
+      }
+      if (updates.notes) {
+        encryptedUpdates.notes = encrypt(updates.notes);
+      }
+
       const response = await fetch(
         getSupabaseRestUrl(`documents?id=eq.${id}`),
         {
@@ -141,7 +151,7 @@ export class DocumentService {
             ...getSupabaseHeaders(),
             'Prefer': 'return=representation',
           },
-          body: JSON.stringify(updates),
+          body: JSON.stringify(encryptedUpdates),
         }
       );
 

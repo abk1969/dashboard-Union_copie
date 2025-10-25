@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import UserPhotoUpload from './UserPhotoUpload';
-import { deleteUser } from '../config/simple-auth';
+import { deleteUser, updateUser } from '../config/simple-auth';
+import { encrypt } from '../utils/cryptoUtils';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -31,18 +32,25 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose }) 
     }
   }, [currentUser]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (currentUser) {
-      const updatedUser = {
-        ...currentUser,
-        ...formData
+      const updates = {
+        nom: encrypt(formData.nom),
+        prenom: encrypt(formData.prenom),
+        equipe: formData.equipe,
+        regionCommerciale: formData.regionCommerciale,
       };
-      setCurrentUser(updatedUser);
 
-      // Sauvegarder dans localStorage
-      localStorage.setItem('userProfile', JSON.stringify(updatedUser));
+      const { success, error } = await updateUser(currentUser.id, updates);
 
-      setIsEditing(false);
+      if (success) {
+        // Mettre à jour le contexte avec les données non chiffrées
+        setCurrentUser({ ...currentUser, ...formData });
+        alert('Profil mis à jour avec succès.');
+        setIsEditing(false);
+      } else {
+        alert(`Erreur lors de la mise à jour : ${error}`);
+      }
     }
   };
 

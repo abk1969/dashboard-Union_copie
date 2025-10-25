@@ -1,8 +1,9 @@
 // Système d'authentification simple avec email/mot de passe
 import { supabase } from './supabase';
 import { User } from '../types/user';
-import { isTokenExpired, getUserFromToken } from './securityPublic';
-import { encrypt, decrypt } from '../utils/encryption';
+import { isTokenExpired, getUserFromToken, UserProfile } from './securityPublic';
+import { encrypt, decrypt } from '../utils/cryptoUtils';
+import bcrypt from 'bcryptjs';
 
 export interface LoginResponse {
   success: boolean;
@@ -10,6 +11,50 @@ export interface LoginResponse {
   user?: User;
   sessionToken?: string;
 }
+
+export const loginWithSupabase = async (email: string, password: string): Promise<UserProfile | null> => {
+  try {
+    const encryptedEmail = encrypt(email.toLowerCase().trim());
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', encryptedEmail)
+      .single();
+
+    if (error || !user) {
+      console.error('Error fetching user or user not found:', error);
+      return null;
+    }
+
+    const passwordIsValid = bcrypt.compareSync(password, user.mot_de_passe);
+
+    if (!passwordIsValid) {
+      return null;
+    }
+
+    // This is a temporary solution. We should create a proper UserProfile object from the user data.
+    const userProfile: UserProfile = {
+      username: user.email,
+      password: '', // Do not send password back
+      role: user.roles[0],
+      displayName: user.nom,
+      allowedPlatforms: user.plateformes_autorisees,
+      theme: {
+        primaryColor: '#000000',
+        secondaryColor: '#FFFFFF',
+        logo: user.avatar_url,
+        brandName: 'Union'
+      }
+    };
+
+    return userProfile;
+
+  } catch (error) {
+    console.error('Unexpected error during login:', error);
+    return null;
+  }
+};
 
 
 // Fonction pour valider une session
@@ -78,7 +123,7 @@ export const createUserWithPassword = async (userData: {
         derniere_connexion: new Date().toISOString(),
         plateformes_autorisees: userData.plateformesAutorisees,
         region_commerciale: userData.regionCommerciale,
-        mot_de_passe: userData.motDePasse // En production, hasher le mot de passe !
+        mot_de_passe: userData.motDePasse
       }])
       .select()
       .single();
@@ -96,12 +141,33 @@ export const createUserWithPassword = async (userData: {
   }
 };
 
+// Fonction pour mettre à jour les données d'un utilisateur (Droit de rectification)
+export const updateUser = async (userId: string, userData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update(userData)
+      .eq('id', userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
+
 // Fonction pour mettre à jour le mot de passe d'un utilisateur
 export const updateUserPassword = async (userId: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
   try {
     const { error } = await supabase
       .from('users')
-      .update({ mot_de_passe: newPassword }) // En production, hasher le mot de passe !
+      .update({ mot_de_passe: newPassword })
       .eq('id', userId);
 
     if (error) {

@@ -264,7 +264,7 @@ const TodoListSimple: React.FC<TodoListSimpleProps> = ({ adherentData, autoOpenR
       // Récupérer tous les utilisateurs depuis la base de données
       const { data: allUsers, error } = await supabase
         .from('users')
-        .select('id, prenom, nom, email');
+        .select('*');
       
       if (error) {
         console.error('❌ Erreur lors du chargement des utilisateurs:', error);
