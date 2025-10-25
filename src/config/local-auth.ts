@@ -7,7 +7,7 @@ export interface LocalUser {
   password: string;
   nom: string;
   prenom: string;
-  roles: string[];
+  roles: ('direction_generale' | 'direction_developpement' | 'administratif' | 'communication' | 'commercial' | 'adv')[];
   equipe: string;
   plateformesAutorisees: string[];
   regionCommerciale: string;
@@ -21,7 +21,7 @@ export const LOCAL_USERS: LocalUser[] = [
     password: 'admin',
     nom: 'Admin',
     prenom: 'Administrateur',
-    roles: ['admin'],
+    roles: ['direction_generale', 'administratif'],
     equipe: 'Direction',
     plateformesAutorisees: ['Toutes'],
     regionCommerciale: 'National',
@@ -43,7 +43,7 @@ export const LOCAL_USERS: LocalUser[] = [
     password: 'viewer',
     nom: 'Viewer',
     prenom: 'Lecteur',
-    roles: ['viewer'],
+    roles: ['communication'],
     equipe: 'Consultation',
     plateformesAutorisees: ['Toutes'],
     regionCommerciale: 'National',
