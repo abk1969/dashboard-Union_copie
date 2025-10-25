@@ -13,38 +13,10 @@ export interface LoginResponse {
 // Fonction pour se connecter
 export const simpleLogin = async (email: string, password: string): Promise<LoginResponse> => {
   try {
-    // Mode de débogage : connexion admin temporaire
-    if (email === 'admin@union.com' && password === 'admin') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
-        actif: true,
-        avatarUrl: undefined,
-        dateCreation: new Date().toISOString(),
-        derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
-
-      // Stocker un token temporaire
-      localStorage.setItem('sessionToken', 'admin-temp-token');
-      
-      return {
-        success: true,
-        message: 'Connexion admin temporaire',
-        user: mockAdmin,
-        sessionToken: 'admin-temp-token'
-      };
-    }
-
     // Connexion simple : vérifier directement dans la table users
     // Normaliser l'email en minuscules pour éviter les problèmes de casse
     const normalizedEmail = email.toLowerCase().trim();
-    
+
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -65,7 +37,7 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
       // Créer un token de session simple
       const sessionToken = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('sessionToken', sessionToken);
-      
+
       // Convertir les données Supabase vers notre interface User
       const user: User = {
         id: generateUUIDFromEmail(data.email), // Utiliser l'UUID généré au lieu de l'ID Supabase
@@ -88,7 +60,7 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
         .from('users')
         .update({ derniere_connexion: new Date().toISOString() })
         .eq('id', data.id);
-      
+
       return {
         success: true,
         message: 'Connexion réussie',
@@ -114,35 +86,15 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
 export const validateSession = async (): Promise<{ user: User | null; error: string | null }> => {
   try {
     const sessionToken = localStorage.getItem('sessionToken');
-    
+
     if (!sessionToken) {
       return { user: null, error: 'Aucune session trouvée' };
-    }
-
-    // Mode de débogage : session admin temporaire
-    if (sessionToken === 'admin-temp-token') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
-        actif: true,
-        avatarUrl: undefined,
-        dateCreation: new Date().toISOString(),
-        derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
-
-      return { user: mockAdmin, error: null };
     }
 
     // Pour l'authentification simple, on utilise juste le localStorage
     // En production, on aurait un système de tokens avec expiration côté serveur
     const storedUser = localStorage.getItem('currentUser');
-    
+
     if (storedUser) {
       try {
         const user = JSON.parse(storedUser);
@@ -169,7 +121,7 @@ export const validateSession = async (): Promise<{ user: User | null; error: str
 export const simpleLogout = async (): Promise<void> => {
   try {
     const sessionToken = localStorage.getItem('sessionToken');
-    
+
     if (sessionToken) {
       await supabase.rpc('logout_user', {
         session_token_param: sessionToken
@@ -197,7 +149,7 @@ export const createUserWithPassword = async (userData: {
   try {
     // Normaliser l'email en minuscules pour éviter les problèmes de casse
     const normalizedEmail = userData.email.toLowerCase().trim();
-    
+
     const { data, error } = await supabase
       .from('users')
       .insert([{
@@ -222,9 +174,9 @@ export const createUserWithPassword = async (userData: {
 
     return { success: true, user: data };
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     };
   }
 };
@@ -243,9 +195,9 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 
     return { success: true };
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     };
   }
 };

@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useUser } from '../contexts/UserContext';
 import OnboardingPage from './OnboardingPage';
-import RealLoginPage from './RealLoginPage';
+import { LoginScreen } from './LoginScreen';
+import { UserProfile } from '../config/securityPublic';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   onNavigateToNotes?: () => void;
   onNavigateToReports?: () => void;
   onNavigateToDashboard?: () => void;
+  onLogin: (success: boolean, user?: UserProfile) => void;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   onNavigateToNotes, 
   onNavigateToReports, 
-  onNavigateToDashboard 
+  onNavigateToDashboard,
+  onLogin
 }) => {
   const { currentUser, isAuthenticated, loading, logout } = useUser();
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -92,7 +95,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Si non authentifié, afficher l'écran de connexion
   if (!isAuthenticated) {
-    return <RealLoginPage />;
+    return <LoginScreen onLogin={onLogin} />;
   }
 
   // Si authentifié, vérifier si on doit afficher l'onboarding

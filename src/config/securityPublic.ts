@@ -2,6 +2,8 @@
 // ⚠️ ATTENTION : Ce fichier contient des identifiants de test
 // Pour la production, utilisez des variables d'environnement
 
+import { CREDENTIALS } from './security';
+
 export interface UserProfile {
   username: string;
   password: string;
@@ -17,33 +19,6 @@ export interface UserProfile {
 }
 
 export const SECURITY_CONFIG = {
-  USERS: [
-    {
-      username: 'admin',
-      password: 'password123',
-      role: 'admin',
-      displayName: 'Administrateur Union',
-      allowedPlatforms: ['acr', 'dca', 'exadis', 'alliance'],
-      theme: {
-        primaryColor: '#3B82F6',
-        secondaryColor: '#1E40AF',
-        brandName: 'Dashboard Union'
-      }
-    },
-    {
-      username: 'alliance',
-      password: 'alliance2025',
-      role: 'alliance',
-      displayName: 'Utilisateur Alliance',
-      allowedPlatforms: ['alliance'],
-      theme: {
-        primaryColor: '#003f7f',
-        secondaryColor: '#0056b3',
-        logo: '/image/alliance-logo.png.png',
-        brandName: 'Alliance Vision 360°'
-      }
-    }
-  ] as UserProfile[],
   SESSION: {
     duration: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     maxLoginAttempts: 5,
@@ -79,14 +54,14 @@ export const isTokenExpired = (token: string): boolean => {
 };
 
 export const authenticateUser = (username: string, password: string): UserProfile | null => {
-  const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username && u.password === password);
+  const user = CREDENTIALS.users.find((u: UserProfile) => u.username === username && u.password === password);
   return user || null;
 };
 
 export const getUserFromToken = (token: string): UserProfile | null => {
   try {
     const username = token.split('-')[2];
-    const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username);
+    const user = CREDENTIALS.users.find((u: UserProfile) => u.username === username);
     return user || null;
   } catch {
     return null;

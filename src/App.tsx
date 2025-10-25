@@ -49,6 +49,7 @@ import MobileNavigation from './components/MobileNavigation';
 
 import './styles/animations.css';
 import './styles/colors.css';
+import { UserProfile } from './config/securityPublic';
 
 function MainApp() {
   const { activePlatforms, setActivePlatforms } = usePlatform();
@@ -1558,11 +1559,9 @@ function MainApp() {
   );
 }
 
-// Composant App wrapper avec UserProvider et PlatformProvider
-function App() {
-  // Fonctions de navigation pour l'onboarding
+function AppContent() {
+  const { login } = useUser();
   const handleNavigateToNotes = useCallback(() => {
-    // Ces fonctions seront passées à MainApp via un contexte ou des props
     window.dispatchEvent(new CustomEvent('navigateToNotes'));
   }, []);
 
@@ -1574,7 +1573,12 @@ function App() {
     window.dispatchEvent(new CustomEvent('navigateToDashboard'));
   }, []);
 
-  // Vérifier si nous sommes sur la page de callback Google
+  const handleLogin = (success: boolean, user?: UserProfile) => {
+    if (success && user) {
+      login(user.username, user.password);
+    }
+  };
+
   const isGoogleCallback = window.location.pathname === '/auth/callback';
 
   if (isGoogleCallback) {
@@ -1582,24 +1586,31 @@ function App() {
   }
 
   return (
-    <UserProvider>
-      <NavigationProvider
+    <NavigationProvider
+      onNavigateToNotes={handleNavigateToNotes}
+      onNavigateToReports={handleNavigateToReports}
+      onNavigateToDashboard={handleNavigateToDashboard}
+    >
+      <ProtectedRoute
         onNavigateToNotes={handleNavigateToNotes}
         onNavigateToReports={handleNavigateToReports}
         onNavigateToDashboard={handleNavigateToDashboard}
+        onLogin={handleLogin}
       >
-        <ProtectedRoute 
-          onNavigateToNotes={handleNavigateToNotes}
-          onNavigateToReports={handleNavigateToReports}
-          onNavigateToDashboard={handleNavigateToDashboard}
-        >
-          <PlatformProvider>
-            <RegionProvider>
-              <MainApp />
-            </RegionProvider>
-          </PlatformProvider>
-        </ProtectedRoute>
-      </NavigationProvider>
+        <PlatformProvider>
+          <RegionProvider>
+            <MainApp />
+          </RegionProvider>
+        </PlatformProvider>
+      </ProtectedRoute>
+    </NavigationProvider>
+  );
+}
+
+function App() {
+  return (
+    <UserProvider>
+      <AppContent />
     </UserProvider>
   );
 }
