@@ -30,7 +30,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       
       if (user) {
         // Stocker le token d'authentification sécurisé
-        const authToken = generateSecureToken(user.username);
+        const authToken = await generateSecureToken(user.username);
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('loginTime', Date.now().toString());

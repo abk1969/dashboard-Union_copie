@@ -1,5 +1,6 @@
 import { Document } from '../types';
 import { getSupabaseHeaders, getSupabaseRestUrl } from '../config/supabase';
+import { encrypt, decrypt } from '../utils/cryptoUtils';
 
 interface SupabaseDocument {
   id: number;
@@ -19,10 +20,10 @@ const convertSupabaseDocument = (doc: SupabaseDocument): Document => {
     codeUnion: doc.code_union,
     typeDocument: doc.type_document as any,
     urlDrive: doc.url_drive || '',
-    nomFichier: doc.nom_fichier,
+    nomFichier: decrypt(doc.nom_fichier),
     dateUpload: new Date(doc.date_upload),
     statut: doc.statut as any,
-    notes: doc.notes,
+    notes: doc.notes ? decrypt(doc.notes) : undefined,
     createdAt: new Date(doc.created_at),
   };
 };
@@ -85,10 +86,10 @@ export class DocumentService {
         code_union: document.codeUnion,
         type_document: document.typeDocument,
         url_drive: document.urlDrive,
-        nom_fichier: document.nomFichier,
+        nom_fichier: encrypt(document.nomFichier),
         date_upload: document.dateUpload.toISOString(),
         statut: document.statut,
-        notes: document.notes || '',
+        notes: document.notes ? encrypt(document.notes) : '',
       };
 
       console.log('📤 Tentative d\'insertion dans Supabase:', documentData);
@@ -132,6 +133,16 @@ export class DocumentService {
    */
   static async updateDocument(id: number, updates: Partial<Document>): Promise<Document | null> {
     try {
+      const encryptedUpdates: { [key: string]: any } = { ...updates };
+
+      if (updates.nomFichier) {
+        encryptedUpdates.nom_fichier = encrypt(updates.nomFichier);
+        delete encryptedUpdates.nomFichier; // Use the correct column name
+      }
+      if (updates.notes) {
+        encryptedUpdates.notes = encrypt(updates.notes);
+      }
+
       const response = await fetch(
         getSupabaseRestUrl(`documents?id=eq.${id}`),
         {
@@ -140,7 +151,7 @@ export class DocumentService {
             ...getSupabaseHeaders(),
             'Prefer': 'return=representation',
           },
-          body: JSON.stringify(updates),
+          body: JSON.stringify(encryptedUpdates),
         }
       );
 

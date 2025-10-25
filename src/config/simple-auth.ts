@@ -1,7 +1,9 @@
 // Système d'authentification simple avec email/mot de passe
 import { supabase } from './supabase';
 import { User } from '../types/user';
-import { generateUUIDFromEmail } from '../utils/uuidGenerator';
+import { isTokenExpired, getUserFromToken, UserProfile } from './securityPublic';
+import { encrypt, decrypt } from '../utils/cryptoUtils';
+import bcrypt from 'bcryptjs';
 
 export interface LoginResponse {
   success: boolean;
@@ -10,178 +12,88 @@ export interface LoginResponse {
   sessionToken?: string;
 }
 
-// Fonction pour se connecter
-export const simpleLogin = async (email: string, password: string): Promise<LoginResponse> => {
+export const loginWithSupabase = async (email: string, password: string): Promise<UserProfile | null> => {
   try {
-    // Mode de débogage : connexion admin temporaire
-    if (email === 'admin@union.com' && password === 'admin') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
-        actif: true,
-        avatarUrl: undefined,
-        dateCreation: new Date().toISOString(),
-        derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
+    const encryptedEmail = encrypt(email.toLowerCase().trim());
 
-      // Stocker un token temporaire
-      localStorage.setItem('sessionToken', 'admin-temp-token');
-      
-      return {
-        success: true,
-        message: 'Connexion admin temporaire',
-        user: mockAdmin,
-        sessionToken: 'admin-temp-token'
-      };
-    }
-
-    // Connexion simple : vérifier directement dans la table users
-    // Normaliser l'email en minuscules pour éviter les problèmes de casse
-    const normalizedEmail = email.toLowerCase().trim();
-    
-    const { data, error } = await supabase
+    const { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('email', normalizedEmail)
-      .eq('mot_de_passe', password)
-      .eq('actif', true)
+      .eq('email', encryptedEmail)
       .single();
 
-    if (error) {
-      console.error('Erreur lors de la connexion:', error);
-      return {
-        success: false,
-        message: 'Email ou mot de passe incorrect'
-      };
+    if (error || !user) {
+      console.error('Error fetching user or user not found:', error);
+      return null;
     }
 
-    if (data) {
-      // Créer un token de session simple
-      const sessionToken = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('sessionToken', sessionToken);
-      
-      // Convertir les données Supabase vers notre interface User
-      const user: User = {
-        id: generateUUIDFromEmail(data.email), // Utiliser l'UUID généré au lieu de l'ID Supabase
-        email: data.email,
-        nom: data.nom,
-        prenom: data.prenom,
-        roles: data.roles || [],
-        equipe: data.equipe || '',
-        actif: data.actif,
-        avatarUrl: data.avatar_url,
-        dateCreation: data.date_creation,
-        derniereConnexion: data.derniere_connexion,
-        plateformesAutorisees: data.plateformes_autorisees || [],
-        regionCommerciale: data.region_commerciale || '',
-        isGoogleAuthenticated: false // Marquer comme non-Google pour éviter la confusion
-      };
+    const passwordIsValid = bcrypt.compareSync(password, user.mot_de_passe);
 
-      // Mettre à jour la dernière connexion
-      await supabase
-        .from('users')
-        .update({ derniere_connexion: new Date().toISOString() })
-        .eq('id', data.id);
-      
-      return {
-        success: true,
-        message: 'Connexion réussie',
-        user: user,
-        sessionToken: sessionToken
-      };
+    if (!passwordIsValid) {
+      return null;
     }
 
-    return {
-      success: false,
-      message: 'Erreur de connexion'
+    // This is a temporary solution. We should create a proper UserProfile object from the user data.
+    const userProfile: UserProfile = {
+      username: user.email,
+      password: '', // Do not send password back
+      role: user.roles[0],
+      displayName: user.nom,
+      allowedPlatforms: user.plateformes_autorisees,
+      theme: {
+        primaryColor: '#000000',
+        secondaryColor: '#FFFFFF',
+        logo: user.avatar_url,
+        brandName: 'Union'
+      }
     };
+
+    return userProfile;
+
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return {
-      success: false,
-      message: 'Erreur de connexion'
-    };
+    console.error('Unexpected error during login:', error);
+    return null;
   }
 };
+
 
 // Fonction pour valider une session
 export const validateSession = async (): Promise<{ user: User | null; error: string | null }> => {
-  try {
-    const sessionToken = localStorage.getItem('sessionToken');
-    
-    if (!sessionToken) {
-      return { user: null, error: 'Aucune session trouvée' };
-    }
+  const token = localStorage.getItem('authToken');
 
-    // Mode de débogage : session admin temporaire
-    if (sessionToken === 'admin-temp-token') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
+  if (!token) {
+    return { user: null, error: 'No token found' };
+  }
+
+  const expired = await isTokenExpired(token);
+  if (expired) {
+    localStorage.removeItem('authToken');
+    return { user: null, error: 'Token expired' };
+  }
+
+  const userProfile = await getUserFromToken(token);
+  if (userProfile) {
+    // Convert UserProfile to User
+    const user: User = {
+        id: userProfile.username, // Or generate a more robust ID
+        email: decrypt(userProfile.username),
+        nom: decrypt(userProfile.displayName),
+        prenom: '', // This field is empty, but we'll decrypt it for consistency if it's used in the future
+        roles: [userProfile.role] as any,
+        equipe: '',
         actif: true,
-        avatarUrl: undefined,
+        avatarUrl: userProfile.theme.logo,
         dateCreation: new Date().toISOString(),
         derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
-
-      return { user: mockAdmin, error: null };
-    }
-
-    // Pour l'authentification simple, on utilise juste le localStorage
-    // En production, on aurait un système de tokens avec expiration côté serveur
-    const storedUser = localStorage.getItem('currentUser');
-    
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        return { user, error: null };
-      } catch (error) {
-        console.error('Erreur lors du parsing des données utilisateur:', error);
-        localStorage.removeItem('sessionToken');
-        localStorage.removeItem('currentUser');
-        return { user: null, error: 'Données utilisateur corrompues' };
-      }
-    }
-
-    // Pas de session valide
-    localStorage.removeItem('sessionToken');
-    return { user: null, error: 'Session expirée' };
-  } catch (error) {
-    console.error('Erreur lors de la validation de session:', error);
-    localStorage.removeItem('sessionToken');
-    return { user: null, error: 'Erreur de validation' };
+        plateformesAutorisees: userProfile.allowedPlatforms,
+        regionCommerciale: ''
+    };
+    return { user, error: null };
   }
+
+  return { user: null, error: 'Invalid token' };
 };
 
-// Fonction pour se déconnecter
-export const simpleLogout = async (): Promise<void> => {
-  try {
-    const sessionToken = localStorage.getItem('sessionToken');
-    
-    if (sessionToken) {
-      await supabase.rpc('logout_user', {
-        session_token_param: sessionToken
-      });
-    }
-  } catch (error) {
-    console.error('Erreur lors de la déconnexion:', error);
-  } finally {
-    // Toujours nettoyer localement
-    localStorage.removeItem('sessionToken');
-  }
-};
 
 // Fonction pour créer un utilisateur avec mot de passe (pour les admins)
 export const createUserWithPassword = async (userData: {
@@ -197,13 +109,13 @@ export const createUserWithPassword = async (userData: {
   try {
     // Normaliser l'email en minuscules pour éviter les problèmes de casse
     const normalizedEmail = userData.email.toLowerCase().trim();
-    
+
     const { data, error } = await supabase
       .from('users')
       .insert([{
-        email: normalizedEmail,
-        nom: userData.nom,
-        prenom: userData.prenom,
+        email: encrypt(normalizedEmail),
+        nom: encrypt(userData.nom),
+        prenom: encrypt(userData.prenom),
         roles: userData.roles,
         equipe: userData.equipe,
         actif: true,
@@ -211,7 +123,7 @@ export const createUserWithPassword = async (userData: {
         derniere_connexion: new Date().toISOString(),
         plateformes_autorisees: userData.plateformesAutorisees,
         region_commerciale: userData.regionCommerciale,
-        mot_de_passe: userData.motDePasse // En production, hasher le mot de passe !
+        mot_de_passe: userData.motDePasse
       }])
       .select()
       .single();
@@ -222,9 +134,30 @@ export const createUserWithPassword = async (userData: {
 
     return { success: true, user: data };
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
+
+// Fonction pour mettre à jour les données d'un utilisateur (Droit de rectification)
+export const updateUser = async (userId: string, userData: Partial<User>): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update(userData)
+      .eq('id', userId);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     };
   }
 };
@@ -234,7 +167,7 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
   try {
     const { error } = await supabase
       .from('users')
-      .update({ mot_de_passe: newPassword }) // En production, hasher le mot de passe !
+      .update({ mot_de_passe: newPassword })
       .eq('id', userId);
 
     if (error) {
@@ -243,9 +176,32 @@ export const updateUserPassword = async (userId: string, newPassword: string): P
 
     return { success: true };
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur inconnue' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
+
+// Fonction pour supprimer un utilisateur (Droit à l'effacement)
+export const deleteUser = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erreur inattendue lors de la suppression:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     };
   }
 };

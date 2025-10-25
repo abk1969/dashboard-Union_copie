@@ -2,6 +2,10 @@
 // ⚠️ ATTENTION : Ce fichier contient des identifiants de test
 // Pour la production, utilisez des variables d'environnement
 
+import { USERS_CONFIG } from './security';
+import bcrypt from 'bcryptjs';
+import * as jose from 'jose';
+
 export interface UserProfile {
   username: string;
   password: string;
@@ -17,33 +21,7 @@ export interface UserProfile {
 }
 
 export const SECURITY_CONFIG = {
-  USERS: [
-    {
-      username: 'admin',
-      password: 'password123',
-      role: 'admin',
-      displayName: 'Administrateur Union',
-      allowedPlatforms: ['acr', 'dca', 'exadis', 'alliance'],
-      theme: {
-        primaryColor: '#3B82F6',
-        secondaryColor: '#1E40AF',
-        brandName: 'Dashboard Union'
-      }
-    },
-    {
-      username: 'alliance',
-      password: 'alliance2025',
-      role: 'alliance',
-      displayName: 'Utilisateur Alliance',
-      allowedPlatforms: ['alliance'],
-      theme: {
-        primaryColor: '#003f7f',
-        secondaryColor: '#0056b3',
-        logo: '/image/alliance-logo.png.png',
-        brandName: 'Alliance Vision 360°'
-      }
-    }
-  ] as UserProfile[],
+  USERS: USERS_CONFIG,
   SESSION: {
     duration: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
     maxLoginAttempts: 5,
@@ -61,31 +39,49 @@ export const validatePasswordStrength = (password: string): boolean => {
   return password.length >= SECURITY_CONFIG.SECURITY.passwordMinLength;
 };
 
-export const generateSecureToken = (username?: string): string => {
-  const timestamp = Date.now();
-  const random = Math.random().toString(36).substring(2);
-  const user = username || 'user';
-  return `${timestamp}-${random}-${user}`;
+const secret = new TextEncoder().encode(
+  process.env.REACT_APP_JWT_SECRET || 'super-secret-secret-that-is-long-enough',
+);
+
+export const generateSecureToken = async (username: string): Promise<string> => {
+  const alg = 'HS256';
+  const jwt = await new jose.SignJWT({ 'urn:example:claim': true, 'username': username })
+    .setProtectedHeader({ alg })
+    .setIssuedAt()
+    .setIssuer('urn:example:issuer')
+    .setAudience('urn:example:audience')
+    .setExpirationTime('24h')
+    .sign(secret);
+  return jwt;
 };
 
-export const isTokenExpired = (token: string): boolean => {
+export const isTokenExpired = async (token: string): Promise<boolean> => {
   try {
-    const timestamp = parseInt(token.split('-')[0]);
-    const now = Date.now();
-    return (now - timestamp) > SECURITY_CONFIG.SESSION.duration;
+    await jose.jwtVerify(token, secret, {
+      issuer: 'urn:example:issuer',
+      audience: 'urn:example:audience',
+    });
+    return false;
   } catch {
     return true;
   }
 };
 
 export const authenticateUser = (username: string, password: string): UserProfile | null => {
-  const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username && u.password === password);
-  return user || null;
+  const user = SECURITY_CONFIG.USERS.find(u => u.username === username);
+  if (user && bcrypt.compareSync(password, user.password)) {
+    return user;
+  }
+  return null;
 };
 
-export const getUserFromToken = (token: string): UserProfile | null => {
+export const getUserFromToken = async (token: string): Promise<UserProfile | null> => {
   try {
-    const username = token.split('-')[2];
+    const { payload } = await jose.jwtVerify(token, secret, {
+      issuer: 'urn:example:issuer',
+      audience: 'urn:example:audience',
+    });
+    const username = payload.username as string;
     const user = SECURITY_CONFIG.USERS.find((u: UserProfile) => u.username === username);
     return user || null;
   } catch {

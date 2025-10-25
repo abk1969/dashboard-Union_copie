@@ -1,19 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { AdherentData } from '../types';
 
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseEnv';
+
 // Configuration Supabase
 export const SUPABASE_CONFIG = {
-  url: 'https://ybzajzcwxcgoxtqsimol.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliemFqemN3eGNnb3h0cXNpbW9sIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjI4ODA4NywiZXhwIjoyMDcxODY0MDg3fQ.t6KhbnUmh5Ix3CWlYM5HxjR58GNxtug-h_GMzE9VIio',
+  url: SUPABASE_URL,
+  anonKey: SUPABASE_ANON_KEY,
 };
 
 // Créer le client Supabase
-export const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+export const supabase = createClient(SUPABASE_CONFIG.url!, SUPABASE_CONFIG.anonKey!);
 
 // Headers par défaut pour les requêtes Supabase
-export const getSupabaseHeaders = () => ({
-  'apikey': SUPABASE_CONFIG.anonKey,
-  'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`,
+export const getSupabaseHeaders = (): Record<string, string> => ({
+  'apikey': SUPABASE_CONFIG.anonKey || '',
+  'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey || ''}`,
   'Content-Type': 'application/json',
 });
 
