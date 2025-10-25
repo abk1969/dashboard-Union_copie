@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 import { User } from '../types/user';
 import { generateUUIDFromEmail } from '../utils/uuidGenerator';
+import { authenticateLocalUser, shouldUseLocalAuth } from './local-auth';
 
 export interface LoginResponse {
   success: boolean;
@@ -13,38 +14,34 @@ export interface LoginResponse {
 // Fonction pour se connecter
 export const simpleLogin = async (email: string, password: string): Promise<LoginResponse> => {
   try {
-    // Mode de débogage : connexion admin temporaire
-    if (email === 'admin@union.com' && password === 'admin') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
-        actif: true,
-        avatarUrl: undefined,
-        dateCreation: new Date().toISOString(),
-        derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
+    // Vérifier si on doit utiliser l'authentification locale
+    if (shouldUseLocalAuth()) {
+      console.log('🔐 Utilisation de l\'authentification locale');
+      const localUser = authenticateLocalUser(email, password);
 
-      // Stocker un token temporaire
-      localStorage.setItem('sessionToken', 'admin-temp-token');
-      
-      return {
-        success: true,
-        message: 'Connexion admin temporaire',
-        user: mockAdmin,
-        sessionToken: 'admin-temp-token'
-      };
+      if (localUser) {
+        // Créer un token de session simple
+        const sessionToken = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('sessionToken', sessionToken);
+
+        return {
+          success: true,
+          message: 'Connexion réussie (mode local)',
+          user: localUser,
+          sessionToken: sessionToken
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Email ou mot de passe incorrect'
+        };
+      }
     }
 
-    // Connexion simple : vérifier directement dans la table users
-    // Normaliser l'email en minuscules pour éviter les problèmes de casse
+    // Connexion avec Supabase (si disponible)
+    console.log('🔐 Tentative de connexion avec Supabase');
     const normalizedEmail = email.toLowerCase().trim();
-    
+
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -54,7 +51,22 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
       .single();
 
     if (error) {
-      console.error('Erreur lors de la connexion:', error);
+      console.error('Erreur Supabase, basculement vers authentification locale:', error);
+      // Fallback vers authentification locale en cas d'erreur Supabase
+      const localUser = authenticateLocalUser(email, password);
+
+      if (localUser) {
+        const sessionToken = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('sessionToken', sessionToken);
+
+        return {
+          success: true,
+          message: 'Connexion réussie (mode local - fallback)',
+          user: localUser,
+          sessionToken: sessionToken
+        };
+      }
+
       return {
         success: false,
         message: 'Email ou mot de passe incorrect'
@@ -65,10 +77,10 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
       // Créer un token de session simple
       const sessionToken = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       localStorage.setItem('sessionToken', sessionToken);
-      
+
       // Convertir les données Supabase vers notre interface User
       const user: User = {
-        id: generateUUIDFromEmail(data.email), // Utiliser l'UUID généré au lieu de l'ID Supabase
+        id: generateUUIDFromEmail(data.email),
         email: data.email,
         nom: data.nom,
         prenom: data.prenom,
@@ -80,15 +92,19 @@ export const simpleLogin = async (email: string, password: string): Promise<Logi
         derniereConnexion: data.derniere_connexion,
         plateformesAutorisees: data.plateformes_autorisees || [],
         regionCommerciale: data.region_commerciale || '',
-        isGoogleAuthenticated: false // Marquer comme non-Google pour éviter la confusion
+        isGoogleAuthenticated: false
       };
 
-      // Mettre à jour la dernière connexion
-      await supabase
-        .from('users')
-        .update({ derniere_connexion: new Date().toISOString() })
-        .eq('id', data.id);
-      
+      // Mettre à jour la dernière connexion (sans bloquer si erreur)
+      try {
+        await supabase
+          .from('users')
+          .update({ derniere_connexion: new Date().toISOString() })
+          .eq('id', data.id);
+      } catch (updateError) {
+        console.warn('Impossible de mettre à jour la dernière connexion:', updateError);
+      }
+
       return {
         success: true,
         message: 'Connexion réussie',
@@ -117,26 +133,6 @@ export const validateSession = async (): Promise<{ user: User | null; error: str
     
     if (!sessionToken) {
       return { user: null, error: 'Aucune session trouvée' };
-    }
-
-    // Mode de débogage : session admin temporaire
-    if (sessionToken === 'admin-temp-token') {
-      const mockAdmin: User = {
-        id: 'admin-temp',
-        email: 'admin@union.com',
-        nom: 'Admin',
-        prenom: 'Super',
-        roles: ['direction_generale'],
-        equipe: 'Direction',
-        actif: true,
-        avatarUrl: undefined,
-        dateCreation: new Date().toISOString(),
-        derniereConnexion: new Date().toISOString(),
-        plateformesAutorisees: ['Toutes'],
-        regionCommerciale: 'Paris'
-      };
-
-      return { user: mockAdmin, error: null };
     }
 
     // Pour l'authentification simple, on utilise juste le localStorage
